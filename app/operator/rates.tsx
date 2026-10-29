@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
+import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso, fromDatetimeLocalValue } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
-
-const SESSION_ROAD = '30000000-0000-0000-0000-000000000002';
 const RATE_TYPES = ['hourly', 'daily', 'flat_then_hourly', 'monthly'] as const;
 type RateType = (typeof RATE_TYPES)[number];
 
@@ -25,6 +26,9 @@ function rateSummary(rate: any): string {
 }
 
 export default function RatesScreen() {
+  const locationId = firstParam(
+    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
+  );
   const [areas, setAreas] = React.useState<any[]>([]);
   const [rates, setRates] = React.useState<any[]>([]);
   const [areaName, setAreaName] = React.useState('');
@@ -44,19 +48,27 @@ export default function RatesScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [locationName, setLocationName] = React.useState('Listing');
 
   const load = React.useCallback(async () => {
     setError(null);
+    if (!locationId) {
+      setError('Pick a listing from My listings');
+      setLoading(false);
+      return;
+    }
     try {
-      const [{ data: areaRows, error: areaErr }, { data: rateRows, error: rateErr }] =
+      const [{ data: areaRows, error: areaErr }, { data: rateRows, error: rateErr }, loc] =
         await Promise.all([
-          supabase.from('areas').select('*').eq('location_id', SESSION_ROAD).order('sort_order'),
+          supabase.from('areas').select('*').eq('location_id', locationId).order('sort_order'),
           supabase
             .from('rates')
             .select('*')
-            .eq('location_id', SESSION_ROAD)
+            .eq('location_id', locationId)
             .order('is_default', { ascending: false }),
+          supabase.from('locations').select('name').eq('id', locationId).single(),
         ]);
+      if (loc.data?.name) setLocationName(loc.data.name);
       if (areaErr) throw areaErr;
       if (rateErr) throw rateErr;
       setAreas(areaRows || []);
@@ -66,7 +78,7 @@ export default function RatesScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locationId]);
 
   React.useEffect(() => {
     load();
@@ -74,7 +86,7 @@ export default function RatesScreen() {
 
   const refreshQuote = async () => {
     const { data, error: qErr } = await supabase.rpc('quote_price', {
-      p_location_id: SESSION_ROAD,
+      p_location_id: locationId,
       p_vehicle_type: 'car',
       p_start_at: new Date().toISOString(),
       p_hours: Number(hours) || 1,
@@ -94,7 +106,7 @@ export default function RatesScreen() {
   const addArea = async () => {
     if (!areaName.trim()) return;
     const { data, error: rpcError } = await supabase.rpc('upsert_area', {
-      p_location_id: SESSION_ROAD,
+      p_location_id: locationId,
       p_name: areaName.trim(),
     });
     if (rpcError || data?.error) {
@@ -118,7 +130,7 @@ export default function RatesScreen() {
   const saveRate = async () => {
     setError(null);
     const payload: Record<string, any> = {
-      p_location_id: SESSION_ROAD,
+      p_location_id: locationId,
       p_name: name.trim(),
       p_rate_type: rateType,
       p_rate_id: editingId,
@@ -172,6 +184,7 @@ export default function RatesScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="rates-loading">
+        <WorkspaceNav listingId={locationId} />
         <Text>Loading...</Text>
       </View>
     );
@@ -179,8 +192,9 @@ export default function RatesScreen() {
 
   return (
     <ScrollView style={styles.container} testID="rates-ready">
+      <WorkspaceNav listingId={locationId} />
       <Text style={styles.title}>Areas and rates</Text>
-      <Text style={styles.subtitle}>Session Road Park n Ride</Text>
+      <Text style={styles.subtitle}>{locationName}</Text>
 
       <View style={styles.preview} testID="quote-preview">
         <Text style={styles.heading}>Price preview</Text>

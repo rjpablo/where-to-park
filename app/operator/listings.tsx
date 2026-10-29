@@ -1,0 +1,165 @@
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
+import { useAuthStore } from '../../src/stores/authStore';
+import {
+  availabilityLabel,
+  loadManagedLocations,
+  type ManagedLocation,
+} from '../../src/lib/operatorAccess';
+import { theme } from '../../src/lib/theme';
+
+export default function ListingsDashboardScreen() {
+  const router = useRouter();
+  const { user, initialize } = useAuthStore();
+  const [locations, setLocations] = React.useState<ManagedLocation[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  const load = React.useCallback(async () => {
+    if (!user) {
+      setLocations([]);
+      setLoading(false);
+      return;
+    }
+    setError(null);
+    try {
+      setLocations(await loadManagedLocations(user.id));
+    } catch (err: any) {
+      setError(err.message || 'Could not load listings');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  if (!user) {
+    return (
+      <View style={styles.container} testID="listings-guest">
+        <WorkspaceNav />
+        <View style={styles.header}>
+          <Text style={styles.title}>My listings</Text>
+          <Text style={styles.meta}>Sign in to manage your parking spaces.</Text>
+          <Button title="Sign in" onPress={() => router.push('/auth')} />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container} testID="listings-ready">
+      <WorkspaceNav />
+      <View style={styles.header}>
+        <Text style={styles.title}>My listings</Text>
+        <Text style={styles.meta}>
+          Spaces you own or staff
+          {user.display_name ? ` · ${user.display_name}` : ''}
+        </Text>
+        <Button
+          title="+ Add a listing"
+          onPress={() => router.push('/operator/onboarding')}
+          testID="listings-add"
+        />
+      </View>
+
+      {loading ? <Text style={[styles.meta, styles.padded]}>Loading...</Text> : null}
+      {error ? (
+        <Text style={styles.error} testID="listings-error">
+          {error}
+        </Text>
+      ) : null}
+
+      {locations.map((loc) => (
+        <TouchableOpacity
+          key={loc.id}
+          style={styles.card}
+          onPress={() => router.push({ pathname: '/operator/hub/[id]', params: { id: loc.id } })}
+          testID={`listing-card-${loc.id}`}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>{loc.name}</Text>
+            <View
+              style={[
+                styles.badge,
+                loc.verification_status === 'verified' ? styles.badgeVerified : styles.badgePending,
+              ]}
+            >
+              <Text style={styles.badgeText}>
+                {loc.verification_status === 'verified' ? 'Verified' : 'Unverified'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.meta}>
+            {loc.published ? 'Published' : 'Hidden'} · {availabilityLabel(loc)}
+          </Text>
+          <Text style={styles.role}>{loc.role === 'staff' ? 'Staff' : 'Owner/manager'}</Text>
+        </TouchableOpacity>
+      ))}
+
+      {!loading && locations.length === 0 ? (
+        <Text style={[styles.meta, styles.padded]} testID="listings-empty">
+          No listings yet. Add a parking space to get started.
+        </Text>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  header: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  padded: { paddingHorizontal: theme.spacing.lg },
+  title: { ...theme.typography.h2 },
+  meta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  role: {
+    ...theme.typography.caption,
+    color: theme.colors.text.tertiary,
+    marginTop: theme.spacing.xs,
+  },
+  card: {
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  cardTitle: { ...theme.typography.body, fontWeight: '700', flex: 1 },
+  badge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
+  },
+  badgeVerified: { backgroundColor: theme.colors.verified },
+  badgePending: { backgroundColor: theme.colors.unverified },
+  badgeText: { ...theme.typography.caption, color: '#fff', fontWeight: '700' },
+  error: {
+    ...theme.typography.body,
+    color: theme.colors.danger,
+    paddingHorizontal: theme.spacing.lg,
+  },
+});

@@ -9,6 +9,7 @@ import { formatPeso, formatDistance, formatDuration } from '../utils/formatters'
 import { theme } from '../lib/theme';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
+import { loadMyMemberships } from '../lib/operatorAccess';
 
 export function SearchScreen() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export function SearchScreen() {
   const [location] = useState({ lat: 16.4023, lng: 120.596 }); // Baguio City center
   const authUser = useAuthStore((s) => s.user);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
+  const [hasWorkspace, setHasWorkspace] = useState(false);
 
   const region: MapRegion = useMemo(
     () => ({
@@ -71,6 +73,25 @@ export function SearchScreen() {
   const handlePinPress = (locationId: string) => {
     router.push(`/location/${locationId}`);
   };
+
+  useEffect(() => {
+    if (!authUser) {
+      setHasWorkspace(false);
+      return;
+    }
+    if (authUser.is_admin || authUser.account_type === 'operator') {
+      setHasWorkspace(true);
+    }
+    loadMyMemberships(authUser.id)
+      .then((rows) => {
+        setHasWorkspace(
+          !!authUser.is_admin || authUser.account_type === 'operator' || rows.length > 0
+        );
+      })
+      .catch(() => {
+        setHasWorkspace(!!authUser.is_admin || authUser.account_type === 'operator');
+      });
+  }, [authUser]);
 
   useEffect(() => {
     (async () => {
@@ -182,12 +203,22 @@ export function SearchScreen() {
         <View style={styles.sheetHeader}>
           <View style={styles.sheetTitleRow}>
             <Text style={styles.sheetTitle}>Parking Locations</Text>
-            <TouchableOpacity
-              onPress={() => router.push(authUser ? '/profile' : '/auth')}
-              testID="search-auth-link"
-            >
-              <Text style={styles.authLink}>{authUser ? 'Profile' : 'Sign in'}</Text>
-            </TouchableOpacity>
+            <View style={styles.headerLinks}>
+              {hasWorkspace ? (
+                <TouchableOpacity
+                  onPress={() => router.push('/operator/listings')}
+                  testID="search-listings-link"
+                >
+                  <Text style={styles.authLink}>My listings</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                onPress={() => router.push(authUser ? '/profile' : '/auth')}
+                testID="search-auth-link"
+              >
+                <Text style={styles.authLink}>{authUser ? 'Profile' : 'Sign in'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.filterRow}>
@@ -305,6 +336,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     ...theme.typography.h3,
   },
+  headerLinks: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
   authLink: {
     ...theme.typography.bodySmall,
     color: theme.colors.primary,

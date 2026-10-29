@@ -5,6 +5,11 @@ import { registerPushToken } from '../src/lib/push';
 
 export default function RootLayout() {
   const user = useAuthStore((s) => s.user);
+  const initialize = useAuthStore((s) => s.initialize);
+
+  React.useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   React.useEffect(() => {
     if (user) registerPushToken();
@@ -20,6 +25,8 @@ export default function RootLayout() {
       <Stack.Screen name="chat/[locationId]" options={{ title: 'Messages' }} />
       <Stack.Screen name="search" options={{ title: 'Find Parking' }} />
       <Stack.Screen name="location/[id]" options={{ title: 'Location Details' }} />
+      <Stack.Screen name="operator/listings" options={{ title: 'My listings' }} />
+      <Stack.Screen name="operator/hub/[id]" options={{ title: 'Listing' }} />
       <Stack.Screen name="operator/onboarding" options={{ title: 'List Your Space' }} />
       <Stack.Screen name="operator/edit/[id]" options={{ title: 'Edit Location' }} />
       <Stack.Screen name="operator/rates" options={{ title: 'Areas and Rates' }} />

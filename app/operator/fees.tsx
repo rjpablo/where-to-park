@@ -1,14 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
+import { firstParam } from '../../src/lib/params';
 import { formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
-const OPERATOR_ID = '10000000-0000-0000-0000-000000000002';
-const SESSION_ROAD = '30000000-0000-0000-0000-000000000002';
-
 export default function FeePresetsScreen() {
+  const params = useLocalSearchParams<{
+    locationId?: string | string[];
+    operatorId?: string | string[];
+  }>();
+  const locationId = firstParam(params.locationId);
+  const [operatorId, setOperatorId] = React.useState(firstParam(params.operatorId) || '');
   const [presets, setPresets] = React.useState<any[]>([]);
   const [sessions, setSessions] = React.useState<any[]>([]);
   const [name, setName] = React.useState('Overnight parking');
@@ -17,17 +23,41 @@ export default function FeePresetsScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [locationName, setLocationName] = React.useState('Listing');
 
   const load = React.useCallback(async () => {
     setError(null);
+    if (!locationId) {
+      setError('Pick a listing from My listings');
+      setLoading(false);
+      return;
+    }
     try {
+      let opId = operatorId;
+      if (!opId) {
+        const { data: loc } = await supabase
+          .from('locations')
+          .select('operator_id, name')
+          .eq('id', locationId)
+          .single();
+        opId = loc?.operator_id || '';
+        if (loc?.name) setLocationName(loc.name);
+        setOperatorId(opId);
+      } else {
+        const { data: loc } = await supabase
+          .from('locations')
+          .select('name')
+          .eq('id', locationId)
+          .single();
+        if (loc?.name) setLocationName(loc.name);
+      }
       const [{ data: presetRows, error: pErr }, { data: sessionRows, error: sErr }] =
         await Promise.all([
-          supabase.from('fee_presets').select('*').eq('operator_id', OPERATOR_ID).order('name'),
+          supabase.from('fee_presets').select('*').eq('operator_id', opId).order('name'),
           supabase
             .from('parking_sessions')
             .select('id, plate, status, folios(id, folio_charges(amount, type, description))')
-            .eq('location_id', SESSION_ROAD)
+            .eq('location_id', locationId)
             .in('status', ['active', 'overdue']),
         ]);
       if (pErr) throw pErr;
@@ -39,7 +69,7 @@ export default function FeePresetsScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locationId, operatorId]);
 
   React.useEffect(() => {
     load();
@@ -48,11 +78,11 @@ export default function FeePresetsScreen() {
   const save = async () => {
     setError(null);
     const { data, error: rpcError } = await supabase.rpc('upsert_fee_preset', {
-      p_operator_id: OPERATOR_ID,
+      p_operator_id: operatorId,
       p_name: name.trim(),
       p_amount: Number(amount),
       p_preset_id: editingId,
-      p_location_id: SESSION_ROAD,
+      p_location_id: locationId,
     });
     if (rpcError || data?.error) {
       setError(rpcError?.message || String(data?.error));
@@ -89,6 +119,7 @@ export default function FeePresetsScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="fees-loading">
+        <WorkspaceNav listingId={locationId} />
         <Text>Loading...</Text>
       </View>
     );
@@ -96,8 +127,9 @@ export default function FeePresetsScreen() {
 
   return (
     <ScrollView style={styles.container} testID="fees-ready">
+      <WorkspaceNav listingId={locationId} />
       <Text style={styles.title}>Extra-fee presets</Text>
-      <Text style={styles.subtitle}>Session Road Park n Ride</Text>
+      <Text style={styles.subtitle}>{locationName}</Text>
 
       {presets.map((preset) => (
         <View key={preset.id} style={styles.card} testID={`preset-row-${preset.name}`}>

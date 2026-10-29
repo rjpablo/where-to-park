@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
+import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 
-const SESSION_ROAD_ID = '30000000-0000-0000-0000-000000000002';
-
 export default function CheckInScreen() {
+  const locationId = firstParam(
+    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
+  );
+  const [locationName, setLocationName] = useState('Listing');
   const [plate, setPlate] = useState('');
   const [vehicleType, setVehicleType] = useState<'car' | 'suv' | 'van' | 'motorcycle' | 'truck'>(
     'car'
@@ -16,9 +21,25 @@ export default function CheckInScreen() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!locationId) return;
+    supabase
+      .from('locations')
+      .select('name')
+      .eq('id', locationId)
+      .single()
+      .then(({ data }) => {
+        if (data?.name) setLocationName(data.name);
+      });
+  }, [locationId]);
+
   const handleCheckIn = async () => {
     if (!plate.trim()) {
       setError('Plate number is required');
+      return;
+    }
+    if (!locationId) {
+      setError('Pick a listing from My listings');
       return;
     }
 
@@ -27,7 +48,7 @@ export default function CheckInScreen() {
     setSuccess(null);
     try {
       const { data, error: rpcError } = await supabase.rpc('start_walk_in', {
-        p_location_id: SESSION_ROAD_ID,
+        p_location_id: locationId,
         p_vehicle_type: vehicleType,
         p_plate: plate.trim(),
         p_note: note.trim() || null,
@@ -56,9 +77,10 @@ export default function CheckInScreen() {
 
   return (
     <ScrollView style={styles.container} testID="checkin-ready">
+      <WorkspaceNav listingId={locationId} />
       <View style={styles.header}>
         <Text style={styles.title}>Walk-In Check-In</Text>
-        <Text style={styles.subtitle}>Session Road Park n Ride</Text>
+        <Text style={styles.subtitle}>{locationName}</Text>
       </View>
 
       <View style={styles.form}>

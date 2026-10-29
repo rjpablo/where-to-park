@@ -1,14 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, Platform } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
+import { firstParam } from '../../src/lib/params';
+import { useAuthStore } from '../../src/stores/authStore';
+import {
+  canManageListings,
+  loadMyMemberships,
+  roleForLocation,
+} from '../../src/lib/operatorAccess';
 import { formatLocalDateTime, formatPeso, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { deliverReturnedPush } from '../../src/lib/push';
 
 export default function SessionsScreen() {
+  const locationId = firstParam(
+    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
+  );
+  const user = useAuthStore((s) => s.user);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [showWaiver, setShowWaiver] = useState(true);
+  const [locationName, setLocationName] = useState('Listing');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -39,13 +54,30 @@ export default function SessionsScreen() {
       .select('*')
       .eq('active', true)
       .then(({ data }) => setPresets(data || []));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationId]);
+
+  useEffect(() => {
+    (async () => {
+      if (!locationId || !user) return;
+      const { data: loc } = await supabase
+        .from('locations')
+        .select('id, name, operator_id, operators(staff_can_waive)')
+        .eq('id', locationId)
+        .single();
+      if (loc?.name) setLocationName(loc.name);
+      const memberships = await loadMyMemberships(user.id);
+      const role = loc ? roleForLocation(memberships, loc as any) : null;
+      const staffCanWaive = !!(loc as any)?.operators?.staff_can_waive;
+      setShowWaiver(canManageListings(role || undefined) || staffCanWaive);
+    })();
+  }, [locationId, user]);
 
   const loadSessions = async () => {
     try {
       setError(null);
       await supabase.rpc('refresh_overdue');
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('parking_sessions')
         .select(
           `
@@ -61,6 +93,8 @@ export default function SessionsScreen() {
         )
         .in('status', ['active', 'overdue'])
         .order('started_at', { ascending: false });
+      if (locationId) query = query.eq('location_id', locationId);
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       setSessions(data || []);
@@ -121,7 +155,7 @@ export default function SessionsScreen() {
       const { data, error: rpcError } = await supabase.rpc('end_session', {
         p_session_id: sessionId,
         p_cash_amount: Number.isFinite(cash) ? cash : 0,
-        p_waive_note: waiverNote.trim() || null,
+        p_waive_note: showWaiver ? waiverNote.trim() || null : null,
       });
 
       if (rpcError) throw rpcError;
@@ -430,14 +464,22 @@ export default function SessionsScreen() {
               keyboardType="numeric"
               testID="session-cash-amount"
             />
-            <Text style={styles.label}>Waiver note (required if balance remains)</Text>
-            <TextInput
-              style={styles.input}
-              value={waiverNote}
-              onChangeText={setWaiverNote}
-              placeholder="Reason for waiver"
-              testID="session-waiver-note"
-            />
+            {showWaiver ? (
+              <>
+                <Text style={styles.label}>Waiver note (required if balance remains)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={waiverNote}
+                  onChangeText={setWaiverNote}
+                  placeholder="Reason for waiver"
+                  testID="session-waiver-note"
+                />
+              </>
+            ) : (
+              <Text style={styles.label} testID="session-waiver-disabled">
+                Waivers are limited to owners and managers at this operator.
+              </Text>
+            )}
             {closeError ? (
               <Text style={styles.alertText} testID="waiver-alert">
                 {closeError}
@@ -475,26 +517,35 @@ export default function SessionsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]} testID="sessions-loading">
-        <Text>Loading...</Text>
+      <View style={styles.container} testID="sessions-loading">
+        <WorkspaceNav listingId={locationId} />
+        <View style={styles.centered}>
+          <Text>Loading...</Text>
+        </View>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, styles.centered]} testID="sessions-error">
-        <Text style={styles.alertText}>Error: {error}</Text>
-        <Button title="Retry" onPress={loadSessions} />
+      <View style={styles.container} testID="sessions-error">
+        <WorkspaceNav listingId={locationId} />
+        <View style={styles.centered}>
+          <Text style={styles.alertText}>Error: {error}</Text>
+          <Button title="Retry" onPress={loadSessions} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container} testID="sessions-ready">
+      <WorkspaceNav listingId={locationId} />
       <View style={styles.header}>
         <Text style={styles.title}>Active Sessions</Text>
-        <Text style={styles.subtitle}>{sessions.length} active</Text>
+        <Text style={styles.subtitle}>
+          {locationName} · {sessions.length} active
+        </Text>
       </View>
 
       {closeSuccess ? (
@@ -541,6 +592,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   centered: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.lg,

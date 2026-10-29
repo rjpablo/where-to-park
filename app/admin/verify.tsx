@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
 export default function VerificationQueueScreen() {
+  const router = useRouter();
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +72,15 @@ export default function VerificationQueueScreen() {
           title="View Details"
           variant="outline"
           size="small"
-          onPress={() => {
-            /* Navigate to location detail */
-          }}
+          onPress={() => router.push(`/location/${item.id}`)}
+          testID={`verify-open-${item.id}`}
         />
-        <Button title="Verify" size="small" onPress={() => handleVerify(item.id)} />
+        <Button
+          title="Verify"
+          size="small"
+          onPress={() => handleVerify(item.id)}
+          testID={`verify-listing-${item.id}`}
+        />
       </View>
     </View>
   );
@@ -81,6 +88,7 @@ export default function VerificationQueueScreen() {
   if (loading && locations.length === 0) {
     return (
       <View style={[styles.container, styles.emptyState]} testID="admin-loading">
+        <WorkspaceNav />
         <Text>Loading...</Text>
       </View>
     );
@@ -89,6 +97,7 @@ export default function VerificationQueueScreen() {
   if (error) {
     return (
       <View style={[styles.container, styles.emptyState]} testID="admin-error">
+        <WorkspaceNav />
         <Text style={styles.cardAddress}>Error: {error}</Text>
         <Button title="Retry" onPress={loadQueue} />
       </View>
@@ -97,6 +106,7 @@ export default function VerificationQueueScreen() {
 
   return (
     <View style={styles.container} testID="admin-ready">
+      <WorkspaceNav />
       <View style={styles.header}>
         <Text style={styles.title}>Verification Queue</Text>
         <Text style={styles.subtitle}>{locations.length} pending</Text>

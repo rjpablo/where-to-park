@@ -1,12 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Switch } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
+import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 
-const OPERATOR_ID = '10000000-0000-0000-0000-000000000002';
-
 export default function StaffScreen() {
+  const params = useLocalSearchParams<{
+    operatorId?: string | string[];
+    locationId?: string | string[];
+  }>();
+  const operatorId = firstParam(params.operatorId);
+  const locationId = firstParam(params.locationId);
   const [members, setMembers] = React.useState<any[]>([]);
   const [canWaive, setCanWaive] = React.useState(true);
   const [email, setEmail] = React.useState('');
@@ -14,27 +21,38 @@ export default function StaffScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [operatorName, setOperatorName] = React.useState('Operator');
 
   const load = React.useCallback(async () => {
     setError(null);
+    if (!operatorId) {
+      setError('Pick a listing from My listings');
+      setLoading(false);
+      return;
+    }
     try {
       const [{ data: ops, error: opErr }, { data: rows, error: memErr }] = await Promise.all([
-        supabase.from('operators').select('staff_can_waive').eq('id', OPERATOR_ID).single(),
+        supabase
+          .from('operators')
+          .select('staff_can_waive, display_name')
+          .eq('id', operatorId)
+          .single(),
         supabase
           .from('operator_members')
           .select('id, role, profile_id, profiles(display_name, phone)')
-          .eq('operator_id', OPERATOR_ID),
+          .eq('operator_id', operatorId),
       ]);
       if (opErr) throw opErr;
       if (memErr) throw memErr;
       setCanWaive(!!ops?.staff_can_waive);
+      if (ops?.display_name) setOperatorName(ops.display_name);
       setMembers(rows || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load staff');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [operatorId]);
 
   React.useEffect(() => {
     load();
@@ -44,7 +62,7 @@ export default function StaffScreen() {
     setError(null);
     setNotice(null);
     const { data, error: rpcError } = await supabase.rpc('invite_staff', {
-      p_operator_id: OPERATOR_ID,
+      p_operator_id: operatorId,
       p_email: email.trim() || null,
       p_phone: phone.trim() || null,
       p_role: 'staff',
@@ -63,7 +81,7 @@ export default function StaffScreen() {
     setError(null);
     setNotice(null);
     const { data, error: rpcError } = await supabase.rpc('remove_staff', {
-      p_operator_id: OPERATOR_ID,
+      p_operator_id: operatorId,
       p_member_id: member.id,
     });
     if (rpcError || data?.error) {
@@ -77,7 +95,7 @@ export default function StaffScreen() {
   const toggleWaive = async (value: boolean) => {
     setCanWaive(value);
     const { data, error: rpcError } = await supabase.rpc('set_staff_can_waive', {
-      p_operator_id: OPERATOR_ID,
+      p_operator_id: operatorId,
       p_enabled: value,
     });
     if (rpcError || data?.error) {
@@ -91,6 +109,7 @@ export default function StaffScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="staff-loading">
+        <WorkspaceNav listingId={locationId} />
         <Text>Loading...</Text>
       </View>
     );
@@ -98,8 +117,9 @@ export default function StaffScreen() {
 
   return (
     <ScrollView style={styles.container} testID="staff-ready">
+      <WorkspaceNav listingId={locationId} />
       <Text style={styles.title}>Staff</Text>
-      <Text style={styles.subtitle}>Session Road Park n Ride</Text>
+      <Text style={styles.subtitle}>{operatorName}</Text>
 
       <View style={styles.toggleRow} testID="staff-can-waive-row">
         <View style={{ flex: 1 }}>

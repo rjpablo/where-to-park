@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { formatLocalDateTime } from '../../src/utils/formatters';
+import { firstParam } from '../../src/lib/params';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 
 export default function AvailabilityScreen() {
+  const locationId = firstParam(
+    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
+  );
   const [location, setLocation] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,17 +19,21 @@ export default function AvailabilityScreen() {
 
   useEffect(() => {
     loadLocationData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationId]);
 
   const loadLocationData = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      if (!locationId) {
+        throw new Error('Pick a listing from My listings');
+      }
       const { data: locations, error: locError } = await supabase
         .from('locations')
         .select('*')
-        .eq('id', '30000000-0000-0000-0000-000000000001')
+        .eq('id', locationId)
         .single();
 
       if (locError) throw locError;
@@ -130,6 +140,7 @@ export default function AvailabilityScreen() {
   if (loading && !location) {
     return (
       <View style={[styles.container, styles.centered]} testID="availability-loading">
+        <WorkspaceNav listingId={locationId} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -138,6 +149,7 @@ export default function AvailabilityScreen() {
   if (error && !location) {
     return (
       <View style={[styles.container, styles.centered]} testID="availability-error">
+        <WorkspaceNav listingId={locationId} />
         <Text style={styles.errorText}>Error: {error}</Text>
         <TouchableOpacity onPress={loadLocationData} style={styles.retryButton}>
           <Text style={styles.retryButtonText}>Retry</Text>
@@ -149,6 +161,7 @@ export default function AvailabilityScreen() {
   if (!location) {
     return (
       <View style={[styles.container, styles.centered]}>
+        <WorkspaceNav listingId={locationId} />
         <Text style={styles.errorText}>No locations found</Text>
       </View>
     );
@@ -159,6 +172,7 @@ export default function AvailabilityScreen() {
 
   return (
     <ScrollView style={styles.container} testID="availability-ready">
+      <WorkspaceNav listingId={location.id} />
       <View style={styles.header}>
         <Text style={styles.title}>Current Availability</Text>
         <Text style={styles.subtitle}>{location.name}</Text>

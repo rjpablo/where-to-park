@@ -2,8 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Button } from '../../src/components/Button';
+import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { MapPinPicker } from '../../src/components/map/MapPinPicker';
 import { supabase } from '../../src/lib/supabase';
+import { useAuthStore } from '../../src/stores/authStore';
 import { uploadLocationPhoto } from '../../src/lib/storageUpload';
 import { processChatImageFile } from '../../src/utils/chatImage';
 import { theme } from '../../src/lib/theme';
@@ -14,6 +16,7 @@ type PickedPhoto = { name: string; base64: string; contentType: string };
 type ListingType = 'commercial' | 'residential';
 
 export default function OnboardingScreen() {
+  const { user, initialize } = useAuthStore();
   const [step, setStep] = React.useState(1);
   const [locationName, setLocationName] = React.useState('');
   const [address, setAddress] = React.useState('');
@@ -125,6 +128,15 @@ export default function OnboardingScreen() {
         }
       }
 
+      if (user && user.account_type !== 'operator') {
+        const { error: typeError } = await supabase
+          .from('profiles')
+          .update({ account_type: 'operator' })
+          .eq('id', user.id);
+        if (typeError) throw typeError;
+        await initialize();
+      }
+
       setSuccess(`Submitted ${locationName.trim()} for verification`);
     } catch (err: any) {
       setError(err.message || 'Could not create location');
@@ -135,6 +147,7 @@ export default function OnboardingScreen() {
 
   return (
     <ScrollView style={styles.container} testID="onboarding-ready">
+      <WorkspaceNav />
       <View style={styles.progress}>
         {[1, 2, 3, 4, 5].map((i) => (
           <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />

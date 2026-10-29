@@ -2,13 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../src/components/Button';
+import { WorkspaceNav } from '../../../src/components/WorkspaceNav';
 import { MapPinPicker } from '../../../src/components/map/MapPinPicker';
 import { supabase } from '../../../src/lib/supabase';
+import { firstParam } from '../../../src/lib/params';
 import { theme } from '../../../src/lib/theme';
 import type { Coordinate } from '../../../src/components/map/types';
 
 export default function EditLocationScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = firstParam(useLocalSearchParams<{ id: string | string[] }>().id);
   const [name, setName] = React.useState('');
   const [address, setAddress] = React.useState('');
   const [rules, setRules] = React.useState('');
@@ -82,6 +84,7 @@ export default function EditLocationScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="edit-loading">
+        <WorkspaceNav listingId={id} />
         <Text>Loading...</Text>
       </View>
     );
@@ -89,6 +92,7 @@ export default function EditLocationScreen() {
 
   return (
     <ScrollView style={styles.container} testID="edit-ready">
+      <WorkspaceNav listingId={id} />
       <Text style={styles.title}>Edit location</Text>
 
       <Text style={styles.label}>Name</Text>
