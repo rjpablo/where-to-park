@@ -41,7 +41,12 @@ DECLARE
   v_amount NUMERIC;
   v_billed_hours INTEGER;
 BEGIN
-  -- Find the best matching rate (simplified precedence)
+  -- Find the best matching rate with correct precedence:
+  -- 1. Dated custom rates (effective_from/to) with priority
+  -- 2. Slot-specific rates
+  -- 3. Area-specific rates
+  -- 4. Vehicle-type specific rates
+  -- 5. Default rate
   SELECT * INTO v_rate
   FROM rates
   WHERE location_id = p_location_id
@@ -53,9 +58,16 @@ BEGIN
   AND (effective_from IS NULL OR effective_from <= p_start_at)
   AND (effective_to IS NULL OR effective_to >= p_start_at)
   ORDER BY
-    CASE WHEN NOT is_default THEN 1 ELSE 2 END,
+    -- Dated rates with priority come first
     CASE WHEN effective_from IS NOT NULL THEN 1 ELSE 2 END,
-    CASE WHEN slot_id IS NOT NULL THEN 1 WHEN area_id IS NOT NULL THEN 2 ELSE 3 END,
+    -- Then by specificity: slot > area > vehicle > location
+    CASE 
+      WHEN slot_id IS NOT NULL THEN 1 
+      WHEN area_id IS NOT NULL THEN 2 
+      WHEN vehicle_type IS NOT NULL THEN 3
+      WHEN is_default THEN 4
+      ELSE 5 
+    END,
     priority DESC,
     created_at DESC
   LIMIT 1;
