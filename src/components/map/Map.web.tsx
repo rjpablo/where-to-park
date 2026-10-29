@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapProps } from './types';
+import { BAGUIO, DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL } from './style';
 
 export const Map: React.FC<MapProps> = ({
   region,
@@ -26,13 +27,13 @@ export const Map: React.FC<MapProps> = ({
 
     const initialCenter: [number, number] = region
       ? [region.longitude, region.latitude]
-      : [120.596, 16.412];
+      : [BAGUIO.longitude, BAGUIO.latitude];
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://tiles.openfreemap.org/styles/liberty',
+      style: MAP_STYLE_URL,
       center: initialCenter,
-      zoom: 14,
+      zoom: DEFAULT_MAP_ZOOM,
     });
 
     if (typeof window !== 'undefined') {
@@ -147,7 +148,7 @@ export const Map: React.FC<MapProps> = ({
           filter: ['has', 'point_count'],
           layout: {
             'text-field': '{point_count}',
-            'text-font': ['Open Sans Bold'],
+            'text-font': MAP_LABEL_FONT,
             'text-size': 12,
           },
           paint: {
@@ -184,7 +185,7 @@ export const Map: React.FC<MapProps> = ({
           filter: ['!', ['has', 'point_count']],
           layout: {
             'text-field': ['get', 'pinLabel'],
-            'text-font': ['Open Sans Bold'],
+            'text-font': MAP_LABEL_FONT,
             'text-size': 11,
           },
           paint: {
@@ -245,7 +246,7 @@ export const Map: React.FC<MapProps> = ({
 
     map.current.flyTo({
       center: [region.longitude, region.latitude],
-      zoom: 14,
+      zoom: DEFAULT_MAP_ZOOM,
       duration: 1000,
     });
   }, [region]);

@@ -2,24 +2,21 @@ import React, { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import { MapProps } from './types';
+import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './style';
 
-// Configure MapLibre
 MapLibreGL.setAccessToken(null);
 
 export const Map: React.FC<MapProps> = ({
   region,
   pins = [],
-  onPinPress: _onPinPress,
+  onPinPress,
+  onMapPress,
   style,
   showsUserLocation = true,
   clusterPins = true,
 }) => {
-  const centerCoordinate = useMemo(
-    () => (region ? [region.longitude, region.latitude] : [120.596, 16.412]),
-    [region]
-  );
+  const centerCoordinate = useMemo(() => mapCenter(region), [region]);
 
-  // Convert pins to GeoJSON
   const pinFeatures = useMemo(
     () =>
       pins.map((pin) => ({
@@ -49,33 +46,35 @@ export const Map: React.FC<MapProps> = ({
     [pinFeatures]
   );
 
-  const NativeMapView = MapLibreGL.MapView as unknown as React.ComponentType<{
-    style?: object;
-    styleURL?: string;
-    compassEnabled?: boolean;
-    logoEnabled?: boolean;
-    attributionEnabled?: boolean;
-    children?: React.ReactNode;
-  }>;
-
   return (
-    <NativeMapView
+    <MapLibreGL.MapView
       style={[styles.map, style]}
-      styleURL="https://tiles.openfreemap.org/styles/liberty"
+      mapStyle={MAP_STYLE_URL}
       compassEnabled
       logoEnabled={false}
       attributionEnabled={false}
+      onPress={(feature) => {
+        const geometry = feature.geometry;
+        if (!geometry || geometry.type !== 'Point' || !onMapPress) return;
+        onMapPress({
+          longitude: geometry.coordinates[0],
+          latitude: geometry.coordinates[1],
+        });
+      }}
     >
       <MapLibreGL.Camera
-        zoomLevel={14}
+        defaultSettings={{
+          centerCoordinate,
+          zoomLevel: DEFAULT_MAP_ZOOM,
+        }}
         centerCoordinate={centerCoordinate}
+        zoomLevel={DEFAULT_MAP_ZOOM}
         animationMode="flyTo"
         animationDuration={1000}
       />
 
       {showsUserLocation && <MapLibreGL.UserLocation visible />}
 
-      {/* Location pins */}
       {pinGeoJSON.features.length > 0 && (
         <MapLibreGL.ShapeSource
           id="location-pins"
@@ -83,8 +82,13 @@ export const Map: React.FC<MapProps> = ({
           cluster={clusterPins}
           clusterRadius={50}
           clusterMaxZoomLevel={14}
+          hitbox={{ width: 44, height: 44 }}
+          onPress={(event) => {
+            const feature = event.features?.[0];
+            const locationId = feature?.properties?.id;
+            if (locationId) onPinPress?.(String(locationId));
+          }}
         >
-          {/* Cluster circles */}
           <MapLibreGL.CircleLayer
             id="cluster-circle"
             filter={['has', 'point_count']}
@@ -95,7 +99,6 @@ export const Map: React.FC<MapProps> = ({
             }}
           />
 
-          {/* Cluster count text */}
           <MapLibreGL.SymbolLayer
             id="cluster-count"
             filter={['has', 'point_count']}
@@ -103,11 +106,11 @@ export const Map: React.FC<MapProps> = ({
               textField: ['get', 'point_count'],
               textSize: 12,
               textColor: '#ffffff',
-              textFont: ['Open Sans Bold'],
+              textFont: MAP_LABEL_FONT,
+              textAllowOverlap: true,
             }}
           />
 
-          {/* Individual pins */}
           <MapLibreGL.CircleLayer
             id="pin-circle"
             filter={['!', ['has', 'point_count']]}
@@ -126,7 +129,6 @@ export const Map: React.FC<MapProps> = ({
             }}
           />
 
-          {/* Pin available count */}
           <MapLibreGL.SymbolLayer
             id="pin-count"
             filter={['!', ['has', 'point_count']]}
@@ -134,12 +136,13 @@ export const Map: React.FC<MapProps> = ({
               textField: ['get', 'pinLabel'],
               textSize: 11,
               textColor: '#ffffff',
-              textFont: ['Open Sans Bold'],
+              textFont: MAP_LABEL_FONT,
+              textAllowOverlap: true,
             }}
           />
         </MapLibreGL.ShapeSource>
       )}
-    </NativeMapView>
+    </MapLibreGL.MapView>
   );
 };
 

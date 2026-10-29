@@ -3,9 +3,8 @@ import { View, StyleSheet, Text } from 'react-native';
 import { Button } from '../Button';
 import { theme } from '../../lib/theme';
 import { Map } from './Map';
+import { BAGUIO } from './style';
 import { MapPinPickerProps, Coordinate, MapRegion } from './types';
-
-const BAGUIO: Coordinate = { latitude: 16.412, longitude: 120.596 };
 
 export const MapPinPicker: React.FC<MapPinPickerProps> = ({
   initialCoordinate,
