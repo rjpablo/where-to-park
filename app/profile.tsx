@@ -35,6 +35,9 @@ export default function ProfileScreen() {
       {user.account_type === 'operator' || user.is_admin ? (
         <Button title="Messages" variant="outline" onPress={() => router.push('/operator/inbox')} />
       ) : null}
+      {user.is_admin ? (
+        <Button title="Moderation queue" onPress={() => router.push('/admin/reports')} />
+      ) : null}
       <Button
         title="Sign out"
         variant="outline"

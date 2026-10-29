@@ -20,6 +20,7 @@ export default function RootLayout() {
       <Stack.Screen name="staff/checkin" options={{ title: 'Check In' }} />
       <Stack.Screen name="staff/sessions" options={{ title: 'Active Sessions' }} />
       <Stack.Screen name="admin/verify" options={{ title: 'Verification Queue' }} />
+      <Stack.Screen name="admin/reports" options={{ title: 'Moderation' }} />
     </Stack>
   );
 }

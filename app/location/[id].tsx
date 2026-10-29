@@ -18,6 +18,9 @@ export default function LocationDetailScreen() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ type: 'location' | 'review'; id: string } | null>(null);
+  const [reportReason, setReportReason] = useState('Inaccurate rates');
+  const [reportNotice, setReportNotice] = useState<string | null>(null);
 
   useEffect(() => {
     initialize();
@@ -37,6 +40,22 @@ export default function LocationDetailScreen() {
     }
     setReviewNotice(data.booked_via_app ? 'Review saved · Booked via app' : 'Review saved');
     await loadLocation();
+  };
+
+  const submitReport = async () => {
+    if (!reportTarget) return;
+    setReportNotice(null);
+    const { data, error: rpcError } = await supabase.rpc('submit_report', {
+      p_target_type: reportTarget.type,
+      p_target_id: reportTarget.id,
+      p_reason: reportReason.trim(),
+    });
+    if (rpcError || data?.error) {
+      setReportNotice(rpcError?.message || String(data?.error));
+      return;
+    }
+    setReportNotice('Report sent');
+    setReportTarget(null);
   };
 
   const loadLocation = async () => {
@@ -157,8 +176,39 @@ export default function LocationDetailScreen() {
           variant="outline"
           onPress={() => router.push(`/chat/${id}`)}
           testID="location-message"
-          style={{ marginBottom: theme.spacing.lg }}
+          style={{ marginBottom: theme.spacing.sm }}
         />
+        {user ? (
+          <Button
+            title="Report listing"
+            variant="outline"
+            onPress={() => {
+              setReportTarget({ type: 'location', id: String(id) });
+              setReportReason('Inaccurate rates');
+            }}
+            testID="report-listing"
+            style={{ marginBottom: theme.spacing.lg }}
+          />
+        ) : null}
+        {reportNotice ? (
+          <Text style={styles.reviewNotice} testID="report-sent">
+            {reportNotice}
+          </Text>
+        ) : null}
+        {reportTarget ? (
+          <View style={styles.reviewForm} testID="report-form">
+            <Text style={styles.sectionTitle}>
+              Report {reportTarget.type === 'location' ? 'listing' : 'review'}
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={reportReason}
+              onChangeText={setReportReason}
+              testID="report-reason"
+            />
+            <Button title="Send report" onPress={submitReport} testID="report-submit" />
+          </View>
+        ) : null}
 
         {/* Rates */}
         <View style={styles.section}>
@@ -221,6 +271,18 @@ export default function LocationDetailScreen() {
               ) : null}
               <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
               <Text style={styles.reviewText}>{review.comment}</Text>
+              {user ? (
+                <Button
+                  title="Report review"
+                  size="small"
+                  variant="outline"
+                  onPress={() => {
+                    setReportTarget({ type: 'review', id: review.id });
+                    setReportReason('Inappropriate');
+                  }}
+                  testID={`report-review-${review.id}`}
+                />
+              ) : null}
             </View>
           ))}
 
