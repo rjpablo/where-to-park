@@ -92,7 +92,7 @@ export default function LocationDetailScreen() {
           location_photos(*),
           location_policies(*),
           rates(*),
-          reviews(*, profiles(display_name)),
+          reviews(*, public_profiles(display_name)),
           location_rating_stats(review_count, avg_rating)
         `
         )
@@ -310,7 +310,7 @@ export default function LocationDetailScreen() {
           {location.reviews?.map((review: any) => (
             <View key={review.id} style={styles.reviewItem} testID={`review-${review.author_id}`}>
               <Text style={styles.reviewAuthor}>
-                {review.profiles?.display_name || 'Anonymous'}
+                {review.public_profiles?.display_name || 'Anonymous'}
               </Text>
               {review.session_id || review.reservation_id ? (
                 <Text style={styles.bookedLabel} testID="booked-via-app">
