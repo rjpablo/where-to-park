@@ -1,151 +1,80 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54400';
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 
-console.log('Testing Supabase queries...\n');
-console.log('URL:', supabaseUrl);
-
-async function testAnon() {
-  console.log('\n=== ANON CLIENT ===');
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
-  
-  // Test 1: search_nearby
-  console.log('\n1. Testing search_nearby RPC...');
-  try {
-    const { data, error } = await supabase.rpc('search_nearby', {
-      p_lat: 16.4023,
-      p_lng: 120.5960,
-      p_radius_meters: 5000,
-      p_vehicle_type: 'car'
-    });
-    
-    if (error) {
-      console.error('  ✗ Error:', error.message);
-      console.error('  Details:', error);
-    } else {
-      console.log(`  ✓ Success: ${data?.length || 0} locations`);
-      if (data && data.length > 0) {
-        console.log('  First result:', {
-          id: data[0].id,
-          name: data[0].name,
-          lat: data[0].lat,
-          lng: data[0].lng,
-          available: data[0].available_count
-        });
-      }
-    }
-  } catch (e) {
-    console.error('  ✗ Exception:', e.message);
+function report(label, { data, error }) {
+  if (error) {
+    console.log(`  ✗ ${label}: ${error.message}`);
+    if (error.details) console.log(`    details: ${error.details}`);
+    return false;
   }
-  
-  // Test 2: location detail
-  console.log('\n2. Testing location detail query...');
-  try {
-    const { data, error } = await supabase
-      .from('locations')
-      .select(`
-        *,
-        rates (
-          id,
-          vehicle_type,
-          rate_type,
-          hourly_amount,
-          daily_amount,
-          monthly_amount,
-          flat_amount,
-          time_from,
-          time_until,
-          effective_from,
-          effective_until
-        )
-      `)
-      .eq('id', '30000000-0000-0000-0000-000000000001')
-      .single();
-    
-    if (error) {
-      console.error('  ✗ Error:', error.message);
-      console.error('  Details:', error);
-    } else if (!data) {
-      console.log('  ⚠ No data returned');
-    } else {
-      console.log('  ✓ Success:', {
-        name: data.name,
-        rates_count: data.rates?.length || 0,
-        lat: typeof data.geog,
-        published: data.published,
-        verified: data.verification_status
-      });
-    }
-  } catch (e) {
-    console.error('  ✗ Exception:', e.message);
+  const n = Array.isArray(data) ? data.length : data ? 1 : 0;
+  console.log(`  ✓ ${label}: ${n} row(s)`);
+  if (Array.isArray(data) && data[0]) {
+    console.log('    sample:', JSON.stringify(data[0]).slice(0, 240));
+  } else if (data) {
+    console.log('    sample:', JSON.stringify(data).slice(0, 240));
   }
+  return true;
 }
 
-async function testAuth() {
-  console.log('\n\n=== AUTHENTICATED CLIENT ===');
+async function asAnon() {
+  console.log('\n=== ANON ===');
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
-  
-  // Sign in as operator/staff
-  console.log('\nAttempting sign-in...');
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: 'operator@test.com',
-    password: 'password123'
-  });
-  
+  let ok = true;
+  ok = report('search_nearby', await supabase.rpc('search_nearby', {
+    p_lat: 16.4023,
+    p_lng: 120.5960,
+    p_radius_m: 5000,
+    p_vehicle_type: 'car',
+  })) && ok;
+  ok = report('location detail', await supabase
+    .from('locations')
+    .select('id, name, available_count, capacity, rates(hourly_amount), location_policies(*)')
+    .eq('id', '30000000-0000-0000-0000-000000000001')
+    .single()) && ok;
+  ok = report('folios (expect 0)', await supabase.from('folios').select('id')) && ok;
+  return ok;
+}
+
+async function asUser(email, password, label) {
+  console.log(`\n=== ${label} (${email}) ===`);
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const { data: auth, error: authError } = await supabase.auth.signInWithPassword({ email, password });
   if (authError) {
-    console.error('  ✗ Sign-in failed:', authError.message);
-    return;
+    console.log(`  ✗ sign-in: ${authError.message}`);
+    return false;
   }
-  
-  console.log('  ✓ Signed in as:', authData.user?.email);
-  
-  // Test 3: availability query
-  console.log('\n3. Testing availability query...');
-  try {
-    const { data, error } = await supabase
-      .from('locations')
-      .select('*')
-      .limit(1)
-      .single();
-    
-    if (error) {
-      console.error('  ✗ Error:', error.message);
-      console.error('  Details:', error);
-    } else if (!data) {
-      console.log('  ⚠ No locations found');
-    } else {
-      console.log('  ✓ Success:', {
-        id: data.id,
-        name: data.name,
-        capacity: data.capacity,
-        available: data.available_count
-      });
-      
-      // Test recent sessions
-      console.log('\n4. Testing recent sessions...');
-      const { data: sessions, error: sessError } = await supabase
-        .from('parking_sessions')
-        .select('*, created_at')
-        .eq('location_id', data.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      
-      if (sessError) {
-        console.error('  ✗ Error:', sessError.message);
-      } else {
-        console.log(`  ✓ Found ${sessions?.length || 0} sessions`);
-      }
-    }
-  } catch (e) {
-    console.error('  ✗ Exception:', e.message);
-  }
+  console.log(`  ✓ signed in ${auth.user?.id}`);
+  let ok = true;
+  ok = report('locations', await supabase.from('locations').select('id, name').limit(5)) && ok;
+  ok = report('operator_members', await supabase.from('operator_members').select('operator_id, role, profile_id')) && ok;
+  ok = report('parking_sessions', await supabase.from('parking_sessions').select('id, plate, status').limit(5)) && ok;
+  ok = report('availability SM', await supabase
+    .from('locations')
+    .select('id, name, available_count, capacity')
+    .eq('id', '30000000-0000-0000-0000-000000000001')
+    .single()) && ok;
+  return ok;
 }
 
 async function main() {
-  await testAnon();
-  await testAuth();
-  console.log('\n✓ Tests complete\n');
+  console.log('URL', supabaseUrl);
+  const results = [
+    await asAnon(),
+    await asUser('juan@wheretopark.local', 'password123', 'OPERATOR Juan'),
+    await asUser('staff@wheretopark.local', 'password123', 'STAFF Ana'),
+    await asUser('admin@wheretopark.local', 'password123', 'ADMIN'),
+  ];
+  const passed = results.filter(Boolean).length;
+  console.log(`\n${passed}/${results.length} client roles succeeded`);
+  process.exit(passed === results.length ? 0 : 1);
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

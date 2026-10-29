@@ -1,0 +1,217 @@
+#!/usr/bin/env node
+/**
+ * Local-dev API proxy.
+ *
+ * PostgREST in Docker cannot reach the DB on this VM, so we run PostgREST on
+ * the host (:3000) and optionally mint JWTs here instead of GoTrue.
+ *
+ *   /rest/v1/*  -> PostgREST on 127.0.0.1:3000
+ *   /auth/v1/*  -> local JWT mint for seeded users (LOCAL DEV ONLY)
+ *
+ * Listen: 127.0.0.1:54400
+ */
+const http = require('http');
+const crypto = require('crypto');
+
+const LISTEN_HOST = '127.0.0.1';
+const LISTEN_PORT = 54400;
+const POSTGREST = { host: '127.0.0.1', port: 3000 };
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-token-with-at-least-32-characters-long';
+
+// LOCAL DEV ONLY — seeded users from supabase/seed.sql
+const DEV_USERS = {
+  'admin@wheretopark.local': {
+    id: '00000000-0000-0000-0000-000000000001',
+    email: 'admin@wheretopark.local',
+    password: 'password123',
+    role: 'authenticated',
+    is_admin: true,
+  },
+  'maria@wheretopark.local': {
+    id: '20000000-0000-0000-0000-000000000001',
+    email: 'maria@wheretopark.local',
+    password: 'password123',
+    role: 'authenticated',
+  },
+  'juan@wheretopark.local': {
+    id: '20000000-0000-0000-0000-000000000002',
+    email: 'juan@wheretopark.local',
+    password: 'password123',
+    role: 'authenticated',
+  },
+  'sarah@wheretopark.local': {
+    id: '20000000-0000-0000-0000-000000000003',
+    email: 'sarah@wheretopark.local',
+    password: 'password123',
+    role: 'authenticated',
+  },
+  'staff@wheretopark.local': {
+    id: '20000000-0000-0000-0000-000000000004',
+    email: 'staff@wheretopark.local',
+    password: 'password123',
+    role: 'authenticated',
+  },
+};
+
+function b64url(input) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  return buf.toString('base64url');
+}
+
+function signJwt(payload) {
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = b64url(JSON.stringify(payload));
+  const sig = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest();
+  return `${header}.${body}.${b64url(sig)}`;
+}
+
+function mintSession(user) {
+  const now = Math.floor(Date.now() / 1000);
+  const access_token = signJwt({
+    iss: 'supabase-local-dev',
+    aud: 'authenticated',
+    role: 'authenticated',
+    exp: now + 3600,
+    iat: now,
+    sub: user.id,
+    email: user.email,
+    aal: 'aal1',
+  });
+  return {
+    access_token,
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: now + 3600,
+    refresh_token: `local-dev-${user.id}`,
+    user: {
+      id: user.id,
+      aud: 'authenticated',
+      role: 'authenticated',
+      email: user.email,
+      email_confirmed_at: new Date().toISOString(),
+      app_metadata: { provider: 'email', providers: ['email'] },
+      user_metadata: {},
+    },
+  };
+}
+
+function sendJson(res, status, body) {
+  const data = JSON.stringify(body);
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(data),
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, range',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Expose-Headers': 'Content-Range, Range, Location',
+  });
+  res.end(data);
+}
+
+function handleAuth(req, res, body) {
+  const url = new URL(req.url, 'http://127.0.0.1');
+
+  if (req.method === 'GET' && url.pathname === '/auth/v1/health') {
+    return sendJson(res, 200, { name: 'local-jwt-mint', status: 'ok' });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/auth/v1/user') {
+    const auth = req.headers.authorization || '';
+    const token = auth.replace(/^Bearer\s+/i, '');
+    if (!token) return sendJson(res, 401, { message: 'No token' });
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+      const user = Object.values(DEV_USERS).find((u) => u.id === payload.sub);
+      if (!user) return sendJson(res, 401, { message: 'Unknown user' });
+      return sendJson(res, 200, mintSession(user).user);
+    } catch {
+      return sendJson(res, 401, { message: 'Bad token' });
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/auth/v1/token') {
+    let parsed = {};
+    try {
+      parsed = body ? JSON.parse(body) : {};
+    } catch {
+      parsed = Object.fromEntries(new URLSearchParams(body));
+    }
+    const email = (parsed.email || '').toLowerCase();
+    const password = parsed.password || '';
+    const user = DEV_USERS[email];
+    if (!user || user.password !== password) {
+      return sendJson(res, 400, { error: 'invalid_grant', error_description: 'Invalid login credentials' });
+    }
+    return sendJson(res, 200, mintSession(user));
+  }
+
+  if (req.method === 'POST' && url.pathname === '/auth/v1/logout') {
+    return sendJson(res, 204, {});
+  }
+
+  return sendJson(res, 501, {
+    message: 'Local JWT mint only handles password login. GoTrue is not running on the host.',
+    path: url.pathname,
+  });
+}
+
+function proxyPostgrest(req, res, body) {
+  const restPath = req.url.replace(/^\/rest\/v1/, '') || '/';
+  const headers = { ...req.headers, host: `${POSTGREST.host}:${POSTGREST.port}` };
+  delete headers['content-length'];
+
+  const proxyReq = http.request(
+    {
+      host: POSTGREST.host,
+      port: POSTGREST.port,
+      path: restPath,
+      method: req.method,
+      headers,
+    },
+    (proxyRes) => {
+      const outHeaders = {
+        ...proxyRes.headers,
+        'access-control-allow-origin': '*',
+        'access-control-allow-headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, range',
+        'access-control-expose-headers': 'Content-Range, Range, Location',
+      };
+      res.writeHead(proxyRes.statusCode || 502, outHeaders);
+      proxyRes.pipe(res);
+    }
+  );
+
+  proxyReq.on('error', (err) => {
+    sendJson(res, 502, { message: 'PostgREST proxy failed', details: err.message });
+  });
+
+  if (body) proxyReq.write(body);
+  proxyReq.end();
+}
+
+const server = http.createServer((req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, range',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    });
+    return res.end();
+  }
+
+  const chunks = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', () => {
+    const body = Buffer.concat(chunks);
+    const path = req.url.split('?')[0];
+    if (path.startsWith('/auth/v1')) return handleAuth(req, res, body.toString('utf8'));
+    if (path.startsWith('/rest/v1') || path === '/rest' || path === '/') {
+      if (path === '/') return sendJson(res, 200, { status: 'ok', rest: '/rest/v1', auth: '/auth/v1' });
+      return proxyPostgrest(req, res, body);
+    }
+    sendJson(res, 404, { message: 'Not found', path });
+  });
+});
+
+server.listen(LISTEN_PORT, LISTEN_HOST, () => {
+  console.log(`Local API proxy http://${LISTEN_HOST}:${LISTEN_PORT} -> PostgREST :3000 + JWT mint`);
+});

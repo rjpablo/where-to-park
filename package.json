@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
-    "db:reset": "supabase db reset",
+    "db:reset": "./scripts/reset-local-db.sh",
+    "dev:proxy": "node scripts/local-api-proxy.js",
     "db:migrate": "supabase db push",
     "functions:serve": "supabase functions serve"
   },
