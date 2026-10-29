@@ -17,7 +17,13 @@ run_tap() {
   local file="$1"
   echo ""
   echo "--- $(basename "$file") ---"
-  docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 < "$file"
+  local out
+  out="$(docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 < "$file")"
+  printf '%s\n' "$out"
+  if printf '%s\n' "$out" | grep -q "not ok"; then
+    echo "FAIL: $(basename "$file") reported a failed TAP assertion"
+    exit 1
+  fi
 }
 
 run_tap "$ROOT/supabase/tests/database_tests.sql"
