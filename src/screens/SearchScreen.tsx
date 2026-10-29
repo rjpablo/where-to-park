@@ -21,7 +21,7 @@ export function SearchScreen() {
     sheetPosition,
     setSheetPosition,
   } = useSearchStore();
-  const [location, setLocation] = useState({ lat: 16.412, lng: 120.596 }); // Default: Baguio City center
+  const [location, setLocation] = useState({ lat: 16.4023, lng: 120.5960 }); // Baguio City center
 
   const region: MapRegion = useMemo(
     () => ({
@@ -58,12 +58,12 @@ export function SearchScreen() {
   };
 
   useEffect(() => {
-    // Initial search
-    search(location.lat, location.lng);
+    // Initial search with larger radius
+    search(location.lat, location.lng, 5000); // 5km radius to include all Baguio locations
   }, []);
 
   const handleSearch = () => {
-    search(location.lat, location.lng);
+    search(location.lat, location.lng, 5000);
   };
 
   const renderListItem = ({ item }: { item: (typeof results)[0] }) => (
