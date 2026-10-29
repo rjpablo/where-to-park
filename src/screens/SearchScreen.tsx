@@ -8,6 +8,7 @@ import { LocationPin, MapRegion } from '../components/map/types';
 import { formatPeso, formatDistance } from '../utils/formatters';
 import { theme } from '../lib/theme';
 import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../lib/supabase';
 
 export function SearchScreen() {
   const router = useRouter();
@@ -61,8 +62,20 @@ export function SearchScreen() {
   };
 
   useEffect(() => {
-    // Initial search with larger radius
-    search(location.lat, location.lng, 5000); // 5km radius to include all Baguio locations
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session?.user) {
+        const { data: vehicle } = await supabase
+          .from('vehicles')
+          .select('vehicle_type')
+          .eq('is_default', true)
+          .maybeSingle();
+        if (vehicle?.vehicle_type) {
+          setFilters({ vehicleType: vehicle.vehicle_type });
+        }
+      }
+      search(location.lat, location.lng, 5000);
+    })();
   }, []);
 
   const handleSearch = () => {
@@ -160,6 +173,11 @@ export function SearchScreen() {
             >
               <Text style={styles.filterChipText}>Hide Full</Text>
             </TouchableOpacity>
+            {filters.vehicleType ? (
+              <View style={[styles.filterChip, styles.filterChipActive]} testID="search-vehicle-filter">
+                <Text style={styles.filterChipText}>{filters.vehicleType}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
