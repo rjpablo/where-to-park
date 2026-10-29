@@ -15,6 +15,7 @@ import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
+import { locationPhotoPublicUrl } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
 
 export default function LocationDetailScreen() {
@@ -161,9 +162,11 @@ export default function LocationDetailScreen() {
       {/* Photo Gallery or Placeholder */}
       {location.location_photos?.length > 0 ? (
         <ScrollView horizontal style={styles.photoGallery}>
-          {location.location_photos.map((photo: any) => (
-            <Image key={photo.id} source={{ uri: photo.url }} style={styles.photo} />
-          ))}
+          {location.location_photos.map((photo: any) => {
+            const uri = photo.url || locationPhotoPublicUrl(photo.storage_path);
+            if (!uri) return null;
+            return <Image key={photo.id} source={{ uri }} style={styles.photo} />;
+          })}
         </ScrollView>
       ) : (
         <View style={styles.photoPlaceholder}>

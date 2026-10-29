@@ -1,10 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Button } from '../../src/components/Button';
 import { MapPinPicker } from '../../src/components/map/MapPinPicker';
 import { supabase } from '../../src/lib/supabase';
+import { uploadLocationPhoto } from '../../src/lib/storageUpload';
+import { processChatImageFile } from '../../src/utils/chatImage';
 import { theme } from '../../src/lib/theme';
 import type { Coordinate } from '../../src/components/map/types';
+
+type PickedPhoto = { name: string; base64: string; contentType: string };
 
 type ListingType = 'commercial' | 'residential';
 
@@ -17,7 +22,7 @@ export default function OnboardingScreen() {
   const [capacity, setCapacity] = React.useState('10');
   const [rate, setRate] = React.useState('50.00');
   const [rules, setRules] = React.useState('');
-  const [photoName, setPhotoName] = React.useState<string | null>(null);
+  const [photo, setPhoto] = React.useState<PickedPhoto | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
@@ -48,9 +53,41 @@ export default function OnboardingScreen() {
     if (step > 1) setStep(step - 1);
   };
 
-  const onPickFile = (event: any) => {
-    const file = event?.target?.files?.[0];
-    if (file?.name) setPhotoName(file.name);
+  const onPickFile = async (event: any) => {
+    const file = event?.target?.files?.[0] as File | undefined;
+    if (!file) return;
+    try {
+      const processed = await processChatImageFile(file);
+      setPhoto({
+        name: processed.filename,
+        base64: processed.base64,
+        contentType: processed.contentType,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Could not process photo');
+    }
+  };
+
+  const onPickNative = async () => {
+    setError(null);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError('Photo library permission is required');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      exif: false,
+      allowsEditing: true,
+      base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+    setPhoto({
+      name: 'facility.jpg',
+      base64: result.assets[0].base64,
+      contentType: result.assets[0].mimeType || 'image/jpeg',
+    });
   };
 
   const handleFinish = async () => {
@@ -74,16 +111,16 @@ export default function OnboardingScreen() {
         return;
       }
 
-      if (photoName && data?.location_id) {
-        const { data: photoData, error: photoError } = await supabase.rpc('put_location_photo', {
-          p_location_id: data.location_id,
-          p_filename: photoName,
-          p_is_cover: true,
-          p_caption: null,
+      if (photo && data?.location_id) {
+        const uploaded = await uploadLocationPhoto({
+          locationId: data.location_id,
+          filename: photo.name,
+          base64: photo.base64,
+          contentType: photo.contentType,
+          isCover: true,
         });
-        if (photoError) throw photoError;
-        if (photoData?.error) {
-          setError(String(photoData.error));
+        if (uploaded.error) {
+          setError(uploaded.error);
           return;
         }
       }
@@ -216,15 +253,15 @@ export default function OnboardingScreen() {
             />
           ) : (
             <Button
-              title={photoName ? 'Change photo' : 'Choose photo'}
+              title={photo ? 'Change photo' : 'Choose photo'}
               variant="outline"
-              onPress={() => setPhotoName('facility.jpg')}
+              onPress={onPickNative}
               testID="onboarding-photo"
             />
           )}
-          {photoName ? (
+          {photo ? (
             <Text style={styles.photoName} testID="onboarding-photo-name">
-              Selected: {photoName}
+              Selected: {photo.name}
             </Text>
           ) : (
             <Text style={styles.help}>Public can view; only operator members can upload.</Text>
@@ -274,7 +311,7 @@ export default function OnboardingScreen() {
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Photo</Text>
-            <Text style={styles.reviewValue}>{photoName || 'None'}</Text>
+            <Text style={styles.reviewValue}>{photo?.name || 'None'}</Text>
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Payment</Text>

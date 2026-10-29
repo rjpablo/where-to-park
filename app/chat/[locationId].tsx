@@ -17,6 +17,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { processChatImageFile } from '../../src/utils/chatImage';
+import { uploadChatImage } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
 
 type ChatMessage = {
@@ -181,14 +182,14 @@ export default function ChatScreen() {
     filename: string;
   }) => {
     if (!threadId) return;
-    const { data, error: rpcError } = await supabase.rpc('put_chat_image', {
-      p_thread_id: threadId,
-      p_filename: processed.filename,
-      p_bytes_base64: processed.base64,
-      p_content_type: processed.contentType,
+    const result = await uploadChatImage({
+      threadId,
+      filename: processed.filename,
+      base64: processed.base64,
+      contentType: processed.contentType,
     });
-    if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
+    if (result.error) {
+      setError(result.error);
       return;
     }
     await loadMessages(threadId);

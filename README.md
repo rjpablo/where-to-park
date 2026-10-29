@@ -74,6 +74,13 @@ EOF
 EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:3000
 ```
 
+**Issue: Local proxy has no Storage upload API**
+
+`scripts/local-api-proxy.js` only implements signed GET for `chat-images` (via `chat_image_blobs`). There is no `storage.from(...).upload()` on the proxy.
+
+- Chat photos fall back to `put_chat_image` BYTEA storage, then `get_chat_image` / signed URLs.
+- Location photos record a `location_photos` path only. Public URLs work against hosted Storage, not the local proxy.
+
 **Issue: `supabase db reset` times out**
 
 The Supabase CLI `db reset` command tries to connect through Kong/PostgREST, which has the timeout issue above.

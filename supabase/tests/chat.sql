@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(15);
+SELECT plan(16);
 
 -- Seeded ABC 1234 session already posted a system event on Sarah's Session Road thread.
 SELECT ok(
@@ -140,17 +140,32 @@ SELECT is(
 
 RESET ROLE;
 
--- Thread member (Sarah) can read the stored image object.
+-- Thread member (Sarah) can write/read chat-images via Storage RLS.
+-- put_chat_image no longer inserts storage.objects (hosted unique index mismatch).
 SET LOCAL "request.jwt.claim.sub" TO '20000000-0000-0000-0000-000000000003';
 SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SET LOCAL "request.jwt.claims" TO '{"sub":"20000000-0000-0000-0000-000000000003","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
+
+INSERT INTO storage.objects (bucket_id, name, owner, metadata)
+VALUES (
+  'chat-images',
+  (SELECT id FROM chat_ids WHERE label = 'sm')::text || '/rls.jpg',
+  '20000000-0000-0000-0000-000000000003',
+  '{}'::jsonb
+);
 
 SELECT cmp_ok(
   (SELECT COUNT(*)::INTEGER FROM storage.objects WHERE bucket_id = 'chat-images'),
   '>=',
   1,
   'Sarah can read her chat-images object'
+);
+
+SELECT is(
+  (register_chat_image((SELECT id FROM chat_ids WHERE label = 'sm'), 'uploaded.jpg', 'image/jpeg')->>'success')::BOOLEAN,
+  true,
+  'register_chat_image records a path after a client Storage upload'
 );
 
 SELECT ok(
