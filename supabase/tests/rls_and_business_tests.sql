@@ -57,17 +57,17 @@ BEGIN
   RESET ROLE;
 END $$;
 
--- TEST 2: Anon cannot read unverified locations
+-- TEST 2: Anon can read published Unverified listings (visible with badge)
 DO $$
 DECLARE
   v_count INTEGER;
 BEGIN
   SET LOCAL ROLE anon;
   SET LOCAL "request.jwt.claims" TO '{}';
-  
-  SELECT COUNT(*) INTO v_count FROM locations WHERE verification_status = 'unverified';
-  PERFORM is(v_count, 0, 'Anon cannot read unverified locations');
-  
+
+  SELECT COUNT(*) INTO v_count FROM locations WHERE verification_status = 'unverified' AND published = true;
+  PERFORM ok(v_count > 0, 'Anon can read published Unverified locations');
+
   RESET ROLE;
 END $$;
 

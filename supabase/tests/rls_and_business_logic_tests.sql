@@ -58,7 +58,7 @@ END $$;
 -- RLS TESTS
 -- ====================
 
--- TEST 1-2: Anon can read verified locations, not unverified
+-- TEST 1-2: Anon can read published locations, Verified and Unverified
 DO $$
 DECLARE
   v_count INTEGER;
@@ -69,8 +69,8 @@ BEGIN
   SELECT COUNT(*) INTO v_count FROM locations WHERE verification_status = 'verified' AND published = true;
   PERFORM ok(v_count > 0, 'RLS: Anon can read verified locations');
   
-  SELECT COUNT(*) INTO v_count FROM locations WHERE verification_status = 'unverified';
-  PERFORM is(v_count, 0, 'RLS: Anon cannot read unverified locations');
+  SELECT COUNT(*) INTO v_count FROM locations WHERE verification_status = 'unverified' AND published = true;
+  PERFORM ok(v_count > 0, 'RLS: Anon can read published Unverified locations');
   
   RESET ROLE;
 END $$;

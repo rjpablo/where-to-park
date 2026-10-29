@@ -48,11 +48,21 @@ export function SearchScreen() {
           longitude: result.longitude,
         },
         availableCount: result.available_count || 0,
+        pinLabel:
+          result.tracking_mode === 'open_full'
+            ? result.open_status
+              ? 'Open'
+              : 'Full'
+            : String(result.available_count ?? 0),
         isStale:
           result.stale_after_min && result.availability_updated_at
             ? new Date().getTime() - new Date(result.availability_updated_at).getTime() >
               result.stale_after_min * 60 * 1000
             : false,
+        isFull:
+          result.tracking_mode === 'open_full'
+            ? !result.open_status
+            : (result.available_count || 0) <= 0,
         title: result.name,
       })),
     [results]
@@ -107,7 +117,7 @@ export function SearchScreen() {
       <View style={styles.listItemHeader}>
         <Text style={styles.listItemTitle}>{item.name}</Text>
         {item.verification_status === 'unverified' && (
-          <View style={styles.badge}>
+          <View style={styles.badge} testID={`unverified-badge-${item.name}`}>
             <Text style={styles.badgeText}>Unverified</Text>
           </View>
         )}
