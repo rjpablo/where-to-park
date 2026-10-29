@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
 import { Map } from '../components/map';
 import { LocationPin, MapRegion } from '../components/map/types';
-import { formatPeso, formatDistance } from '../utils/formatters';
+import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
@@ -24,8 +24,9 @@ export function SearchScreen() {
     sheetPosition,
     setSheetPosition,
   } = useSearchStore();
-  const [location, setLocation] = useState({ lat: 16.4023, lng: 120.5960 }); // Baguio City center
+  const [location] = useState({ lat: 16.4023, lng: 120.596 }); // Baguio City center
   const authUser = useAuthStore((s) => s.user);
+  const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
 
   const region: MapRegion = useMemo(
     () => ({
@@ -74,19 +75,35 @@ export function SearchScreen() {
           setFilters({ vehicleType: vehicle.vehicle_type });
         }
       }
-      search(location.lat, location.lng, 5000);
     })();
+    // Default vehicle filter is applied once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSearch = () => {
+  useEffect(() => {
     search(location.lat, location.lng, 5000);
-  };
+  }, [filters, sortBy, location.lat, location.lng, search]);
+
+  useEffect(() => {
+    if (!results.length) return;
+    const ids = results.slice(0, 20).map((r) => r.id);
+    supabase
+      .rpc('get_etas', {
+        p_lat: location.lat,
+        p_lng: location.lng,
+        p_location_ids: ids,
+      })
+      .then(({ data }) => {
+        const next: Record<string, { duration_s: number; source: string }> = {};
+        (data?.etas || []).forEach((e: any) => {
+          next[e.location_id] = { duration_s: e.duration_s, source: e.source };
+        });
+        setEtas(next);
+      });
+  }, [results, location.lat, location.lng]);
 
   const renderListItem = ({ item }: { item: (typeof results)[0] }) => (
-    <TouchableOpacity
-      style={styles.listItem}
-      onPress={() => router.push(`/location/${item.id}`)}
-    >
+    <TouchableOpacity style={styles.listItem} onPress={() => router.push(`/location/${item.id}`)}>
       <View style={styles.listItemHeader}>
         <Text style={styles.listItemTitle}>{item.name}</Text>
         {item.verification_status === 'unverified' && (
@@ -106,8 +123,12 @@ export function SearchScreen() {
           staleThresholdMin={item.stale_after_min}
         />
 
-        <Text style={styles.listItemDetail}>
-          {formatDistance(item.distance_m)} •{' '}
+        <Text style={styles.listItemDetail} testID={`list-eta-${item.id}`}>
+          {formatDistance(item.distance_m)}
+          {etas[item.id]
+            ? ` · ${formatDuration(etas[item.id].duration_s)}${etas[item.id].source === 'estimate' ? ' est.' : ''}`
+            : ''}
+          {' · '}
           {item.starting_rate ? formatPeso(item.starting_rate) + '/h' : 'See rates'}
         </Text>
 
@@ -163,6 +184,7 @@ export function SearchScreen() {
             <TouchableOpacity
               style={[styles.filterChip, filters.monthlyOnly && styles.filterChipActive]}
               onPress={() => setFilters({ monthlyOnly: !filters.monthlyOnly })}
+              testID="filter-monthly"
             >
               <Text style={styles.filterChipText}>Monthly</Text>
             </TouchableOpacity>
@@ -174,7 +196,10 @@ export function SearchScreen() {
               <Text style={styles.filterChipText}>Hide Full</Text>
             </TouchableOpacity>
             {filters.vehicleType ? (
-              <View style={[styles.filterChip, styles.filterChipActive]} testID="search-vehicle-filter">
+              <View
+                style={[styles.filterChip, styles.filterChipActive]}
+                testID="search-vehicle-filter"
+              >
                 <Text style={styles.filterChipText}>{filters.vehicleType}</Text>
               </View>
             ) : null}
@@ -183,7 +208,7 @@ export function SearchScreen() {
 
         <View style={styles.sortRow}>
           <Text style={styles.sortLabel}>Sort by:</Text>
-          {['distance', 'price', 'availability', 'rating'].map((sort) => (
+          {['distance', 'price', 'availability', 'rating', 'eta'].map((sort) => (
             <TouchableOpacity
               key={sort}
               style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
@@ -197,7 +222,13 @@ export function SearchScreen() {
         </View>
 
         <FlatList
-          data={results}
+          data={
+            sortBy === 'eta'
+              ? [...results].sort(
+                  (a, b) => (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
+                )
+              : results
+          }
           renderItem={renderListItem}
           keyExtractor={(item) => item.id}
           style={styles.list}
