@@ -278,3 +278,11 @@ BEGIN
   INSERT INTO folio_charges (folio_id, type, description, amount, added_by)
   VALUES (v_folio_id, 'parking_fee', 'Parking fee', 100.00, '20000000-0000-0000-0000-000000000002');
 END $$;
+
+-- Stamp location reviews that already have a session or reservation.
+UPDATE reviews r
+SET session_id = s.id
+FROM parking_sessions s
+WHERE r.session_id IS NULL
+  AND s.location_id = r.location_id
+  AND s.driver_id = r.author_id;
