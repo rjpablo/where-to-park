@@ -80,7 +80,11 @@ export function AuthScreen() {
             placeholder="123456"
             testID="auth-otp"
           />
-          <Text style={styles.hint}>Local test OTP is 123456</Text>
+          {__DEV__ ? (
+            <Text style={styles.hint} testID="auth-otp-hint">
+              Local test OTP is 123456
+            </Text>
+          ) : null}
           <Button title="Verify" onPress={verify} loading={loading} testID="auth-verify" />
         </View>
       )}
@@ -111,7 +115,12 @@ export function AuthScreen() {
               testID="auth-type-operator"
             />
           </View>
-          <Button title="Save profile" onPress={finishProfile} loading={loading} testID="auth-save-profile" />
+          <Button
+            title="Save profile"
+            onPress={finishProfile}
+            loading={loading}
+            testID="auth-save-profile"
+          />
         </View>
       )}
 
@@ -160,7 +169,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     fontSize: 16,
   },
-  hint: { ...theme.typography.caption, color: theme.colors.text.secondary, marginBottom: theme.spacing.md },
+  hint: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.md,
+  },
   row: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
 });
