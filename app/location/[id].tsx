@@ -1,22 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TextInput, TouchableOpacity, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
 import { supabase } from '../../src/lib/supabase';
-import { formatPeso, formatDistance } from '../../src/utils/formatters';
+import { useAuthStore } from '../../src/stores/authStore';
+import { formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
 export default function LocationDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { user, initialize } = useAuthStore();
   const [location, setLocation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    initialize();
     loadLocation();
   }, [id]);
+
+  const submitReview = async () => {
+    setReviewNotice(null);
+    const { data, error: rpcError } = await supabase.rpc('submit_location_review', {
+      p_location_id: id,
+      p_rating: rating,
+      p_comment: comment.trim() || null,
+    });
+    if (rpcError || data?.error) {
+      setReviewNotice(rpcError?.message || String(data?.error));
+      return;
+    }
+    setReviewNotice(data.booked_via_app ? 'Review saved · Booked via app' : 'Review saved');
+    await loadLocation();
+  };
 
   const loadLocation = async () => {
     if (!id) {
@@ -188,15 +209,49 @@ export default function LocationDetailScreen() {
             </View>
           )}
 
-          {location.reviews?.slice(0, 3).map((review: any) => (
-            <View key={review.id} style={styles.reviewItem}>
+          {location.reviews?.map((review: any) => (
+            <View key={review.id} style={styles.reviewItem} testID={`review-${review.author_id}`}>
               <Text style={styles.reviewAuthor}>
                 {review.profiles?.display_name || 'Anonymous'}
               </Text>
+              {review.session_id || review.reservation_id ? (
+                <Text style={styles.bookedLabel} testID="booked-via-app">
+                  Booked via app
+                </Text>
+              ) : null}
               <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
               <Text style={styles.reviewText}>{review.comment}</Text>
             </View>
           ))}
+
+          {user ? (
+            <View style={styles.reviewForm} testID="review-form">
+              <Text style={styles.sectionTitle}>Write a review</Text>
+              <View style={styles.ratingRow}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Button
+                    key={n}
+                    title={`${n}`}
+                    size="small"
+                    variant={rating === n ? 'primary' : 'outline'}
+                    onPress={() => setRating(n)}
+                    testID={`review-rating-${n}`}
+                  />
+                ))}
+              </View>
+              <TextInput
+                style={styles.input}
+                value={comment}
+                onChangeText={setComment}
+                placeholder="How was parking here?"
+                testID="review-comment"
+              />
+              <Button title="Submit review" onPress={submitReview} testID="review-submit" />
+              {reviewNotice ? <Text style={styles.reviewNotice}>{reviewNotice}</Text> : null}
+            </View>
+          ) : (
+            <Button title="Sign in to review" variant="outline" onPress={() => router.push('/auth')} />
+          )}
         </View>
 
         {/* Contact */}
@@ -305,6 +360,22 @@ const styles = StyleSheet.create({
     ...theme.typography.body,
     color: theme.colors.text.secondary,
   },
+  bookedLabel: {
+    ...theme.typography.caption,
+    color: theme.colors.secondary,
+    fontWeight: '700',
+    marginBottom: theme.spacing.xs,
+  },
+  reviewForm: { marginTop: theme.spacing.md },
+  ratingRow: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  reviewNotice: { ...theme.typography.bodySmall, color: theme.colors.success, marginTop: theme.spacing.sm },
   contactText: {
     ...theme.typography.body,
   },

@@ -17,6 +17,10 @@ export default function SessionsScreen() {
   const [closing, setClosing] = useState(false);
   const [presets, setPresets] = useState<any[]>([]);
   const [applyNotice, setApplyNotice] = useState<string | null>(null);
+  const [driverReviews, setDriverReviews] = useState<Record<string, any[]>>({});
+  const [driverRating, setDriverRating] = useState(5);
+  const [driverComment, setDriverComment] = useState('On time, clear plate');
+  const [driverNotice, setDriverNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadSessions();
@@ -49,6 +53,19 @@ export default function SessionsScreen() {
 
       if (fetchError) throw fetchError;
       setSessions(data || []);
+      const driverIds = [...new Set((data || []).map((s: any) => s.driver_id).filter(Boolean))];
+      if (driverIds.length) {
+        const { data: reviews } = await supabase
+          .from('driver_reviews')
+          .select('id, driver_id, rating, comment, author_id')
+          .in('driver_id', driverIds);
+        const grouped: Record<string, any[]> = {};
+        (reviews || []).forEach((r) => {
+          grouped[r.driver_id] = grouped[r.driver_id] || [];
+          grouped[r.driver_id].push(r);
+        });
+        setDriverReviews(grouped);
+      }
     } catch (err: any) {
       console.error('Load sessions error:', err);
       setError(err.message || 'Failed to load sessions');
@@ -153,6 +170,53 @@ export default function SessionsScreen() {
           <Text style={styles.sessionLocation}>{item.locations?.name}</Text>
           <Text style={styles.sessionBalance}>Balance: {formatPeso(balance)}</Text>
         </View>
+
+        {item.driver_id ? (
+          <View style={styles.driverReviewBox} testID={`driver-review-${item.plate}`}>
+            <Text style={styles.label}>Review driver</Text>
+            {(driverReviews[item.driver_id] || []).map((r) => (
+              <Text key={r.id} style={styles.sessionTime}>
+                {'⭐'.repeat(r.rating)} {r.comment}
+              </Text>
+            ))}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Button
+                  key={n}
+                  title={`${n}`}
+                  size="small"
+                  variant={driverRating === n ? 'primary' : 'outline'}
+                  onPress={() => setDriverRating(n)}
+                />
+              ))}
+            </View>
+            <TextInput
+              style={styles.input}
+              value={driverComment}
+              onChangeText={setDriverComment}
+              testID="driver-review-comment"
+            />
+            <Button
+              title="Save driver review"
+              size="small"
+              testID="driver-review-submit"
+              onPress={async () => {
+                setDriverNotice(null);
+                const { data, error: rpcError } = await supabase.rpc('submit_driver_review', {
+                  p_session_id: item.id,
+                  p_rating: driverRating,
+                  p_comment: driverComment.trim() || null,
+                });
+                if (rpcError || data?.error) {
+                  setDriverNotice(rpcError?.message || String(data?.error));
+                  return;
+                }
+                setDriverNotice('Driver review saved');
+                await loadSessions();
+              }}
+            />
+          </View>
+        ) : null}
 
         {presets.map((preset) => (
           <Button
@@ -262,6 +326,11 @@ export default function SessionsScreen() {
       {applyNotice ? (
         <Text style={styles.successBanner} testID="fee-applied">
           {applyNotice}
+        </Text>
+      ) : null}
+      {driverNotice ? (
+        <Text style={styles.successBanner} testID="driver-review-saved">
+          {driverNotice}
         </Text>
       ) : null}
 
@@ -393,5 +462,11 @@ const styles = StyleSheet.create({
   emptyText: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,
+  },
+  driverReviewBox: {
+    marginBottom: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
 });
