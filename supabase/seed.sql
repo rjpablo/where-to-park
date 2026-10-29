@@ -171,6 +171,11 @@ INSERT INTO locations (
  'unverified'
 );
 
+UPDATE locations
+SET availability_updated_at = NOW() - INTERVAL '3 hours',
+    stale_after_min = 120
+WHERE id = '30000000-0000-0000-0000-000000000005';
+
 -- Add cover photos (placeholder paths)
 INSERT INTO location_photos (location_id, storage_path, is_cover, sort_order) VALUES
 ('30000000-0000-0000-0000-000000000001', 'location-photos/sm-baguio-cover.jpg', true, 0),
@@ -238,7 +243,7 @@ INSERT INTO location_policies (location_id, reservations_enabled, approval_requi
 ('30000000-0000-0000-0000-000000000003', true, true),
 ('30000000-0000-0000-0000-000000000004', false, false);
 
--- Create a sample active session
+-- Sample walk-in: started 2h ago, scheduled end 30m ago (overdue, parking posted only on close).
 INSERT INTO parking_sessions (
   location_id, driver_id, plate, vehicle_type,
   started_at, scheduled_end_at, status,
@@ -249,16 +254,15 @@ INSERT INTO parking_sessions (
   'ABC 1234',
   'car',
   NOW() - INTERVAL '2 hours',
-  NOW() + INTERVAL '1 hour',
+  NOW() - INTERVAL '30 minutes',
   'active',
   '{"amount": 50, "rate_type": "hourly", "rate_name": "Standard Rate"}'::jsonb
 );
 
--- Create folio for the active session
+-- Folio only — parking_fee is posted by end_session from the live quote.
 DO $$
 DECLARE
   v_session_id UUID;
-  v_folio_id UUID;
 BEGIN
   SELECT id INTO v_session_id
   FROM parking_sessions
@@ -272,11 +276,7 @@ BEGIN
     '30000000-0000-0000-0000-000000000002',
     v_session_id,
     'open'
-  ) RETURNING id INTO v_folio_id;
-
-  -- Add parking fee charge
-  INSERT INTO folio_charges (folio_id, type, description, amount, added_by)
-  VALUES (v_folio_id, 'parking_fee', 'Parking fee', 100.00, '20000000-0000-0000-0000-000000000002');
+  );
 END $$;
 
 -- Stamp location reviews that already have a session or reservation.

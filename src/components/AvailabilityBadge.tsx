@@ -45,8 +45,11 @@ export function AvailabilityBadge({
       <View style={[styles.badge, { backgroundColor: stale ? theme.colors.warning : color }]}>
         <Text style={styles.badgeText}>{text}</Text>
       </View>
-      <Text style={[styles.timestamp, stale && styles.staleTimestamp]}>
-        {formatRelativeTime(updatedAt)}
+      <Text
+        style={[styles.timestamp, stale && styles.staleTimestamp]}
+        testID={stale ? 'availability-stale' : 'availability-fresh'}
+      >
+        {stale ? `Stale · ${formatRelativeTime(updatedAt)}` : formatRelativeTime(updatedAt)}
       </Text>
     </View>
   );

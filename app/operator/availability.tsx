@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 
@@ -9,6 +8,7 @@ export default function AvailabilityScreen() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadLocationData();
@@ -18,27 +18,25 @@ export default function AvailabilityScreen() {
     try {
       setLoading(true);
       setError(null);
-      
-      // Get first location for operator (would use auth context in real app)
+
       const { data: locations, error: locError } = await supabase
         .from('locations')
         .select('*')
         .eq('id', '30000000-0000-0000-0000-000000000001')
         .single();
-      
+
       if (locError) throw locError;
-      
+
       if (locations) {
         setLocation(locations);
-        
-        // Load recent sessions as activity
+
         const { data: sessions, error: sessError } = await supabase
           .from('parking_sessions')
           .select('*, created_at')
           .eq('location_id', locations.id)
           .order('created_at', { ascending: false })
           .limit(5);
-        
+
         if (sessError) throw sessError;
         setRecentActivity(sessions || []);
       }
@@ -52,29 +50,51 @@ export default function AvailabilityScreen() {
 
   const adjustAvailability = async (delta: number) => {
     if (!location) return;
-    
+
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('adjust_availability', {
+      const { data, error: rpcError } = await supabase.rpc('adjust_availability', {
         p_location_id: location.id,
         p_delta: delta,
       });
 
-      if (error) throw error;
+      if (rpcError) throw rpcError;
 
       if (data?.available_count !== undefined) {
         setLocation({ ...location, available_count: data.available_count });
       }
-      
-      await loadLocationData(); // Refresh
-    } catch (error: any) {
-      console.error('Adjust availability error:', error);
+
+      await loadLocationData();
+    } catch (err: any) {
+      console.error('Adjust availability error:', err);
+      setError(err.message || 'Adjust failed');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  const setManual = async (reserved: number, unavailable: number) => {
+    if (!location) return;
+    setNotice(null);
+    setError(null);
+    const { data, error: rpcError } = await supabase.rpc('set_manual_counts', {
+      p_location_id: location.id,
+      p_reserved: Math.max(0, reserved),
+      p_unavailable: Math.max(0, unavailable),
+    });
+    if (rpcError || data?.error) {
+      setNotice(rpcError?.message || String(data?.error));
+      return;
+    }
+    setLocation({
+      ...location,
+      available_count: data.available_count,
+      manual_reserved_count: data.manual_reserved_count,
+      unavailable_count: data.unavailable_count,
+    });
+  };
+
+  if (loading && !location) {
     return (
       <View style={[styles.container, styles.centered]} testID="availability-loading">
         <Text style={styles.loadingText}>Loading...</Text>
@@ -82,7 +102,7 @@ export default function AvailabilityScreen() {
     );
   }
 
-  if (error) {
+  if (error && !location) {
     return (
       <View style={[styles.container, styles.centered]} testID="availability-error">
         <Text style={styles.errorText}>Error: {error}</Text>
@@ -100,6 +120,9 @@ export default function AvailabilityScreen() {
       </View>
     );
   }
+
+  const reserved = Number(location.manual_reserved_count || 0);
+  const unavailable = Number(location.unavailable_count || 0);
 
   return (
     <ScrollView style={styles.container} testID="availability-ready">
@@ -143,11 +166,22 @@ export default function AvailabilityScreen() {
           <View style={styles.manualItem}>
             <Text style={styles.manualLabel}>Reserved</Text>
             <View style={styles.stepper}>
-              <TouchableOpacity style={styles.stepperButton}>
+              <TouchableOpacity
+                style={styles.stepperButton}
+                onPress={() => setManual(reserved - 1, unavailable)}
+                disabled={reserved <= 0}
+                testID="reserved-minus"
+              >
                 <Text>-</Text>
               </TouchableOpacity>
-              <Text style={styles.stepperValue}>0</Text>
-              <TouchableOpacity style={styles.stepperButton}>
+              <Text style={styles.stepperValue} testID="reserved-value">
+                {reserved}
+              </Text>
+              <TouchableOpacity
+                style={styles.stepperButton}
+                onPress={() => setManual(reserved + 1, unavailable)}
+                testID="reserved-plus"
+              >
                 <Text>+</Text>
               </TouchableOpacity>
             </View>
@@ -156,16 +190,32 @@ export default function AvailabilityScreen() {
           <View style={styles.manualItem}>
             <Text style={styles.manualLabel}>Unavailable</Text>
             <View style={styles.stepper}>
-              <TouchableOpacity style={styles.stepperButton}>
+              <TouchableOpacity
+                style={styles.stepperButton}
+                onPress={() => setManual(reserved, unavailable - 1)}
+                disabled={unavailable <= 0}
+                testID="unavailable-minus"
+              >
                 <Text>-</Text>
               </TouchableOpacity>
-              <Text style={styles.stepperValue}>0</Text>
-              <TouchableOpacity style={styles.stepperButton}>
+              <Text style={styles.stepperValue} testID="unavailable-value">
+                {unavailable}
+              </Text>
+              <TouchableOpacity
+                style={styles.stepperButton}
+                onPress={() => setManual(reserved, unavailable + 1)}
+                testID="unavailable-plus"
+              >
                 <Text>+</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
+        {notice ? (
+          <Text style={styles.errorText} testID="manual-notice">
+            {notice}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -174,7 +224,10 @@ export default function AvailabilityScreen() {
           recentActivity.map((activity) => (
             <View key={activity.id} style={styles.activityItem}>
               <Text style={styles.activityText}>
-                {activity.status === 'active' ? '🚗 Check-in' : '✓ Check-out'}: {activity.plate}
+                {activity.status === 'active' || activity.status === 'overdue'
+                  ? 'Check-in'
+                  : 'Check-out'}
+                : {activity.plate}
               </Text>
               <Text style={styles.activityTime}>
                 {new Date(activity.created_at).toLocaleTimeString()}
