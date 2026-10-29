@@ -1,36 +1,32 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+CONTAINER="${DB_CONTAINER:-supabase_db_workspace}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "=== Database Test Suite ==="
-echo ""
 
-if ! docker exec supabase_db_workspace psql -U postgres -c "SELECT 1" > /dev/null 2>&1; then
+if ! docker exec "$CONTAINER" psql -U postgres -c "SELECT 1" >/dev/null 2>&1; then
   echo "ERROR: Cannot connect to database"
   exit 1
 fi
 
-echo "Running pgTAP tests..."
-docker exec -i supabase_db_workspace psql -U postgres < supabase/tests/database_tests.sql 2>&1 > /tmp/pgtap_full.txt
+docker exec "$CONTAINER" psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS pgtap" >/dev/null
+
+run_tap() {
+  local file="$1"
+  echo ""
+  echo "--- $(basename "$file") ---"
+  docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 < "$file"
+}
+
+run_tap "$ROOT/supabase/tests/database_tests.sql"
+run_tap "$ROOT/supabase/tests/rls_operator_staff.sql"
+run_tap "$ROOT/supabase/tests/staff_waiver.sql"
 
 echo ""
-cat /tmp/pgtap_full.txt | grep " ok " | head -20
-echo ""
-
-PASSED=$(cat /tmp/pgtap_full.txt | grep -c " ok " || echo "0")
-echo "pgTAP: $PASSED tests passed"
-echo ""
-
-echo "Running concurrency test..."
-docker exec -i supabase_db_workspace psql -U postgres < supabase/tests/concurrency_test.sql 2>&1 > /tmp/concurrency_full.txt
+echo "Running parallel concurrency test..."
+"$ROOT/scripts/parallel-concurrency-test.sh"
 
 echo ""
-cat /tmp/concurrency_full.txt | grep -E "ok |pass" | head -15
-echo ""
-
-CONC_PASSED=$(cat /tmp/concurrency_full.txt | grep -cE "ok |pass" || echo "0")
-echo "Concurrency: $CONC_PASSED tests/assertions passed"
-echo ""
-
 echo "=== All Tests Complete ==="
-TOTAL=$((PASSED + CONC_PASSED))
-echo "Total: $TOTAL assertions passed"

@@ -1,8 +1,53 @@
 -- Seed data for Where To Park - Baguio City sample data
 
--- Create test admin user (rj)
--- Note: This assumes auth.users is populated. For local dev, create via Supabase dashboard first
--- INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-000000000001', 'rj@wheretopark.ph');
+-- Auth users first (profiles.id references auth.users).
+-- Passwords are unused by the local JWT mint proxy; crypt() is for GoTrue if it is running.
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password, confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, email_change, email_change_token, recovery_token
+) VALUES
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000001',
+  'authenticated', 'authenticated', 'admin@wheretopark.local',
+  crypt('password123', gen_salt('bf')), NOW(),
+  '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, NOW(), NOW(),
+  '', '', '', ''
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '20000000-0000-0000-0000-000000000001',
+  'authenticated', 'authenticated', 'maria@wheretopark.local',
+  crypt('password123', gen_salt('bf')), NOW(),
+  '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, NOW(), NOW(),
+  '', '', '', ''
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '20000000-0000-0000-0000-000000000002',
+  'authenticated', 'authenticated', 'juan@wheretopark.local',
+  crypt('password123', gen_salt('bf')), NOW(),
+  '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, NOW(), NOW(),
+  '', '', '', ''
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '20000000-0000-0000-0000-000000000003',
+  'authenticated', 'authenticated', 'sarah@wheretopark.local',
+  crypt('password123', gen_salt('bf')), NOW(),
+  '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, NOW(), NOW(),
+  '', '', '', ''
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '20000000-0000-0000-0000-000000000004',
+  'authenticated', 'authenticated', 'staff@wheretopark.local',
+  crypt('password123', gen_salt('bf')), NOW(),
+  '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, NOW(), NOW(),
+  '', '', '', ''
+)
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO profiles (id, display_name, phone, is_admin) VALUES
 ('00000000-0000-0000-0000-000000000001', 'RJ (Admin)', '+639171234567', true)
@@ -19,14 +64,16 @@ INSERT INTO operators (id, display_name, contact, status, staff_can_waive) VALUE
 INSERT INTO profiles (id, display_name, phone) VALUES
 ('20000000-0000-0000-0000-000000000001', 'Maria Santos', '+639181111111'),
 ('20000000-0000-0000-0000-000000000002', 'Juan dela Cruz', '+639182222222'),
-('20000000-0000-0000-0000-000000000003', 'Sarah Chen', '+639183333333');
+('20000000-0000-0000-0000-000000000003', 'Sarah Chen', '+639183333333'),
+('20000000-0000-0000-0000-000000000004', 'Ana Staff', '+639184444444');
 
--- Make Maria and Juan operators/staff
-INSERT INTO operator_members (operator_id, profile_id, role) VALUES
-('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'owner'),
-('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', 'owner'),
-('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000001', 'staff'),
-('10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000002', 'owner');
+-- Make Maria and Juan operators/staff. Ana is staff on Session Road (Juan's operator).
+INSERT INTO operator_members (operator_id, profile_id, role, location_ids) VALUES
+('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'owner', '{}'),
+('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', 'owner', '{}'),
+('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000001', 'staff', ARRAY['30000000-0000-0000-0000-000000000003'::uuid]),
+('10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000002', 'owner', '{}'),
+('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000004', 'staff', ARRAY['30000000-0000-0000-0000-000000000002'::uuid]);
 
 -- Create sample locations in Baguio City
 -- SM City Baguio (16.4166, 120.5980)

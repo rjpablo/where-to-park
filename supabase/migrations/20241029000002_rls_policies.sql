@@ -1,3 +1,43 @@
+-- SECURITY DEFINER helpers must exist before policies that call them.
+-- Defined here (not only in core_rpcs) so this file applies from scratch.
+CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = user_id AND is_admin = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION is_operator_admin(user_id UUID, op_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM operator_members
+    WHERE profile_id = user_id
+    AND operator_id = op_id
+    AND role IN ('owner', 'manager')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION is_operator_member(user_id UUID, op_id UUID, min_role TEXT DEFAULT 'staff')
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM operator_members
+    WHERE profile_id = user_id
+    AND operator_id = op_id
+    AND (
+      (min_role = 'staff') OR
+      (min_role = 'manager' AND role IN ('manager', 'owner')) OR
+      (min_role = 'owner' AND role = 'owner')
+    )
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE operators ENABLE ROW LEVEL SECURITY;
@@ -316,3 +356,84 @@ CREATE POLICY "Only admins can update settings"
 CREATE POLICY "ETA cache readable by all"
   ON eta_cache FOR SELECT
   USING (true);
+
+-- Nested resources used by listing details / session board
+CREATE POLICY "Policies viewable for published locations"
+  ON location_policies FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM locations
+      WHERE id = location_policies.location_id
+      AND published = true
+    )
+  );
+
+CREATE POLICY "Areas viewable for published locations"
+  ON areas FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM locations
+      WHERE id = areas.location_id
+      AND published = true
+    )
+  );
+
+CREATE POLICY "Slots viewable for published locations"
+  ON slots FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM locations
+      WHERE id = slots.location_id
+      AND published = true
+    )
+  );
+
+CREATE POLICY "Rating stats viewable by all"
+  ON location_rating_stats FOR SELECT
+  USING (true);
+
+CREATE POLICY "Charges viewable with folio"
+  ON folio_charges FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM folios f
+      WHERE f.id = folio_charges.folio_id
+      AND (
+        is_operator_member(auth.uid(), f.operator_id)
+        OR EXISTS (
+          SELECT 1 FROM parking_sessions s
+          WHERE s.id = f.session_id AND s.driver_id = auth.uid()
+        )
+      )
+    )
+  );
+
+CREATE POLICY "Payments viewable with folio"
+  ON payments FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM folios f
+      WHERE f.id = payments.folio_id
+      AND (
+        is_operator_member(auth.uid(), f.operator_id)
+        OR EXISTS (
+          SELECT 1 FROM parking_sessions s
+          WHERE s.id = f.session_id AND s.driver_id = auth.uid()
+        )
+      )
+    )
+  );
+
+CREATE POLICY "Availability events for operator members"
+  ON availability_events FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM locations l
+      WHERE l.id = availability_events.location_id
+      AND is_operator_member(auth.uid(), l.operator_id)
+    )
+  );
+
+CREATE POLICY "Fee presets for operator members"
+  ON fee_presets FOR SELECT
+  USING (is_operator_member(auth.uid(), operator_id));
