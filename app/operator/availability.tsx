@@ -1,0 +1,229 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Button } from '../../src/components/Button';
+import { supabase } from '../../src/lib/supabase';
+import { theme } from '../../src/lib/theme';
+
+export default function AvailabilityScreen() {
+  const [availableCount, setAvailableCount] = useState(10);
+  const [capacity] = useState(20);
+  const [loading, setLoading] = useState(false);
+
+  const adjustAvailability = async (delta: number) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('adjust_availability', {
+        p_location_id: 'location-id-here', // Would come from context
+        p_delta: delta,
+      });
+
+      if (error) throw error;
+      
+      if (data?.available_count !== undefined) {
+        setAvailableCount(data.available_count);
+      }
+    } catch (error: any) {
+      console.error('Adjust availability error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Current Availability</Text>
+        <Text style={styles.subtitle}>SM City Baguio Main Parking</Text>
+      </View>
+
+      <View style={styles.countDisplay}>
+        <Text style={styles.countLabel}>Available Spaces</Text>
+        <Text style={styles.countNumber}>{availableCount} / {capacity}</Text>
+        <Text style={styles.countUpdated}>Updated just now</Text>
+      </View>
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity
+          style={[styles.adjustButton, styles.decrementButton]}
+          onPress={() => adjustAvailability(-1)}
+          disabled={loading || availableCount === 0}
+        >
+          <Text style={styles.adjustButtonText}>-1</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.adjustButton, styles.incrementButton]}
+          onPress={() => adjustAvailability(1)}
+          disabled={loading || availableCount >= capacity}
+        >
+          <Text style={styles.adjustButtonText}>+1</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Manual Adjustments</Text>
+        
+        <View style={styles.manualRow}>
+          <View style={styles.manualItem}>
+            <Text style={styles.manualLabel}>Reserved</Text>
+            <View style={styles.stepper}>
+              <TouchableOpacity style={styles.stepperButton}>
+                <Text>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>0</Text>
+              <TouchableOpacity style={styles.stepperButton}>
+                <Text>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.manualItem}>
+            <Text style={styles.manualLabel}>Unavailable</Text>
+            <View style={styles.stepper}>
+              <TouchableOpacity style={styles.stepperButton}>
+                <Text>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>0</Text>
+              <TouchableOpacity style={styles.stepperButton}>
+                <Text>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <View style={styles.activityItem}>
+          <Text style={styles.activityText}>Walk-in checked in</Text>
+          <Text style={styles.activityTime}>2 minutes ago</Text>
+        </View>
+        <View style={styles.activityItem}>
+          <Text style={styles.activityText}>Manual adjustment (+1)</Text>
+          <Text style={styles.activityTime}>15 minutes ago</Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  header: {
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
+  },
+  title: {
+    ...theme.typography.h2,
+    color: '#fff',
+  },
+  subtitle: {
+    ...theme.typography.body,
+    color: '#fff',
+    opacity: 0.9,
+    marginTop: theme.spacing.xs,
+  },
+  countDisplay: {
+    alignItems: 'center',
+    padding: theme.spacing.xxl,
+    backgroundColor: theme.colors.surface,
+    margin: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    ...theme.shadows.md,
+  },
+  countLabel: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+  },
+  countNumber: {
+    ...theme.typography.h1,
+    fontSize: 48,
+    color: theme.colors.primary,
+    marginVertical: theme.spacing.md,
+  },
+  countUpdated: {
+    ...theme.typography.caption,
+    color: theme.colors.text.tertiary,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+  },
+  adjustButton: {
+    flex: 1,
+    height: 80,
+    borderRadius: theme.borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.md,
+  },
+  decrementButton: {
+    backgroundColor: theme.colors.danger,
+  },
+  incrementButton: {
+    backgroundColor: theme.colors.success,
+  },
+  adjustButtonText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  section: {
+    padding: theme.spacing.lg,
+  },
+  sectionTitle: {
+    ...theme.typography.h3,
+    marginBottom: theme.spacing.md,
+  },
+  manualRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  manualItem: {
+    flex: 1,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+  },
+  manualLabel: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepperButton: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.surfaceDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperValue: {
+    ...theme.typography.h3,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.sm,
+  },
+  activityText: {
+    ...theme.typography.body,
+  },
+  activityTime: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+  },
+});
