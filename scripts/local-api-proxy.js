@@ -17,6 +17,9 @@ const LISTEN_HOST = '127.0.0.1';
 const LISTEN_PORT = 54400;
 const POSTGREST = { host: '127.0.0.1', port: 3000 };
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-token-with-at-least-32-characters-long';
+const ANON_KEY =
+  process.env.ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 
 // LOCAL DEV ONLY — seeded users from supabase/seed.sql
 const DEV_USERS = {
@@ -75,6 +78,7 @@ function mintSession(user) {
     iat: now,
     sub: user.id,
     email: user.email,
+    phone: user.phone || undefined,
     aal: 'aal1',
   });
   return {
@@ -88,11 +92,47 @@ function mintSession(user) {
       aud: 'authenticated',
       role: 'authenticated',
       email: user.email,
+      phone: user.phone || undefined,
       email_confirmed_at: new Date().toISOString(),
-      app_metadata: { provider: 'email', providers: ['email'] },
-      user_metadata: {},
+      app_metadata: { provider: user.phone ? 'phone' : 'email', providers: [user.phone ? 'phone' : 'email'] },
+      user_metadata: user.phone ? { phone: user.phone } : {},
     },
   };
+}
+
+function rpc(name, args) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(args);
+    const req = http.request(
+      {
+        host: POSTGREST.host,
+        port: POSTGREST.port,
+        path: `/rpc/${name}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${ANON_KEY}`,
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          try {
+            resolve(JSON.parse(raw));
+          } catch {
+            resolve({ error: raw || `rpc ${name} ${res.statusCode}` });
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
 }
 
 function sendJson(res, status, body) {
@@ -101,7 +141,7 @@ function sendJson(res, status, body) {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(data),
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, range',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, x-supabase-api-version, accept-profile, content-profile, range',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Expose-Headers': 'Content-Range, Range, Location',
   });
@@ -121,12 +161,61 @@ function handleAuth(req, res, body) {
     if (!token) return sendJson(res, 401, { message: 'No token' });
     try {
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
-      const user = Object.values(DEV_USERS).find((u) => u.id === payload.sub);
-      if (!user) return sendJson(res, 401, { message: 'Unknown user' });
+      const user =
+        Object.values(DEV_USERS).find((u) => u.id === payload.sub) || {
+          id: payload.sub,
+          email: payload.email,
+          phone: payload.phone,
+        };
+      if (!user.id) return sendJson(res, 401, { message: 'Unknown user' });
       return sendJson(res, 200, mintSession(user).user);
     } catch {
       return sendJson(res, 401, { message: 'Bad token' });
     }
+  }
+
+  if (req.method === 'POST' && (url.pathname === '/auth/v1/otp' || url.pathname === '/auth/v1/otp/')) {
+    let parsed = {};
+    try {
+      parsed = body ? JSON.parse(body) : {};
+    } catch {
+      parsed = {};
+    }
+    const phone = parsed.phone || '';
+    return rpc('request_phone_otp', { p_phone: phone })
+      .then((data) => {
+        if (data?.error) return sendJson(res, 400, { error: data.error, msg: data.error });
+        return sendJson(res, 200, { message: 'OTP sent', phone: data.phone });
+      })
+      .catch((err) => sendJson(res, 502, { error: err.message }));
+  }
+
+  if (req.method === 'POST' && url.pathname === '/auth/v1/verify') {
+    let parsed = {};
+    try {
+      parsed = body ? JSON.parse(body) : {};
+    } catch {
+      parsed = {};
+    }
+    const phone = parsed.phone || '';
+    const token = parsed.token || parsed.code || '';
+    return rpc('verify_phone_otp', { p_phone: phone, p_code: token })
+      .then((data) => {
+        if (!data?.success || !data.user_id) {
+          return sendJson(res, 400, { error: 'invalid_otp', error_description: data?.error || 'invalid_otp' });
+        }
+        const digits = String(phone).replace(/[^0-9]/g, '');
+        const session = mintSession({
+          id: data.user_id,
+          email: `${digits}@phone.wheretopark.local`,
+          phone: data.phone || phone,
+        });
+        session.user.app_metadata.is_new = !!data.is_new;
+        session.user.user_metadata.is_new = !!data.is_new;
+        session.user.user_metadata.account_type = data.account_type;
+        return sendJson(res, 200, session);
+      })
+      .catch((err) => sendJson(res, 502, { error: err.message }));
   }
 
   if (req.method === 'POST' && url.pathname === '/auth/v1/token') {
@@ -172,7 +261,7 @@ function proxyPostgrest(req, res, body) {
       const outHeaders = {
         ...proxyRes.headers,
         'access-control-allow-origin': '*',
-        'access-control-allow-headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, range',
+        'access-control-allow-headers': 'authorization, apikey, content-type, prefer, x-client-info, x-supabase-api-version, accept-profile, content-profile, range',
         'access-control-expose-headers': 'Content-Range, Range, Location',
       };
       res.writeHead(proxyRes.statusCode || 502, outHeaders);
@@ -192,7 +281,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, range',
+      'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, x-supabase-api-version, accept-profile, content-profile, range',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     });
     return res.end();

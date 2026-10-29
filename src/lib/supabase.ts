@@ -29,6 +29,7 @@ export type Profile = {
   display_name: string;
   phone: string | null;
   is_admin: boolean;
+  account_type?: 'driver' | 'operator';
   preferred_nav_app: 'google_maps' | 'waze' | 'default' | null;
   created_at: string;
   updated_at: string;

@@ -4,6 +4,8 @@ export default function RootLayout() {
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="auth" options={{ title: 'Sign in' }} />
+      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="search" options={{ title: 'Find Parking' }} />
       <Stack.Screen name="location/[id]" options={{ title: 'Location Details' }} />
       <Stack.Screen name="operator/onboarding" options={{ title: 'List Your Space' }} />

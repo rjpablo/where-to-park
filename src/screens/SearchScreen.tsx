@@ -7,6 +7,7 @@ import { Map } from '../components/map';
 import { LocationPin, MapRegion } from '../components/map/types';
 import { formatPeso, formatDistance } from '../utils/formatters';
 import { theme } from '../lib/theme';
+import { useAuthStore } from '../stores/authStore';
 
 export function SearchScreen() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export function SearchScreen() {
     setSheetPosition,
   } = useSearchStore();
   const [location, setLocation] = useState({ lat: 16.4023, lng: 120.5960 }); // Baguio City center
+  const authUser = useAuthStore((s) => s.user);
 
   const region: MapRegion = useMemo(
     () => ({
@@ -134,7 +136,15 @@ export function SearchScreen() {
         </TouchableOpacity>
 
         <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Parking Locations</Text>
+          <View style={styles.sheetTitleRow}>
+            <Text style={styles.sheetTitle}>Parking Locations</Text>
+            <TouchableOpacity
+              onPress={() => router.push(authUser ? '/profile' : '/auth')}
+              testID="search-auth-link"
+            >
+              <Text style={styles.authLink}>{authUser ? 'Profile' : 'Sign in'}</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.filterRow}>
             <TouchableOpacity
@@ -227,9 +237,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
+  sheetTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
   sheetTitle: {
     ...theme.typography.h3,
-    marginBottom: theme.spacing.sm,
+  },
+  authLink: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   filterRow: {
     flexDirection: 'row',
