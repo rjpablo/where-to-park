@@ -10,6 +10,7 @@ export default function RootLayout() {
       <Stack.Screen name="operator/edit/[id]" options={{ title: 'Edit Location' }} />
       <Stack.Screen name="operator/rates" options={{ title: 'Areas and Rates' }} />
       <Stack.Screen name="operator/staff" options={{ title: 'Staff' }} />
+      <Stack.Screen name="operator/fees" options={{ title: 'Fee Presets' }} />
       <Stack.Screen name="operator/availability" options={{ title: 'Availability' }} />
       <Stack.Screen name="staff/checkin" options={{ title: 'Check In' }} />
       <Stack.Screen name="staff/sessions" options={{ title: 'Active Sessions' }} />

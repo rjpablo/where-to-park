@@ -15,9 +15,16 @@ export default function SessionsScreen() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [closeSuccess, setCloseSuccess] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const [presets, setPresets] = useState<any[]>([]);
+  const [applyNotice, setApplyNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadSessions();
+    supabase
+      .from('fee_presets')
+      .select('*')
+      .eq('active', true)
+      .then(({ data }) => setPresets(data || []));
   }, []);
 
   const loadSessions = async () => {
@@ -62,6 +69,21 @@ export default function SessionsScreen() {
       0
     );
     return charges - paid;
+  };
+
+  const applyPreset = async (sessionId: string, preset: any) => {
+    setApplyNotice(null);
+    setCloseError(null);
+    const { data, error: rpcError } = await supabase.rpc('apply_fee_preset', {
+      p_session_id: sessionId,
+      p_preset_id: preset.id,
+    });
+    if (rpcError || data?.error) {
+      setCloseError(rpcError?.message || String(data?.error));
+      return;
+    }
+    setApplyNotice(`Applied ${preset.name} ${formatPeso(data.amount)}`);
+    await loadSessions();
   };
 
   const handleClose = async (sessionId: string) => {
@@ -131,6 +153,18 @@ export default function SessionsScreen() {
           <Text style={styles.sessionLocation}>{item.locations?.name}</Text>
           <Text style={styles.sessionBalance}>Balance: {formatPeso(balance)}</Text>
         </View>
+
+        {presets.map((preset) => (
+          <Button
+            key={preset.id}
+            title={`Apply ${preset.name}`}
+            size="small"
+            variant="outline"
+            onPress={() => applyPreset(item.id, preset)}
+            testID={`session-apply-${preset.name}`}
+            style={{ marginBottom: theme.spacing.sm }}
+          />
+        ))}
 
         <Button
           title={open ? 'Cancel close' : 'End Session'}
@@ -223,6 +257,11 @@ export default function SessionsScreen() {
       {closeSuccess ? (
         <Text style={styles.successBanner} testID="session-closed">
           {closeSuccess}
+        </Text>
+      ) : null}
+      {applyNotice ? (
+        <Text style={styles.successBanner} testID="fee-applied">
+          {applyNotice}
         </Text>
       ) : null}
 

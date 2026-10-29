@@ -26,6 +26,7 @@ run_tap "$ROOT/supabase/tests/staff_waiver.sql"
 run_tap "$ROOT/supabase/tests/location_crud.sql"
 run_tap "$ROOT/supabase/tests/rates_crud.sql"
 run_tap "$ROOT/supabase/tests/staff_management.sql"
+run_tap "$ROOT/supabase/tests/fee_presets.sql"
 
 echo ""
 echo "Running parallel concurrency test..."
