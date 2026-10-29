@@ -20,13 +20,15 @@ export default function LocationDetailScreen() {
     try {
       const { data, error } = await supabase
         .from('locations')
-        .select(`
+        .select(
+          `
           *,
           location_photos(*),
           location_policies(*),
           rates(*),
           reviews(*, profiles(display_name))
-        `)
+        `
+        )
         .eq('id', id)
         .single();
 
@@ -41,7 +43,7 @@ export default function LocationDetailScreen() {
 
   const handleNavigate = () => {
     if (!location) return;
-    
+
     const url = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
     Linking.openURL(url);
   };
@@ -60,11 +62,7 @@ export default function LocationDetailScreen() {
       {location.location_photos?.length > 0 && (
         <ScrollView horizontal style={styles.photoGallery}>
           {location.location_photos.map((photo: any) => (
-            <Image
-              key={photo.id}
-              source={{ uri: photo.url }}
-              style={styles.photo}
-            />
+            <Image key={photo.id} source={{ uri: photo.url }} style={styles.photo} />
           ))}
         </ScrollView>
       )}
@@ -73,7 +71,7 @@ export default function LocationDetailScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>{location.name}</Text>
           <Text style={styles.address}>{location.address}</Text>
-          
+
           <View style={styles.availability}>
             <AvailabilityBadge
               trackingMode={location.tracking_mode}
@@ -101,9 +99,7 @@ export default function LocationDetailScreen() {
               <Text style={styles.rateType}>
                 {rate.rate_type} {rate.vehicle_type && `(${rate.vehicle_type})`}
               </Text>
-              <Text style={styles.ratePrice}>
-                {formatPeso(rate.hourly_rate)}/h
-              </Text>
+              <Text style={styles.ratePrice}>{formatPeso(rate.hourly_rate)}/h</Text>
             </View>
           ))}
         </View>
@@ -122,19 +118,19 @@ export default function LocationDetailScreen() {
 
         {/* Reviews */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Reviews ({location.rating_count || 0})
-          </Text>
+          <Text style={styles.sectionTitle}>Reviews ({location.rating_count || 0})</Text>
           {location.rating_avg && (
             <View style={styles.ratingDisplay}>
               <Text style={styles.ratingNumber}>{location.rating_avg.toFixed(1)}</Text>
               <Text style={styles.ratingStars}>⭐</Text>
             </View>
           )}
-          
+
           {location.reviews?.slice(0, 3).map((review: any) => (
             <View key={review.id} style={styles.reviewItem}>
-              <Text style={styles.reviewAuthor}>{review.profiles?.display_name || 'Anonymous'}</Text>
+              <Text style={styles.reviewAuthor}>
+                {review.profiles?.display_name || 'Anonymous'}
+              </Text>
               <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
               <Text style={styles.reviewText}>{review.comment}</Text>
             </View>

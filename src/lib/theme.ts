@@ -5,21 +5,21 @@ export const colors = {
   danger: '#ef4444',
   warning: '#f59e0b',
   success: '#10b981',
-  
+
   background: '#ffffff',
   surface: '#f9fafb',
   surfaceDark: '#f3f4f6',
-  
+
   text: {
     primary: '#111827',
     secondary: '#6b7280',
     tertiary: '#9ca3af',
     inverse: '#ffffff',
   },
-  
+
   border: '#e5e7eb',
   borderDark: '#d1d5db',
-  
+
   // Status colors
   available: '#10b981',
   full: '#ef4444',

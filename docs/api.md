@@ -27,6 +27,7 @@ All RPCs use Row-Level Security (RLS) based on `auth.uid()`. The JWT is passed i
 Search for parking locations within radius.
 
 **Parameters:**
+
 ```typescript
 {
   p_lat: number;              // Search origin latitude
@@ -41,6 +42,7 @@ Search for parking locations within radius.
 ```
 
 **Returns:**
+
 ```typescript
 Array<{
   id: UUID;
@@ -62,11 +64,12 @@ Array<{
   avg_rating: number | null;
   review_count: number;
   has_monthly: boolean;
-}>
+}>;
 ```
 
 **Auth:** Guest (anonymous) or authenticated  
-**Notes:** 
+**Notes:**
+
 - Uses PostGIS `ST_DWithin` for radius search
 - Returns only `published = true` locations
 - `starting_rate` is the hourly rate for `p_vehicle_type` (or first hourly rate if null)
@@ -78,6 +81,7 @@ Array<{
 Calculate parking fee for a given duration and vehicle.
 
 **Parameters:**
+
 ```typescript
 {
   p_location_id: UUID;
@@ -90,18 +94,20 @@ Calculate parking fee for a given duration and vehicle.
 ```
 
 **Returns:**
+
 ```typescript
 {
-  amount: number;             // Total in pesos (numeric(12,2))
+  amount: number; // Total in pesos (numeric(12,2))
   rate_id: UUID;
   rate_name: string;
   rate_type: 'hourly' | 'daily' | 'flat_then_hourly' | 'monthly';
-  billed_hours: number;       // Rounded up to started hours
+  billed_hours: number; // Rounded up to started hours
 }
 ```
 
 **Auth:** Guest or authenticated  
 **Rate Resolution:**
+
 1. Custom beats default
 2. Dated (effective period) beats indefinite
 3. Slot > area > location scope
@@ -118,6 +124,7 @@ Calculate parking fee for a given duration and vehicle.
 **Internal function** (security definer, called by other RPCs). Atomically reserves capacity with row lock.
 
 **Parameters:**
+
 ```typescript
 {
   p_location_id: UUID;
@@ -129,6 +136,7 @@ Calculate parking fee for a given duration and vehicle.
 ```
 
 **Returns:**
+
 ```typescript
 {
   success: boolean;
@@ -139,6 +147,7 @@ Calculate parking fee for a given duration and vehicle.
 ```
 
 **Logic:**
+
 1. `SELECT ... FOR UPDATE` on location (or slot) row → serializes concurrent requests
 2. Count overlapping active/confirmed sessions and reservations
 3. Subtract `manual_reserved_count` and `unavailable_count`
@@ -153,6 +162,7 @@ Calculate parking fee for a given duration and vehicle.
 Release reserved/occupied capacity (called on session end, reservation cancel).
 
 **Parameters:**
+
 ```typescript
 {
   p_location_id: UUID;
@@ -171,18 +181,20 @@ Release reserved/occupied capacity (called on session end, reservation cancel).
 Manually adjust available count (+1, -1, set).
 
 **Parameters:**
+
 ```typescript
 {
   p_location_id: UUID;
-  p_delta: number;            // +1, -1, or set to specific value
+  p_delta: number; // +1, -1, or set to specific value
 }
 ```
 
 **Returns:**
+
 ```typescript
 {
   success: boolean;
-  available_count: number;    // New count
+  available_count: number; // New count
 }
 ```
 
@@ -198,6 +210,7 @@ Manually adjust available count (+1, -1, set).
 Check in a walk-in session.
 
 **Parameters:**
+
 ```typescript
 {
   p_location_id: UUID;
@@ -209,6 +222,7 @@ Check in a walk-in session.
 ```
 
 **Returns:**
+
 ```typescript
 {
   success: boolean;
@@ -220,6 +234,7 @@ Check in a walk-in session.
 
 **Auth:** Staff assigned to this location, or Operator  
 **Flow:**
+
 1. Call `claim_capacity` (may fail if no space)
 2. Call `quote_price` for rate snapshot
 3. Insert `parking_sessions` row
@@ -233,6 +248,7 @@ Check in a walk-in session.
 End a session with optional cash payment and waiver.
 
 **Parameters:**
+
 ```typescript
 {
   p_session_id: UUID;
@@ -242,6 +258,7 @@ End a session with optional cash payment and waiver.
 ```
 
 **Returns:**
+
 ```typescript
 {
   success: boolean;
@@ -253,6 +270,7 @@ End a session with optional cash payment and waiver.
 
 **Auth:** Staff/Operator for this location  
 **Logic:**
+
 1. Calculate parking fee from `started_at` to now (or `ended_at` if overridden), using `rate_snapshot`
 2. Add parking_fee charge to folio (if not already added)
 3. Record cash payment if `p_cash_amount` provided
@@ -265,6 +283,7 @@ End a session with optional cash payment and waiver.
 7. Log `booking_events`
 
 **Waiver Rules:**
+
 - Operators and Managers can always waive
 - Staff can waive only if `operators.staff_can_waive = true` (default on)
 - Waivers recorded as `folio_charges.type = 'waiver'` with negative `amount`
@@ -279,6 +298,7 @@ End a session with optional cash payment and waiver.
 Promote a user to Admin.
 
 **Parameters:**
+
 ```typescript
 {
   p_profile_id: UUID;
@@ -297,6 +317,7 @@ Promote a user to Admin.
 Mark a location as Verified.
 
 **Parameters:**
+
 ```typescript
 {
   p_location_id: UUID;
@@ -321,14 +342,19 @@ Fetch drive-time ETAs for a list of locations from OpenRouteService Matrix API, 
 **Endpoint:** `POST /functions/v1/get-etas`
 
 **Body:**
+
 ```typescript
 {
-  origin: { lat: number; lng: number };
+  origin: {
+    lat: number;
+    lng: number;
+  }
   locations: Array<{ id: string; lat: number; lng: number }>;
 }
 ```
 
 **Response:**
+
 ```typescript
 {
   etas: Array<{
@@ -341,6 +367,7 @@ Fetch drive-time ETAs for a list of locations from OpenRouteService Matrix API, 
 ```
 
 **Logic:**
+
 1. Round origin to ~200m grid cell (cache key)
 2. Check `eta_cache` for fresh entries (10-min TTL)
 3. For uncached locations:
@@ -363,6 +390,7 @@ Create a notification and optionally send push.
 **Endpoint:** `POST /functions/v1/notify`
 
 **Body:**
+
 ```typescript
 {
   recipient_id: string;
@@ -376,6 +404,7 @@ Create a notification and optionally send push.
 ```
 
 **Response:**
+
 ```typescript
 {
   success: boolean;
@@ -390,27 +419,28 @@ Create a notification and optionally send push.
 
 ## RLS Policies Summary
 
-| Table | Select | Insert | Update | Delete |
-|-------|--------|--------|--------|--------|
-| `profiles` | All | Own | Own | - |
-| `operators` | Active | Auth | Owner/Manager | - |
-| `locations` | Published OR operator member | Operator | Operator | Operator |
-| `location_photos` | Published location | Operator | Operator | Operator |
-| `rates` | Published location | Operator | Operator | Operator |
-| `vehicles` | Own | Own | Own | Own |
-| `reviews` | Published, not hidden | Auth (for published) | Own author | - |
-| `parking_sessions` | Own driver OR operator/staff | Via RPC | Via RPC | - |
-| `folios` | Own or operator | Via RPC | Via RPC | - |
-| `folio_charges` | Via folio | Via RPC | Via RPC | - |
-| `payments` | Via folio | Via RPC | - | - |
-| `chat_threads` | Participant (driver or operator member) | Driver | - | - |
-| `chat_messages` | Thread participant, not hidden | Participant | - | - |
-| `notifications` | Own | System | Own (mark read) | - |
-| `reports` | Admin | Auth | Admin (resolve) | - |
-| `platform_settings` | All | - | Admin | - |
-| `eta_cache` | All | System | System | - |
+| Table               | Select                                  | Insert               | Update          | Delete   |
+| ------------------- | --------------------------------------- | -------------------- | --------------- | -------- |
+| `profiles`          | All                                     | Own                  | Own             | -        |
+| `operators`         | Active                                  | Auth                 | Owner/Manager   | -        |
+| `locations`         | Published OR operator member            | Operator             | Operator        | Operator |
+| `location_photos`   | Published location                      | Operator             | Operator        | Operator |
+| `rates`             | Published location                      | Operator             | Operator        | Operator |
+| `vehicles`          | Own                                     | Own                  | Own             | Own      |
+| `reviews`           | Published, not hidden                   | Auth (for published) | Own author      | -        |
+| `parking_sessions`  | Own driver OR operator/staff            | Via RPC              | Via RPC         | -        |
+| `folios`            | Own or operator                         | Via RPC              | Via RPC         | -        |
+| `folio_charges`     | Via folio                               | Via RPC              | Via RPC         | -        |
+| `payments`          | Via folio                               | Via RPC              | -               | -        |
+| `chat_threads`      | Participant (driver or operator member) | Driver               | -               | -        |
+| `chat_messages`     | Thread participant, not hidden          | Participant          | -               | -        |
+| `notifications`     | Own                                     | System               | Own (mark read) | -        |
+| `reports`           | Admin                                   | Auth                 | Admin (resolve) | -        |
+| `platform_settings` | All                                     | -                    | Admin           | -        |
+| `eta_cache`         | All                                     | System               | System          | -        |
 
 **Key Points:**
+
 - Guests (anonymous) can search (`locations`, `rates`, `reviews`) but cannot modify
 - Drivers see only their own sessions, vehicles, folios
 - Operators/Staff see only locations they're members of
@@ -425,8 +455,8 @@ Create a notification and optionally send push.
 
 ```typescript
 const { data: results } = await supabase.rpc('search_nearby', {
-  p_lat: 16.4120,
-  p_lng: 120.5960,
+  p_lat: 16.412,
+  p_lng: 120.596,
   p_radius_m: 2000,
   p_vehicle_type: 'car',
   p_monthly_only: false,
@@ -436,24 +466,21 @@ const { data: results } = await supabase.rpc('search_nearby', {
 });
 
 // Fetch ETAs for top results
-const etaResp = await fetch(
-  `${supabaseUrl}/functions/v1/get-etas`,
-  {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${anonKey}`,
-    },
-    body: JSON.stringify({
-      origin: { lat: 16.4120, lng: 120.5960 },
-      locations: results.slice(0, 20).map(r => ({
-        id: r.id,
-        lat: r.lat,
-        lng: r.lng,
-      })),
-    }),
-  }
-);
+const etaResp = await fetch(`${supabaseUrl}/functions/v1/get-etas`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${anonKey}`,
+  },
+  body: JSON.stringify({
+    origin: { lat: 16.412, lng: 120.596 },
+    locations: results.slice(0, 20).map((r) => ({
+      id: r.id,
+      lat: r.lat,
+      lng: r.lng,
+    })),
+  }),
+});
 
 const { etas } = await etaResp.json();
 // Merge ETAs into results by location_id
@@ -484,7 +511,7 @@ if (error?.message === 'no_longer_available') {
 // User enters cash amount (partial payment)
 const { data, error } = await supabase.rpc('end_session', {
   p_session_id: sessionId,
-  p_cash_amount: 100.00,
+  p_cash_amount: 100.0,
   p_waive_note: null, // Try without note first
 });
 
@@ -507,6 +534,7 @@ if (error?.message === 'waiver_note_required') {
 ## Contract Testing
 
 All RPCs should have contract tests in CI:
+
 - Input validation (required params, types)
 - Auth checks (guest, driver, operator, staff, admin)
 - Business logic (capacity, ledger, rates)

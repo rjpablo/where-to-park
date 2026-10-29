@@ -4,11 +4,11 @@
  */
 export function formatPeso(amount: number | string | null | undefined): string {
   if (amount == null) return '₱0.00';
-  
+
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
+
   if (isNaN(num)) return '₱0.00';
-  
+
   return `₱${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
@@ -47,7 +47,7 @@ export function formatRelativeTime(date: string | Date): string {
   const now = new Date();
   const then = typeof date === 'string' ? new Date(date) : date;
   const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
-  
+
   if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}min ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;

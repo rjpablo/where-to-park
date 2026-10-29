@@ -28,10 +28,7 @@ export default function OnboardingScreen() {
       {/* Progress indicator */}
       <View style={styles.progress}>
         {[1, 2, 3, 4, 5].map((i) => (
-          <View
-            key={i}
-            style={[styles.progressDot, i <= step && styles.progressDotActive]}
-          />
+          <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />
         ))}
       </View>
 
@@ -42,7 +39,7 @@ export default function OnboardingScreen() {
       {step === 1 && (
         <View style={styles.stepContent}>
           <Text style={styles.stepHeading}>Basic Information</Text>
-          
+
           <Text style={styles.label}>Location Name *</Text>
           <TextInput
             style={styles.input}
@@ -62,8 +59,12 @@ export default function OnboardingScreen() {
           />
 
           <View style={styles.info}>
-            <Text style={styles.infoText}>✓ Default tracking mode: Count-only (you update available spaces)</Text>
-            <Text style={styles.infoText}>✓ You can change this later to slot tracking or open/full mode</Text>
+            <Text style={styles.infoText}>
+              ✓ Default tracking mode: Count-only (you update available spaces)
+            </Text>
+            <Text style={styles.infoText}>
+              ✓ You can change this later to slot tracking or open/full mode
+            </Text>
           </View>
         </View>
       )}
@@ -72,7 +73,7 @@ export default function OnboardingScreen() {
       {step === 2 && (
         <View style={styles.stepContent}>
           <Text style={styles.stepHeading}>Capacity</Text>
-          
+
           <Text style={styles.label}>Total Capacity *</Text>
           <TextInput
             style={styles.input}
@@ -93,7 +94,7 @@ export default function OnboardingScreen() {
       {step === 3 && (
         <View style={styles.stepContent}>
           <Text style={styles.stepHeading}>Set Your Rate</Text>
-          
+
           <Text style={styles.label}>Hourly Rate (₱) *</Text>
           <TextInput
             style={styles.input}
@@ -105,7 +106,9 @@ export default function OnboardingScreen() {
 
           <View style={styles.info}>
             <Text style={styles.infoText}>✓ Default rate type: Hourly</Text>
-            <Text style={styles.infoText}>✓ You can add daily, monthly, and custom rates later</Text>
+            <Text style={styles.infoText}>
+              ✓ You can add daily, monthly, and custom rates later
+            </Text>
             <Text style={styles.infoText}>✓ Billing is per started hour</Text>
           </View>
         </View>
@@ -115,7 +118,7 @@ export default function OnboardingScreen() {
       {step === 4 && (
         <View style={styles.stepContent}>
           <Text style={styles.stepHeading}>Payment Method</Text>
-          
+
           <View style={styles.info}>
             <Text style={styles.infoTitle}>Cash Only (Default)</Text>
             <Text style={styles.infoText}>✓ Accept cash payments at your location</Text>
@@ -129,7 +132,7 @@ export default function OnboardingScreen() {
       {step === 5 && (
         <View style={styles.stepContent}>
           <Text style={styles.stepHeading}>Review & Submit</Text>
-          
+
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Location</Text>
             <Text style={styles.reviewValue}>{locationName}</Text>
@@ -156,20 +159,16 @@ export default function OnboardingScreen() {
           </View>
 
           <View style={styles.info}>
-            <Text style={styles.infoText}>Your listing will be submitted for admin verification before going live.</Text>
+            <Text style={styles.infoText}>
+              Your listing will be submitted for admin verification before going live.
+            </Text>
           </View>
         </View>
       )}
 
       {/* Navigation */}
       <View style={styles.navigation}>
-        {step > 1 && (
-          <Button
-            title="Back"
-            variant="outline"
-            onPress={handleBack}
-          />
-        )}
+        {step > 1 && <Button title="Back" variant="outline" onPress={handleBack} />}
         {step < 5 ? (
           <Button
             title="Next"

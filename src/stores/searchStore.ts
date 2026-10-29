@@ -12,7 +12,7 @@ interface SearchState {
   sortBy: 'distance' | 'price' | 'availability' | 'rating' | 'eta';
   sheetPosition: 'peek' | 'expanded';
   cameraPosition: { lat: number; lng: number; zoom: number } | null;
-  
+
   search: (lat: number, lng: number, radius?: number) => Promise<void>;
   setFilters: (filters: Partial<SearchState['filters']>) => void;
   setSortBy: (sortBy: SearchState['sortBy']) => void;
@@ -34,10 +34,10 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
   search: async (lat: number, lng: number, radius = 2000) => {
     set({ loading: true });
-    
+
     try {
       const { filters, sortBy } = get();
-      
+
       const { data, error } = await supabase.rpc('search_nearby', {
         p_lat: lat,
         p_lng: lng,

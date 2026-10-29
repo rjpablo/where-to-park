@@ -6,8 +6,18 @@ import { formatPeso, formatDistance } from '../utils/formatters';
 import { theme } from '../lib/theme';
 
 export function SearchScreen() {
-  const { results, loading, search, filters, sortBy, setFilters, setSortBy, sheetPosition, setSheetPosition } = useSearchStore();
-  const [location, setLocation] = useState({ lat: 16.4120, lng: 120.5960 }); // Default: Baguio City center
+  const {
+    results,
+    loading,
+    search,
+    filters,
+    sortBy,
+    setFilters,
+    setSortBy,
+    sheetPosition,
+    setSheetPosition,
+  } = useSearchStore();
+  const [location, setLocation] = useState({ lat: 16.412, lng: 120.596 }); // Default: Baguio City center
 
   useEffect(() => {
     // Initial search
@@ -18,8 +28,13 @@ export function SearchScreen() {
     search(location.lat, location.lng);
   };
 
-  const renderListItem = ({ item }: { item: typeof results[0] }) => (
-    <TouchableOpacity style={styles.listItem} onPress={() => {/* Navigate to detail */}}>
+  const renderListItem = ({ item }: { item: (typeof results)[0] }) => (
+    <TouchableOpacity
+      style={styles.listItem}
+      onPress={() => {
+        /* Navigate to detail */
+      }}
+    >
       <View style={styles.listItemHeader}>
         <Text style={styles.listItemTitle}>{item.name}</Text>
         {item.verification_status === 'unverified' && (
@@ -38,9 +53,10 @@ export function SearchScreen() {
           updatedAt={item.availability_updated_at}
           staleThresholdMin={item.stale_after_min}
         />
-        
+
         <Text style={styles.listItemDetail}>
-          {formatDistance(item.distance_m)} • {item.starting_rate ? formatPeso(item.starting_rate) + '/h' : 'See rates'}
+          {formatDistance(item.distance_m)} •{' '}
+          {item.starting_rate ? formatPeso(item.starting_rate) + '/h' : 'See rates'}
         </Text>
 
         {item.has_monthly && (
@@ -69,7 +85,7 @@ export function SearchScreen() {
 
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>Parking Locations</Text>
-          
+
           <View style={styles.filterRow}>
             <TouchableOpacity
               style={[styles.filterChip, filters.monthlyOnly && styles.filterChipActive]}

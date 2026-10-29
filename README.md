@@ -63,6 +63,7 @@ A parking-finder mobile app for drivers in Baguio City, Philippines. Operators l
    ```
 
    For local dev, use:
+
    ```
    EXPO_PUBLIC_SUPABASE_URL=http://localhost:54321
    EXPO_PUBLIC_SUPABASE_ANON_KEY=<get from supabase status>
@@ -93,18 +94,23 @@ A parking-finder mobile app for drivers in Baguio City, Philippines. Operators l
 5. **Run the app:**
 
    **Web (for preview):**
+
    ```bash
    npm run web
    ```
+
    Open http://localhost:8081 in your browser.
 
    **Android (dev build):**
+
    ```bash
    npm run android
    ```
+
    Requires Android SDK and a device/emulator. First run builds the dev client.
 
    **iOS (macOS only):**
+
    ```bash
    npm run ios
    ```
@@ -118,6 +124,7 @@ npm run test:db
 ```
 
 This runs `supabase/tests/*.sql` including:
+
 - RLS policy tests
 - Rate resolution logic
 - Folio balance and waiver calculations
@@ -132,6 +139,7 @@ npm run functions:serve
 ```
 
 Then call:
+
 - `POST http://localhost:54321/functions/v1/get-etas` - ETAs from OpenRouteService or straight-line estimates
 - `POST http://localhost:54321/functions/v1/notify` - Create notifications
 
@@ -181,6 +189,7 @@ See `docs/spec.md` for the complete Phase 1 scope and `docs/api.md` for RPC/Edge
 ## API
 
 All actions go through documented Supabase RPCs or Edge Functions. See `docs/api.md` for:
+
 - RPC signatures and roles
 - Edge Function endpoints
 - Error codes (e.g., `no_longer_available`)
@@ -194,6 +203,7 @@ npm run test:db
 ```
 
 Runs all `supabase/tests/*.sql` (pgTAP format). Key tests:
+
 - **RLS**: Users see only their own vehicles; search returns only published locations
 - **Rates**: Quote hourly (40 * 3h = 120), flat-then-hourly, weekend rates, Monthly filter
 - **Ledger**: Balance = charges - payments; waiver = negative charge; after waiver balance is 0
@@ -250,6 +260,7 @@ See `.env.example`:
 ## What's Next
 
 **Immediate (complete Phase 1)**:
+
 1. Implement app screens (search map, location detail, availability console, walk-in, chat, etc.)
 2. Add MapLibre map components (native + web)
 3. Wire Supabase RPCs to UI
@@ -259,24 +270,28 @@ See `.env.example`:
 7. Test on Android device with local Supabase
 
 **Phase 2** (custom rates, slots, driver reviews):
+
 - Slots mode with manual Reserved/Unavailable (slot-level locks)
 - Custom rates editor with precedence preview
 - Dimension-aware search (vehicle height/width/length vs. slot attributes)
 - Operators review drivers (visible only in session/reservation context)
 
 **Phase 3** (reservations):
+
 - request_reservation RPC (calls claim_capacity, atomic hold)
 - Approval flow (auto-confirm or operator approval)
 - Reservation fee (15-min online hold or max_hold_min from booking for cash)
 - Check-in, no-show auto-release, cancellation/refund policies
 
 **Phase 4** (online payments):
+
 - PaymentGateway interface + PayMongo adapter (GCash)
 - Webhook Edge Function (idempotent, verified)
 - Online reservation-fee checkout
 - Manual payouts to Operator GCash
 
 **Phase 5** (scale):
+
 - Next.js operator web dashboard
 - Google Maps adapter (optional, needs billing)
 - iOS/App Store (if decided)
@@ -286,6 +301,7 @@ See `.env.example`:
 ## Support
 
 For issues:
+
 1. Check `supabase status` and Docker logs
 2. Review migration errors in `supabase db reset` output
 3. See test results in `npm run test:db`

@@ -28,13 +28,13 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 ## Account Types and Capabilities
 
-| Account Type | How You Get It | Can Do |
-|--------------|----------------|--------|
-| Guest | No sign-in | Search on map and results sheet, view locations, photos, rules, rates, reviews, see ETAs, tap Navigate |
-| Driver | Any signed-in user | Save vehicles, review locations, report, start chat from any listing; reserve and see own balance (Phase 3) |
-| Operator | Creates an Operator profile (owner) or invited as manager | Locations, photos, rules, rates (incl. Monthly), fee presets, reservation settings, staff invites, payment/payout settings, waiver setting (Staff allowed or Operator-only), everything Staff can do |
-| Staff | Invited by Operator owner/manager; assigned to locations | For assigned locations: availability; mark Reserved/Unavailable; walk-in check-in; start/end overrides; end or extend; edit amount due; waive the remaining balance at close (with note), allowed by default unless the Operator restricts waivers to Operator-only; approve/decline reservations; record cash; add fees; review drivers; reply in chat threads for those locations. No rates, policies, payouts or staff invites |
-| Admin | Seeded first Admin is rj; only an existing Admin can create or promote another Admin | Verification queue (mark Verified), report and review moderation, hide chat messages, unpublish or suspend Operators, platform settings, payouts later, create or promote Admins |
+| Account Type | How You Get It                                                                       | Can Do                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Guest        | No sign-in                                                                           | Search on map and results sheet, view locations, photos, rules, rates, reviews, see ETAs, tap Navigate                                                                                                                                                                                                                                                                                                                            |
+| Driver       | Any signed-in user                                                                   | Save vehicles, review locations, report, start chat from any listing; reserve and see own balance (Phase 3)                                                                                                                                                                                                                                                                                                                       |
+| Operator     | Creates an Operator profile (owner) or invited as manager                            | Locations, photos, rules, rates (incl. Monthly), fee presets, reservation settings, staff invites, payment/payout settings, waiver setting (Staff allowed or Operator-only), everything Staff can do                                                                                                                                                                                                                              |
+| Staff        | Invited by Operator owner/manager; assigned to locations                             | For assigned locations: availability; mark Reserved/Unavailable; walk-in check-in; start/end overrides; end or extend; edit amount due; waive the remaining balance at close (with note), allowed by default unless the Operator restricts waivers to Operator-only; approve/decline reservations; record cash; add fees; review drivers; reply in chat threads for those locations. No rates, policies, payouts or staff invites |
+| Admin        | Seeded first Admin is rj; only an existing Admin can create or promote another Admin | Verification queue (mark Verified), report and review moderation, hide chat messages, unpublish or suspend Operators, platform settings, payouts later, create or promote Admins                                                                                                                                                                                                                                                  |
 
 **Operator Membership Roles**: owner, manager, staff (in `operator_members` table)  
 **Admin**: Platform flag on `profiles.is_admin`, not an operator membership
@@ -51,13 +51,14 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 **Tracking Modes:**
 
-| Mode | Operator Updates | Driver Sees |
-|------|------------------|-------------|
-| Count (default) | +1/-1/set number; sessions adjust automatically; Reserved/Unavailable subtract from available | N of M available + 'updated X ago' (warning style past threshold); pin shows N |
-| Open/Full | One toggle | Open or Full + 'updated X ago' (warning style past threshold); pin shows Open or Full |
-| Slots (Phase 2) | Each slot: available, occupied, or manually Reserved/Unavailable (optional note and until-time) | Count of slots that fit the selected vehicle, also on pin |
+| Mode            | Operator Updates                                                                                | Driver Sees                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Count (default) | +1/-1/set number; sessions adjust automatically; Reserved/Unavailable subtract from available   | N of M available + 'updated X ago' (warning style past threshold); pin shows N        |
+| Open/Full       | One toggle                                                                                      | Open or Full + 'updated X ago' (warning style past threshold); pin shows Open or Full |
+| Slots (Phase 2) | Each slot: available, occupied, or manually Reserved/Unavailable (optional note and until-time) | Count of slots that fit the selected vehicle, also on pin                             |
 
 **Key Points:**
+
 - Map pin picker with address search; stored as PostGIS geography(Point)
 - Last status/count and 'updated X ago' always show; past Operator threshold (default 2h) styled as warning (e.g. amber)
 - New listings publish as 'Unverified'; admins notified and verify after review
@@ -72,14 +73,15 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 **Rate Types:**
 
-| Type | Operator Enters | Charged |
-|------|-----------------|---------|
-| Hourly (default) | ₱ per hour | Per started hour, minimum 1 hour |
-| Daily | ₱ per day | Per started 24h from check-in |
-| Flat first N hours, then hourly | N hours, ₱ for them, ₱ per succeeding hour | Flat amount covers first N hours, then per started hour |
-| Monthly | ₱ per month | Shown on listing and used by Monthly filter; never prices a session |
+| Type                            | Operator Enters                            | Charged                                                             |
+| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
+| Hourly (default)                | ₱ per hour                                 | Per started hour, minimum 1 hour                                    |
+| Daily                           | ₱ per day                                  | Per started 24h from check-in                                       |
+| Flat first N hours, then hourly | N hours, ₱ for them, ₱ per succeeding hour | Flat amount covers first N hours, then per started hour             |
+| Monthly                         | ₱ per month                                | Shown on listing and used by Monthly filter; never prices a session |
 
 **Rate Resolution Precedence:**
+
 1. Custom beats default
 2. Dated (effective period) beats indefinite
 3. Slot > area > location scope
@@ -200,6 +202,7 @@ Two drivers cannot reserve the last space at the same time. Every capacity chang
 ## Data Model Summary
 
 **Key Tables:**
+
 - `profiles` (extends auth.users): display_name, phone, is_admin, preferred_nav_app
 - `operators`: display_name, status, staff_can_waive (default true)
 - `operator_members`: operator_id, profile_id, role (owner/manager/staff), location_ids[]
@@ -222,6 +225,7 @@ Two drivers cannot reserve the last space at the same time. Every capacity chang
 ## Onboarding and UI Defaults
 
 **Operator Onboarding (5 steps):**
+
 1. Your space: name, listing type, exact pin on map, optional photo gallery and rules
 2. How many spaces: Count mode preselected (enter capacity once); Open/Full and Slots are secondary options
 3. Your rate: Hourly preselected (one '₱ per hour' field); Daily, Monthly, 'Flat first N hours, then hourly' behind 'Other rate types'; adding Monthly rate is enough for driver Monthly filter
@@ -229,6 +233,7 @@ Two drivers cannot reserve the last space at the same time. Every capacity chang
 5. Publish: Goes live as Unverified; reservations stay off until switched on, approval defaults to auto-confirm when they are
 
 **UI Defaults:**
+
 - **Availability console**: Big +1/-1 buttons and count front and center; staff home screen
 - **Reserved/Unavailable**: Two small steppers under count in count mode, or long-press on slot in slots mode
 - **Check in walk-in**: Vehicle type and plate required, note optional; starts now; rate follows vehicle type
@@ -278,23 +283,23 @@ Next.js web dashboard, Google Maps adapter (optional), iOS/App Store (if decided
 
 ## Risks and Mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| Stale availability erodes trust | Last update time always shown, warning style past threshold on list and pins, driver reports, one-tap staff console |
-| Spaces stay 'occupied' because nobody taps End | Overdue list, repeated reminders, overdue time shown for staff to bill, count freshness warnings |
-| Unpaid reservations tie up spaces | Operator-set maximum hold from booking with auto-cancel; no-shows released automatically |
-| No operators yet in Baguio | Hands-on onboarding; residential listings widen supply; free for operators in beta |
-| Fake or misleading listings | Unverified badge until admin review, reports, reviews, unpublish/suspend; facility photos help reviewers |
-| Safety of residential hosts with exact pins | No public phone numbers, optional rules, approval-required option, report 'unsafe', chat instead of public contact |
-| Cash handling errors or leakage | Every cash entry tied to staff member; shift cash summary; voids, amount-due edits and waivers (amount, note, who, when) audited, never deleted |
-| Waivers used to hide pocketed cash | Required note, waivers listed per staff in shift summary, Operator can restrict waivers to Operator-only (Staff allowed by default) |
-| Double booking the last space | Every capacity change through claim_capacity with SELECT ... FOR UPDATE; CHECK and exclusion constraints as backstops; concurrency tests in CI |
-| Review abuse | One review per account, rate limits, reporting, 'Booked via app', driver reviews only in context |
-| Chat abuse or unsafe images | Members-only threads, report message, rate limits, admin hide, EXIF stripping; Operators cannot cold-message drivers |
-| Routing quota or outage (ORS free tier) | ETAs only for visible/top 20, one batched matrix call, 10-min cache, debounce on pan, back-off on rate limits, straight-line estimate fallback; self-host OSRM if volume grows |
-| ETA accuracy in Baguio traffic | Label as drive time without live traffic; Navigate hands off to apps with live traffic |
-| Map clutter and slow rendering with many pins | Clustering, virtualized list, pins rendered from one GeoJSON source |
-| Data Privacy Act (RA 10173) | Privacy notice, minimal location retention, consent, EXIF stripping, driver reviews access-limited, chat images private to thread members; ETA origins rounded to ~200m and kept only in short-lived cache |
+| Risk                                           | Mitigation                                                                                                                                                                                                 |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stale availability erodes trust                | Last update time always shown, warning style past threshold on list and pins, driver reports, one-tap staff console                                                                                        |
+| Spaces stay 'occupied' because nobody taps End | Overdue list, repeated reminders, overdue time shown for staff to bill, count freshness warnings                                                                                                           |
+| Unpaid reservations tie up spaces              | Operator-set maximum hold from booking with auto-cancel; no-shows released automatically                                                                                                                   |
+| No operators yet in Baguio                     | Hands-on onboarding; residential listings widen supply; free for operators in beta                                                                                                                         |
+| Fake or misleading listings                    | Unverified badge until admin review, reports, reviews, unpublish/suspend; facility photos help reviewers                                                                                                   |
+| Safety of residential hosts with exact pins    | No public phone numbers, optional rules, approval-required option, report 'unsafe', chat instead of public contact                                                                                         |
+| Cash handling errors or leakage                | Every cash entry tied to staff member; shift cash summary; voids, amount-due edits and waivers (amount, note, who, when) audited, never deleted                                                            |
+| Waivers used to hide pocketed cash             | Required note, waivers listed per staff in shift summary, Operator can restrict waivers to Operator-only (Staff allowed by default)                                                                        |
+| Double booking the last space                  | Every capacity change through claim_capacity with SELECT ... FOR UPDATE; CHECK and exclusion constraints as backstops; concurrency tests in CI                                                             |
+| Review abuse                                   | One review per account, rate limits, reporting, 'Booked via app', driver reviews only in context                                                                                                           |
+| Chat abuse or unsafe images                    | Members-only threads, report message, rate limits, admin hide, EXIF stripping; Operators cannot cold-message drivers                                                                                       |
+| Routing quota or outage (ORS free tier)        | ETAs only for visible/top 20, one batched matrix call, 10-min cache, debounce on pan, back-off on rate limits, straight-line estimate fallback; self-host OSRM if volume grows                             |
+| ETA accuracy in Baguio traffic                 | Label as drive time without live traffic; Navigate hands off to apps with live traffic                                                                                                                     |
+| Map clutter and slow rendering with many pins  | Clustering, virtualized list, pins rendered from one GeoJSON source                                                                                                                                        |
+| Data Privacy Act (RA 10173)                    | Privacy notice, minimal location retention, consent, EXIF stripping, driver reviews access-limited, chat images private to thread members; ETA origins rounded to ~200m and kept only in short-lived cache |
 
 ---
 

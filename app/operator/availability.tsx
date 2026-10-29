@@ -18,7 +18,7 @@ export default function AvailabilityScreen() {
       });
 
       if (error) throw error;
-      
+
       if (data?.available_count !== undefined) {
         setAvailableCount(data.available_count);
       }
@@ -38,7 +38,9 @@ export default function AvailabilityScreen() {
 
       <View style={styles.countDisplay}>
         <Text style={styles.countLabel}>Available Spaces</Text>
-        <Text style={styles.countNumber}>{availableCount} / {capacity}</Text>
+        <Text style={styles.countNumber}>
+          {availableCount} / {capacity}
+        </Text>
         <Text style={styles.countUpdated}>Updated just now</Text>
       </View>
 
@@ -62,7 +64,7 @@ export default function AvailabilityScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Manual Adjustments</Text>
-        
+
         <View style={styles.manualRow}>
           <View style={styles.manualItem}>
             <Text style={styles.manualLabel}>Reserved</Text>

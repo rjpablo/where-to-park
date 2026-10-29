@@ -25,10 +25,10 @@ serve(async (req) => {
     const notification: NotificationRequest = await req.json();
 
     if (!notification.recipient_id || !notification.type || !notification.title) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Initialize Supabase client
@@ -63,12 +63,9 @@ serve(async (req) => {
     // 2. Send push notifications via Expo Push API
     // 3. Mark notification as pushed
 
-    return new Response(
-      JSON.stringify({ success: true, notification: notif }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ success: true, notification: notif }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('Error:', error);
     return new Response(JSON.stringify({ error: error.message }), {

@@ -29,10 +29,10 @@ serve(async (req) => {
     const { origin, locations }: ETARequest = await req.json();
 
     if (!origin || !locations || locations.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid request' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Initialize Supabase client
@@ -90,7 +90,7 @@ serve(async (req) => {
             {
               method: 'POST',
               headers: {
-                'Authorization': orsApiKey,
+                Authorization: orsApiKey,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({

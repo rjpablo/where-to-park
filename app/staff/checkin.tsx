@@ -6,7 +6,9 @@ import { theme } from '../../src/lib/theme';
 
 export default function CheckInScreen() {
   const [plate, setPlate] = useState('');
-  const [vehicleType, setVehicleType] = useState<'car' | 'suv' | 'van' | 'motorcycle' | 'truck'>('car');
+  const [vehicleType, setVehicleType] = useState<'car' | 'suv' | 'van' | 'motorcycle' | 'truck'>(
+    'car'
+  );
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -85,11 +87,7 @@ export default function CheckInScreen() {
           numberOfLines={3}
         />
 
-        <Button
-          title="Check In"
-          onPress={handleCheckIn}
-          loading={loading}
-        />
+        <Button title="Check In" onPress={handleCheckIn} loading={loading} />
       </View>
 
       <View style={styles.info}>

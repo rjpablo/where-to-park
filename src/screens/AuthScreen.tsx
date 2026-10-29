@@ -60,15 +60,13 @@ export function AuthScreen() {
           <View style={styles.dividerLine} />
         </View>
 
-        <Button
-          title="Continue with Google"
-          onPress={handleGoogleAuth}
-          variant="outline"
-        />
+        <Button title="Continue with Google" onPress={handleGoogleAuth} variant="outline" />
 
         <Button
           title="Browse as Guest"
-          onPress={() => {/* Navigate to main app */}}
+          onPress={() => {
+            /* Navigate to main app */
+          }}
           variant="outline"
           style={{ marginTop: theme.spacing.md }}
         />

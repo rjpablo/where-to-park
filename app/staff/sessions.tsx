@@ -17,7 +17,8 @@ export default function SessionsScreen() {
     try {
       const { data, error } = await supabase
         .from('parking_sessions')
-        .select(`
+        .select(
+          `
           *,
           vehicles(plate, vehicle_type),
           locations(name),
@@ -26,7 +27,8 @@ export default function SessionsScreen() {
             folio_charges(amount, charge_type),
             payments(amount)
           )
-        `)
+        `
+        )
         .in('status', ['active', 'overdue'])
         .order('started_at', { ascending: false });
 
@@ -40,63 +42,55 @@ export default function SessionsScreen() {
   };
 
   const handleEndSession = async (sessionId: string, totalDue: number) => {
-    Alert.alert(
-      'End Session',
-      `Total due: ${formatPeso(totalDue)}. Collect payment?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Collect Cash',
-          onPress: async () => {
+    Alert.alert('End Session', `Total due: ${formatPeso(totalDue)}. Collect payment?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Collect Cash',
+        onPress: async () => {
+          try {
+            const { error } = await supabase.rpc('end_session', {
+              p_session_id: sessionId,
+              p_cash_collected: totalDue,
+              p_note: null,
+            });
+
+            if (error) throw error;
+
+            Alert.alert('Success', 'Session ended and payment recorded');
+            loadSessions();
+          } catch (error: any) {
+            Alert.alert('Error', error.message);
+          }
+        },
+      },
+      {
+        text: 'Waive',
+        style: 'destructive',
+        onPress: async () => {
+          Alert.prompt('Waive Balance', 'Enter reason for waiver', async (reason) => {
+            if (!reason?.trim()) {
+              Alert.alert('Error', 'Reason is required for waivers');
+              return;
+            }
+
             try {
               const { error } = await supabase.rpc('end_session', {
                 p_session_id: sessionId,
-                p_cash_collected: totalDue,
-                p_note: null,
+                p_cash_collected: 0,
+                p_note: `Waived: ${reason}`,
               });
 
               if (error) throw error;
-              
-              Alert.alert('Success', 'Session ended and payment recorded');
+
+              Alert.alert('Success', 'Balance waived and session ended');
               loadSessions();
             } catch (error: any) {
               Alert.alert('Error', error.message);
             }
-          },
+          });
         },
-        {
-          text: 'Waive',
-          style: 'destructive',
-          onPress: async () => {
-            Alert.prompt(
-              'Waive Balance',
-              'Enter reason for waiver',
-              async (reason) => {
-                if (!reason?.trim()) {
-                  Alert.alert('Error', 'Reason is required for waivers');
-                  return;
-                }
-                
-                try {
-                  const { error } = await supabase.rpc('end_session', {
-                    p_session_id: sessionId,
-                    p_cash_collected: 0,
-                    p_note: `Waived: ${reason}`,
-                  });
-
-                  if (error) throw error;
-                  
-                  Alert.alert('Success', 'Balance waived and session ended');
-                  loadSessions();
-                } catch (error: any) {
-                  Alert.alert('Error', error.message);
-                }
-              }
-            );
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   const renderSession = ({ item }: { item: any }) => {
@@ -122,9 +116,7 @@ export default function SessionsScreen() {
           <Text style={styles.sessionTime}>
             Started: {formatRelativeTime(new Date(item.started_at))}
           </Text>
-          <Text style={styles.sessionBalance}>
-            Balance: {formatPeso(balance)}
-          </Text>
+          <Text style={styles.sessionBalance}>Balance: {formatPeso(balance)}</Text>
         </View>
 
         <View style={styles.sessionActions}>
@@ -132,7 +124,9 @@ export default function SessionsScreen() {
             title="Add Fee"
             variant="outline"
             size="small"
-            onPress={() => {/* Open add fee dialog */}}
+            onPress={() => {
+              /* Open add fee dialog */
+            }}
           />
           <Button
             title="End Session"

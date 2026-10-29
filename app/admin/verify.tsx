@@ -38,7 +38,7 @@ export default function VerificationQueueScreen() {
       });
 
       if (error) throw error;
-      
+
       Alert.alert('Success', 'Location verified');
       loadQueue();
     } catch (error: any) {
@@ -56,25 +56,19 @@ export default function VerificationQueueScreen() {
       </View>
 
       <Text style={styles.cardAddress}>{item.address}</Text>
-      <Text style={styles.cardOperator}>
-        Operator: {item.operators?.display_name || 'Unknown'}
-      </Text>
-      <Text style={styles.cardTime}>
-        Submitted {formatRelativeTime(new Date(item.created_at))}
-      </Text>
+      <Text style={styles.cardOperator}>Operator: {item.operators?.display_name || 'Unknown'}</Text>
+      <Text style={styles.cardTime}>Submitted {formatRelativeTime(new Date(item.created_at))}</Text>
 
       <View style={styles.cardActions}>
         <Button
           title="View Details"
           variant="outline"
           size="small"
-          onPress={() => {/* Navigate to location detail */}}
+          onPress={() => {
+            /* Navigate to location detail */
+          }}
         />
-        <Button
-          title="Verify"
-          size="small"
-          onPress={() => handleVerify(item.id)}
-        />
+        <Button title="Verify" size="small" onPress={() => handleVerify(item.id)} />
       </View>
     </View>
   );

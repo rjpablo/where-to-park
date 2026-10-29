@@ -7,6 +7,7 @@
 ## Summary
 
 I've implemented the complete Phase 0 foundation for the Where To Park parking-finder app, including:
+
 - ✅ Complete database schema with PostGIS, RLS policies, and RPCs
 - ✅ Comprehensive pgTAP tests (RLS, rates, ledger, concurrency)
 - ✅ Edge Functions for ETAs and notifications
@@ -29,21 +30,22 @@ Each commit is a logical feature area (as requested):
 ✅ **0.1 Project Setup**: Expo + TypeScript, Expo Router, EAS build profiles, lint/format  
 ✅ **0.2 Supabase Setup**: CLI initialized, migrations structure, local dev stack config  
 ✅ **0.3 Database Migrations**:
-   - Initial schema (27 tables, PostGIS, enums, indexes, constraints)
-   - RLS policies (guest, driver, operator, staff, admin)
-   - Core RPCs (search_nearby, quote_price, claim_capacity, start_walk_in, end_session, etc.)
-   - Triggers (rating stats, timestamps, default constraints, chat events)
-✅ **0.4 pgTAP Tests**: 50+ assertions covering RLS, rates, ledger, concurrency  
-✅ **0.5 Edge Functions**: get-etas (OpenRouteService + cache + fallback), notify  
-✅ **0.6 Seed Data**: 4 operators, 4 Baguio locations, rates, reviews, active session  
-✅ **0.7 Design & Components**: Theme tokens, formatters, Button, AvailabilityBadge  
-✅ **0.8 MapLibre Config**: Package dependencies, EAS config (actual map components in Phase 1)
+
+- Initial schema (27 tables, PostGIS, enums, indexes, constraints)
+- RLS policies (guest, driver, operator, staff, admin)
+- Core RPCs (search_nearby, quote_price, claim_capacity, start_walk_in, end_session, etc.)
+- Triggers (rating stats, timestamps, default constraints, chat events)
+  ✅ **0.4 pgTAP Tests**: 50+ assertions covering RLS, rates, ledger, concurrency  
+  ✅ **0.5 Edge Functions**: get-etas (OpenRouteService + cache + fallback), notify  
+  ✅ **0.6 Seed Data**: 4 operators, 4 Baguio locations, rates, reviews, active session  
+  ✅ **0.7 Design & Components**: Theme tokens, formatters, Button, AvailabilityBadge  
+  ✅ **0.8 MapLibre Config**: Package dependencies, EAS config (actual map components in Phase 1)
 
 ### Documentation (Complete)
 
 ✅ **README.md**: Complete setup guide, project structure, testing, deployment  
 ✅ **docs/api.md**: Full RPC/Edge Function documentation with TypeScript signatures  
-✅ **docs/spec.md**: Feature spec cleaned of markup, 50+ pages of details  
+✅ **docs/spec.md**: Feature spec cleaned of markup, 50+ pages of details
 
 ## What's Deferred (Phase 1 App Screens)
 
@@ -68,13 +70,15 @@ The following were NOT implemented (as these are app UI screens, not database/in
 
 **Issue**: `supabase start` and `supabase db reset` encountered timeout errors in the VM environment during initial Docker image pulls and migrations application.
 
-**Status**: 
+**Status**:
+
 - Database container started successfully (`supabase_db_workspace` running)
 - Migrations are complete and valid (syntax checked)
 - Tests are complete and valid (pgTAP format verified)
 - Other services (Kong, Auth, Realtime, Storage) encountered timeouts
 
 **Workaround for Testing**:
+
 - Migrations can be applied manually to any Postgres + PostGIS instance
 - Tests can be run via `psql` once migrations are applied
 - Edge Functions can be tested with `supabase functions serve` once services are up
@@ -84,6 +88,7 @@ The following were NOT implemented (as these are app UI screens, not database/in
 ## Test Results
 
 **pgTAP Tests** (supabase/tests/):
+
 - ✅ database_tests.sql: 50+ assertions (RLS, rates, ledger, search, etc.)
 - ✅ concurrency_test.sql: 10 tests for last-space protection
 
@@ -136,6 +141,7 @@ The following were NOT implemented (as these are app UI screens, not database/in
 **Mechanism**: Single `claim_capacity` function with `SELECT ... FOR UPDATE`
 
 **Tests**:
+
 - 50 parallel requests for 1 space → 1 succeeds, 49 get `no_longer_available`
 - Walk-in vs reservation race → exactly one succeeds
 - Manual unavailable reduces capacity correctly
@@ -170,6 +176,7 @@ supabase db push
 ```
 
 This will apply all 4 migrations:
+
 - 20241029000001_initial_schema.sql
 - 20241029000002_rls_policies.sql
 - 20241029000003_core_rpcs.sql
@@ -217,6 +224,7 @@ Expected: All tests pass (60+ assertions total)
 ## Next Steps
 
 **Immediate (Complete Phase 1)**:
+
 1. Implement app screens (search map, location detail, walk-in, chat, etc.)
 2. Add MapLibre native and web components
 3. Wire RPCs to UI (integration examples in docs/api.md)
@@ -225,11 +233,13 @@ Expected: All tests pass (60+ assertions total)
 6. Add auth flows (phone OTP, Google)
 
 **Testing**:
+
 1. Test on Android device with local Supabase
 2. Test on web (npm run web) for preview
 3. Verify all Phase 1 features against spec
 
 **Deployment**:
+
 1. Build Android APK via EAS: `eas build --platform android --profile preview`
 2. Upload to Google Play Console internal testing
 3. Recruit first Baguio operators
@@ -278,6 +288,7 @@ Expected: All tests pass (60+ assertions total)
 ## Contact
 
 For questions or issues:
+
 - Review the PR commits individually (each is self-contained)
 - Check docs/api.md for RPC integration examples
 - See README.md for setup and testing instructions
