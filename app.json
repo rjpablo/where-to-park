@@ -8,13 +8,7 @@
     "userInterfaceStyle": "light",
     "scheme": "wheretopark",
     "plugins": [
-      "expo-router",
-      [
-        "@maplibre/maplibre-react-native",
-        {
-          "RNMapboxMapsDownloadToken": ""
-        }
-      ]
+      "expo-router"
     ],
     "ios": {
       "supportsTablet": true,
