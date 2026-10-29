@@ -12,6 +12,9 @@ npm-debug.*
 web-build/
 android/
 ios/
+*.apk
+*.aab
+.gradle/
 .env
 .env.local
 
