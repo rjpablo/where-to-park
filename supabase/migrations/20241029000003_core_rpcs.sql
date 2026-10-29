@@ -147,7 +147,7 @@ BEGIN
       AND status IN ('active', 'overdue')
       AND (p_end_at IS NULL OR started_at < p_end_at)
       AND (ended_at IS NULL OR ended_at > p_start_at)
-    ) overlaps;
+    ) AS sub;
 
     v_available := v_location.capacity - v_overlapping - v_location.manual_reserved_count - v_location.unavailable_count;
 
@@ -183,7 +183,7 @@ BEGIN
       AND status IN ('active', 'overdue')
       AND (p_end_at IS NULL OR started_at < p_end_at)
       AND (ended_at IS NULL OR ended_at > p_start_at)
-    ) overlaps;
+    ) AS sub;
 
     IF v_overlapping > 0 THEN
       RETURN jsonb_build_object('error', 'no_longer_available');
