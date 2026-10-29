@@ -61,26 +61,14 @@ CREATE POLICY "Owners/managers can update operator"
   );
 
 -- Operator members policies
-CREATE POLICY "Members can view their memberships"
+CREATE POLICY "Members can view their own memberships"
   ON operator_members FOR SELECT
-  USING (
-    profile_id = auth.uid() OR
-    EXISTS (
-      SELECT 1 FROM operator_members om
-      WHERE om.operator_id = operator_members.operator_id
-      AND om.profile_id = auth.uid()
-    )
-  );
+  USING (profile_id = auth.uid());
 
 CREATE POLICY "Owners/managers can manage members"
   ON operator_members FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM operator_members
-      WHERE operator_id = operator_members.operator_id
-      AND profile_id = auth.uid()
-      AND role IN ('owner', 'manager')
-    )
+    role IN ('owner', 'manager') AND profile_id = auth.uid()
   );
 
 -- Locations policies
