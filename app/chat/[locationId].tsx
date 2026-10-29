@@ -8,12 +8,15 @@ import {
   Image,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
-import { formatRelativeTime } from '../../src/utils/formatters';
+import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
+import { processChatImageFile } from '../../src/utils/chatImage';
 import { theme } from '../../src/lib/theme';
 
 type ChatMessage = {
@@ -172,17 +175,67 @@ export default function ChatScreen() {
     await loadMessages(threadId);
   };
 
-  const sendPhoto = async () => {
+  const uploadProcessed = async (processed: {
+    base64: string;
+    contentType: string;
+    filename: string;
+  }) => {
     if (!threadId) return;
     const { data, error: rpcError } = await supabase.rpc('put_chat_image', {
       p_thread_id: threadId,
-      p_filename: 'photo.jpg',
+      p_filename: processed.filename,
+      p_bytes_base64: processed.base64,
+      p_content_type: processed.contentType,
     });
     if (rpcError || data?.error) {
       setError(rpcError?.message || String(data?.error));
       return;
     }
     await loadMessages(threadId);
+  };
+
+  const sendPhoto = async () => {
+    if (!threadId) return;
+    setError(null);
+    try {
+      if (Platform.OS === 'web') {
+        const input = document.querySelector(
+          '[data-testid="chat-photo-file"]'
+        ) as HTMLInputElement | null;
+        input?.click();
+        return;
+      }
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError('Photo library permission is required');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        exif: false,
+        allowsEditing: true,
+        base64: true,
+      });
+      if (result.canceled || !result.assets?.[0]?.base64) return;
+      await uploadProcessed({
+        base64: result.assets[0].base64,
+        contentType: result.assets[0].mimeType || 'image/jpeg',
+        filename: 'photo.jpg',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Could not send photo');
+    }
+  };
+
+  const onWebFile = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const processed = await processChatImageFile(file);
+      await uploadProcessed(processed);
+    } catch (err: any) {
+      setError(err.message || 'Could not process photo');
+    }
   };
 
   if (!user) {
@@ -236,7 +289,9 @@ export default function ChatScreen() {
             ) : (
               <Text style={styles.body}>{m.body}</Text>
             )}
-            <Text style={styles.meta}>{formatRelativeTime(m.created_at)}</Text>
+            <Text style={styles.meta}>
+              {formatLocalDateTime(m.created_at)} · {formatRelativeTime(m.created_at)}
+            </Text>
           </View>
         ))}
       </ScrollView>
@@ -248,6 +303,19 @@ export default function ChatScreen() {
         testID="chat-draft"
       />
       <View style={styles.row}>
+        {Platform.OS === 'web' ? (
+          <input
+            type="file"
+            accept="image/*"
+            data-testid="chat-photo-file"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              e.target.value = '';
+              onWebFile(file);
+            }}
+          />
+        ) : null}
         <Button title="Send photo" variant="outline" onPress={sendPhoto} testID="chat-photo" />
         <Button title="Send" onPress={send} testID="chat-send" />
       </View>

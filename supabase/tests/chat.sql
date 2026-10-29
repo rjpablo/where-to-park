@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(14);
+SELECT plan(15);
 
 -- Seeded ABC 1234 session already posted a system event on Sarah's Session Road thread.
 SELECT ok(
@@ -46,6 +46,17 @@ SELECT is(
   (put_chat_image((SELECT id FROM chat_ids WHERE label = 'sm'), 'gate.jpg')->>'success')::BOOLEAN,
   true,
   'Sarah can attach a chat image stored in chat-images'
+);
+
+SELECT is(
+  put_chat_image(
+    (SELECT id FROM chat_ids WHERE label = 'sm'),
+    'processed.jpg',
+    '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=',
+    'image/jpeg'
+  )->>'content_type',
+  'image/jpeg',
+  'put_chat_image stores processed JPEG bytes and content type'
 );
 
 RESET ROLE;
