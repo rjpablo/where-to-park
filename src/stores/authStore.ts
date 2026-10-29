@@ -14,6 +14,24 @@ interface AuthState {
   initialize: () => Promise<void>;
 }
 
+function digits(value: string | null | undefined): string {
+  return String(value || '').replace(/[^0-9]/g, '');
+}
+
+export function isNewOnboardingProfile(
+  profile: Profile | null,
+  phone: string,
+  userMetadata?: Record<string, unknown> | null
+): boolean {
+  if (userMetadata?.is_new) return true;
+  const name = (profile?.display_name || '').trim();
+  if (!name || name === 'New user') return true;
+  const phoneDigits = digits(phone) || digits(profile?.phone);
+  if (phoneDigits && digits(name) === phoneDigits) return true;
+  if (profile?.phone && name === profile.phone) return true;
+  return false;
+}
+
 async function loadProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
   return data;
@@ -61,7 +79,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!data.user) throw new Error('No session');
       const profile = await loadProfile(data.user.id);
       set({ user: profile });
-      const isNew = !!(data.user.user_metadata as any)?.is_new || profile?.display_name === phone;
+      const isNew = isNewOnboardingProfile(
+        profile,
+        phone,
+        data.user.user_metadata as Record<string, unknown> | null
+      );
       return { isNew };
     } finally {
       set({ loading: false });

@@ -51,7 +51,10 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO profiles (id, display_name, phone, is_admin) VALUES
 ('00000000-0000-0000-0000-000000000001', 'RJ (Admin)', '+639171234567', true)
-ON CONFLICT (id) DO UPDATE SET is_admin = true;
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  phone = EXCLUDED.phone,
+  is_admin = true;
 
 -- Create sample operators
 INSERT INTO operators (id, display_name, contact, status, staff_can_waive) VALUES
@@ -65,7 +68,10 @@ INSERT INTO profiles (id, display_name, phone) VALUES
 ('20000000-0000-0000-0000-000000000001', 'Maria Santos', '+639181111111'),
 ('20000000-0000-0000-0000-000000000002', 'Juan dela Cruz', '+639182222222'),
 ('20000000-0000-0000-0000-000000000003', 'Sarah Chen', '+639183333333'),
-('20000000-0000-0000-0000-000000000004', 'Ana Staff', '+639184444444');
+('20000000-0000-0000-0000-000000000004', 'Ana Staff', '+639184444444')
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  phone = EXCLUDED.phone;
 
 -- Make Maria and Juan operators/staff. Ana is staff on Session Road (Juan's operator).
 INSERT INTO operator_members (operator_id, profile_id, role, location_ids) VALUES

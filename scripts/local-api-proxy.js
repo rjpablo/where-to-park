@@ -100,7 +100,19 @@ function mintSession(user) {
   };
 }
 
-function rpc(name, args) {
+function serviceRoleToken() {
+  const now = Math.floor(Date.now() / 1000);
+  return signJwt({
+    iss: 'supabase-local-dev',
+    role: 'service_role',
+    aud: 'authenticated',
+    exp: now + 3600,
+    iat: now,
+  });
+}
+
+function rpc(name, args, jwt) {
+  const token = jwt || ANON_KEY;
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(args);
     const req = http.request(
@@ -113,7 +125,7 @@ function rpc(name, args) {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),
           apikey: ANON_KEY,
-          Authorization: `Bearer ${ANON_KEY}`,
+          Authorization: `Bearer ${token}`,
         },
       },
       (res) => {
@@ -182,7 +194,7 @@ function handleAuth(req, res, body) {
       parsed = {};
     }
     const phone = parsed.phone || '';
-    return rpc('request_phone_otp', { p_phone: phone })
+    return rpc('request_phone_otp', { p_phone: phone }, serviceRoleToken())
       .then((data) => {
         if (data?.error) return sendJson(res, 400, { error: data.error, msg: data.error });
         return sendJson(res, 200, { message: 'OTP sent', phone: data.phone });
@@ -199,7 +211,7 @@ function handleAuth(req, res, body) {
     }
     const phone = parsed.phone || '';
     const token = parsed.token || parsed.code || '';
-    return rpc('verify_phone_otp', { p_phone: phone, p_code: token })
+    return rpc('verify_phone_otp', { p_phone: phone, p_code: token }, serviceRoleToken())
       .then((data) => {
         if (!data?.success || !data.user_id) {
           return sendJson(res, 400, { error: 'invalid_otp', error_description: data?.error || 'invalid_otp' });
