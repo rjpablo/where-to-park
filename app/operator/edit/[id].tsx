@@ -2,12 +2,19 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../src/components/Button';
+import { FacilityPhotoField } from '../../../src/components/FacilityPhotoField';
 import { WorkspaceNav } from '../../../src/components/WorkspaceNav';
 import { MapPinPicker } from '../../../src/components/map/MapPinPicker';
 import { supabase } from '../../../src/lib/supabase';
 import { firstParam } from '../../../src/lib/params';
+import {
+  PHOTO_UPLOAD_ERROR,
+  locationPhotoPublicUrl,
+  uploadLocationPhoto,
+} from '../../../src/lib/storageUpload';
 import { theme } from '../../../src/lib/theme';
 import type { Coordinate } from '../../../src/components/map/types';
+import type { ProcessedImage } from '../../../src/utils/processImage';
 
 export default function EditLocationScreen() {
   const id = firstParam(useLocalSearchParams<{ id: string | string[] }>().id);
@@ -16,10 +23,13 @@ export default function EditLocationScreen() {
   const [rules, setRules] = React.useState('');
   const [capacity, setCapacity] = React.useState('');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
+  const [photo, setPhoto] = React.useState<ProcessedImage | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
+  const [photoDirty, setPhotoDirty] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -28,7 +38,7 @@ export default function EditLocationScreen() {
       try {
         const { data, error: fetchError } = await supabase
           .from('locations')
-          .select('name, address, rules, capacity')
+          .select('name, address, rules, capacity, location_photos(storage_path, is_cover)')
           .eq('id', id)
           .single();
         if (fetchError) throw fetchError;
@@ -36,6 +46,18 @@ export default function EditLocationScreen() {
         setAddress(data.address);
         setRules(data.rules || '');
         setCapacity(String(data.capacity));
+        const cover =
+          (data.location_photos || []).find((p: any) => p.is_cover) || data.location_photos?.[0];
+        const coverUrl = locationPhotoPublicUrl(cover?.storage_path);
+        if (coverUrl) {
+          setPhoto({
+            uri: coverUrl,
+            base64: '',
+            contentType: 'image/jpeg',
+            filename: 'facility.jpg',
+          });
+          setPhotoDirty(false);
+        }
 
         const { data: geo } = await supabase.rpc('search_nearby', {
           p_lat: 16.412,
@@ -54,10 +76,29 @@ export default function EditLocationScreen() {
     })();
   }, [id]);
 
+  const uploadCover = async () => {
+    if (!id || !photo?.base64 || !photoDirty) return true;
+    const uploaded = await uploadLocationPhoto({
+      locationId: id,
+      filename: 'facility.jpg',
+      base64: photo.base64,
+      contentType: photo.contentType,
+      isCover: true,
+    });
+    if (uploaded.error) {
+      setPhotoError(uploaded.error || PHOTO_UPLOAD_ERROR);
+      return false;
+    }
+    setPhotoError(null);
+    setPhotoDirty(false);
+    return true;
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSuccess(null);
+    setPhotoError(null);
     try {
       const { data, error: rpcError } = await supabase.rpc('update_location', {
         p_location_id: id,
@@ -74,6 +115,10 @@ export default function EditLocationScreen() {
         return;
       }
       setSuccess('Location updated');
+      if (photo?.base64 && photoDirty) {
+        const uploaded = await uploadCover();
+        if (!uploaded) return;
+      }
     } catch (err: any) {
       setError(err.message || 'Save failed');
     } finally {
@@ -124,6 +169,18 @@ export default function EditLocationScreen() {
         testID="edit-rules"
       />
 
+      <Text style={styles.label}>Facility photo</Text>
+      <FacilityPhotoField
+        photo={photo}
+        onChange={(next) => {
+          setPhoto(next);
+          setPhotoDirty(!!next?.base64);
+          setPhotoError(null);
+        }}
+        error={photoError}
+        testID="edit-photo"
+      />
+
       <Text style={styles.label}>Map pin</Text>
       <MapPinPicker initialCoordinate={pin} onCoordinateSelect={setPin} />
 
@@ -136,6 +193,24 @@ export default function EditLocationScreen() {
         <Text style={styles.success} testID="edit-success">
           {success}
         </Text>
+      ) : null}
+      {photoError ? (
+        <Button
+          title="Retry photo"
+          variant="outline"
+          onPress={async () => {
+            setSaving(true);
+            setPhotoError(null);
+            try {
+              const uploaded = await uploadCover();
+              if (uploaded) setSuccess('Location updated');
+            } finally {
+              setSaving(false);
+            }
+          }}
+          loading={saving}
+          testID="edit-photo-retry"
+        />
       ) : null}
 
       <Button title="Save changes" onPress={handleSave} loading={saving} testID="edit-save" />

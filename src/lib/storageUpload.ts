@@ -1,5 +1,10 @@
-import { supabase } from './supabase';
+import { bytesForStorageUpload } from './base64';
 import { getSupabaseUrl, isLocalSupabaseUrl } from './env';
+import { supabase } from './supabase';
+
+export const PHOTO_UPLOAD_ERROR =
+  'Could not upload the photo. Your listing was saved — you can retry the photo.';
+export const PHOTO_READ_ERROR = 'Could not read the photo. Try another image.';
 
 export function sanitizeStorageFilename(name: string, fallback = 'photo.jpg'): string {
   const trimmed = (name || fallback).trim() || fallback;
@@ -15,28 +20,20 @@ export function locationPhotoPublicUrl(storagePath: string | null | undefined): 
   return `${base}/storage/v1/object/public/location-photos/${path}`;
 }
 
-function base64ToUint8Array(base64: string): Uint8Array {
-  const clean = base64.replace(/^data:[^;]+;base64,/, '');
-  if (typeof Buffer !== 'undefined') {
-    return new Uint8Array(Buffer.from(clean, 'base64'));
-  }
-  const atobFn = (globalThis as { atob?: (s: string) => string }).atob;
-  if (!atobFn) throw new Error('Cannot decode image bytes');
-  const binary = atobFn(clean);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 async function uploadToBucket(
   bucket: 'chat-images' | 'location-photos',
   path: string,
   base64: string,
   contentType: string
 ): Promise<{ error: Error | null }> {
-  const bytes = base64ToUint8Array(base64);
-  const { error } = await supabase.storage.from(bucket).upload(path, bytes, {
-    contentType,
+  let body: ArrayBuffer;
+  try {
+    body = bytesForStorageUpload(base64);
+  } catch {
+    return { error: new Error(PHOTO_READ_ERROR) };
+  }
+  const { error } = await supabase.storage.from(bucket).upload(path, body, {
+    contentType: contentType || 'image/jpeg',
     upsert: true,
   });
   return { error: error ? new Error(error.message) : null };
@@ -61,7 +58,6 @@ export async function uploadChatImage(args: {
     return {};
   }
 
-  // Local proxy has no Storage upload; BYTEA fallback still works.
   const { data, error } = await supabase.rpc('put_chat_image', {
     p_thread_id: args.threadId,
     p_filename: filename,
@@ -73,7 +69,9 @@ export async function uploadChatImage(args: {
       error:
         error?.message ||
         String(data?.error) ||
-        (isLocalSupabaseUrl() ? 'Local Storage is not available on the proxy' : 'Upload failed'),
+        (isLocalSupabaseUrl()
+          ? 'Local Storage is not available on the proxy'
+          : 'Could not send the photo. Try another image.'),
     };
   }
   return {};
@@ -90,16 +88,18 @@ export async function uploadLocationPhoto(args: {
   const filename = sanitizeStorageFilename(args.filename, 'facility.jpg');
   const path = `${args.locationId}/${filename}`;
 
-  if (args.base64 && args.base64.length > 8) {
-    const uploaded = await uploadToBucket(
-      'location-photos',
-      path,
-      args.base64,
-      args.contentType || 'image/jpeg'
-    );
-    if (uploaded.error && !isLocalSupabaseUrl()) {
-      return { error: uploaded.error.message };
-    }
+  if (!args.base64 || args.base64.length <= 8) {
+    return { error: PHOTO_READ_ERROR };
+  }
+
+  const uploaded = await uploadToBucket(
+    'location-photos',
+    path,
+    args.base64,
+    args.contentType || 'image/jpeg'
+  );
+  if (uploaded.error) {
+    return { error: PHOTO_UPLOAD_ERROR };
   }
 
   const { data, error } = await supabase.rpc('put_location_photo', {
@@ -108,6 +108,6 @@ export async function uploadLocationPhoto(args: {
     p_is_cover: args.isCover !== false,
     p_caption: args.caption ?? null,
   });
-  if (error || data?.error) return { error: error?.message || String(data?.error) };
+  if (error || data?.error) return { error: PHOTO_UPLOAD_ERROR };
   return { storagePath: data?.storage_path || path };
 }

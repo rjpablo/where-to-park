@@ -1,17 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Platform } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { View, Text, StyleSheet, TextInput, ScrollView, Image } from 'react-native';
 import { Button } from '../../src/components/Button';
+import { FacilityPhotoField } from '../../src/components/FacilityPhotoField';
 import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { MapPinPicker } from '../../src/components/map/MapPinPicker';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
-import { uploadLocationPhoto } from '../../src/lib/storageUpload';
-import { processChatImageFile } from '../../src/utils/chatImage';
+import { PHOTO_UPLOAD_ERROR, uploadLocationPhoto } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
 import type { Coordinate } from '../../src/components/map/types';
-
-type PickedPhoto = { name: string; base64: string; contentType: string };
+import type { ProcessedImage } from '../../src/utils/processImage';
 
 type ListingType = 'commercial' | 'residential';
 
@@ -25,10 +23,12 @@ export default function OnboardingScreen() {
   const [capacity, setCapacity] = React.useState('10');
   const [rate, setRate] = React.useState('50.00');
   const [rules, setRules] = React.useState('');
-  const [photo, setPhoto] = React.useState<PickedPhoto | null>(null);
+  const [photo, setPhoto] = React.useState<ProcessedImage | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
+  const [createdLocationId, setCreatedLocationId] = React.useState<string | null>(null);
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
 
   const handleNext = () => {
     setError(null);
@@ -56,76 +56,48 @@ export default function OnboardingScreen() {
     if (step > 1) setStep(step - 1);
   };
 
-  const onPickFile = async (event: any) => {
-    const file = event?.target?.files?.[0] as File | undefined;
-    if (!file) return;
-    try {
-      const processed = await processChatImageFile(file);
-      setPhoto({
-        name: processed.filename,
-        base64: processed.base64,
-        contentType: processed.contentType,
-      });
-    } catch (err: any) {
-      setError(err.message || 'Could not process photo');
-    }
-  };
-
-  const onPickNative = async () => {
-    setError(null);
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError('Photo library permission is required');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      exif: false,
-      allowsEditing: true,
-      base64: true,
+  const uploadCover = async (locationId: string) => {
+    if (!photo) return true;
+    const uploaded = await uploadLocationPhoto({
+      locationId,
+      filename: 'facility.jpg',
+      base64: photo.base64,
+      contentType: photo.contentType,
+      isCover: true,
     });
-    if (result.canceled || !result.assets?.[0]?.base64) return;
-    setPhoto({
-      name: 'facility.jpg',
-      base64: result.assets[0].base64,
-      contentType: result.assets[0].mimeType || 'image/jpeg',
-    });
+    if (uploaded.error) {
+      setPhotoError(uploaded.error || PHOTO_UPLOAD_ERROR);
+      return false;
+    }
+    setPhotoError(null);
+    return true;
   };
 
   const handleFinish = async () => {
     setSubmitting(true);
     setError(null);
     setSuccess(null);
+    setPhotoError(null);
     try {
-      const { data, error: rpcError } = await supabase.rpc('create_location', {
-        p_name: locationName.trim(),
-        p_address: address.trim(),
-        p_lat: pin.latitude,
-        p_lng: pin.longitude,
-        p_capacity: Number(capacity),
-        p_hourly_amount: Number(rate),
-        p_listing_type: listingType,
-        p_rules: rules.trim() || null,
-      });
-      if (rpcError) throw rpcError;
-      if (data?.error) {
-        setError(String(data.error));
-        return;
-      }
-
-      if (photo && data?.location_id) {
-        const uploaded = await uploadLocationPhoto({
-          locationId: data.location_id,
-          filename: photo.name,
-          base64: photo.base64,
-          contentType: photo.contentType,
-          isCover: true,
+      let locationId = createdLocationId;
+      if (!locationId) {
+        const { data, error: rpcError } = await supabase.rpc('create_location', {
+          p_name: locationName.trim(),
+          p_address: address.trim(),
+          p_lat: pin.latitude,
+          p_lng: pin.longitude,
+          p_capacity: Number(capacity),
+          p_hourly_amount: Number(rate),
+          p_listing_type: listingType,
+          p_rules: rules.trim() || null,
         });
-        if (uploaded.error) {
-          setError(uploaded.error);
+        if (rpcError) throw rpcError;
+        if (data?.error) {
+          setError(String(data.error));
           return;
         }
+        locationId = data.location_id;
+        setCreatedLocationId(locationId);
       }
 
       if (user && user.account_type !== 'operator') {
@@ -135,6 +107,14 @@ export default function OnboardingScreen() {
           .eq('id', user.id);
         if (typeError) throw typeError;
         await initialize();
+      }
+
+      if (photo && locationId) {
+        const uploaded = await uploadCover(locationId);
+        if (!uploaded) {
+          setSuccess(`Submitted ${locationName.trim()} for verification`);
+          return;
+        }
       }
 
       setSuccess(`Submitted ${locationName.trim()} for verification`);
@@ -256,29 +236,7 @@ export default function OnboardingScreen() {
           />
 
           <Text style={styles.label}>Facility photo (optional)</Text>
-          {Platform.OS === 'web' ? (
-            <input
-              type="file"
-              accept="image/*"
-              data-testid="onboarding-photo"
-              onChange={onPickFile}
-              style={{ marginTop: 8 }}
-            />
-          ) : (
-            <Button
-              title={photo ? 'Change photo' : 'Choose photo'}
-              variant="outline"
-              onPress={onPickNative}
-              testID="onboarding-photo"
-            />
-          )}
-          {photo ? (
-            <Text style={styles.photoName} testID="onboarding-photo-name">
-              Selected: {photo.name}
-            </Text>
-          ) : (
-            <Text style={styles.help}>Public can view; only operator members can upload.</Text>
-          )}
+          <FacilityPhotoField photo={photo} onChange={setPhoto} testID="onboarding-photo" />
 
           <View style={styles.info}>
             <Text style={styles.infoTitle}>Cash only (Phase 1)</Text>
@@ -324,7 +282,15 @@ export default function OnboardingScreen() {
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Photo</Text>
-            <Text style={styles.reviewValue}>{photo?.name || 'None'}</Text>
+            {photo?.uri ? (
+              <Image
+                source={{ uri: photo.uri }}
+                style={styles.reviewPhoto}
+                testID="onboarding-photo-preview"
+              />
+            ) : (
+              <Text style={styles.reviewValue}>None</Text>
+            )}
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Payment</Text>
@@ -348,6 +314,18 @@ export default function OnboardingScreen() {
         <Text style={styles.success} testID="onboarding-success">
           {success}
         </Text>
+      ) : null}
+      {photoError ? (
+        <View style={styles.photoRetry} testID="onboarding-photo-failed">
+          <Text style={styles.error}>{photoError}</Text>
+          <Button
+            title="Retry photo"
+            variant="outline"
+            onPress={handleFinish}
+            loading={submitting}
+            testID="onboarding-photo-retry"
+          />
+        </View>
       ) : null}
 
       <View style={styles.navigation}>
@@ -440,9 +418,16 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.md,
   },
-  photoName: {
-    ...theme.typography.bodySmall,
-    marginTop: theme.spacing.sm,
+  reviewPhoto: {
+    width: '100%',
+    height: 160,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surfaceDark,
+  },
+  photoRetry: {
+    paddingHorizontal: theme.spacing.lg,
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
   info: {
     marginTop: theme.spacing.lg,

@@ -5,7 +5,8 @@
   },
   "exclude": [
     "node_modules",
-    "supabase/functions/**/*"
+    "supabase/functions/**/*",
+    "**/*.test.ts"
   ],
   "include": [
     "**/*.ts",

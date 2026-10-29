@@ -10,7 +10,6 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
@@ -18,6 +17,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { processChatImageFile } from '../../src/utils/chatImage';
 import { uploadChatImage } from '../../src/lib/storageUpload';
+import { pickProcessedImage } from '../../src/utils/processImage';
 import { theme } from '../../src/lib/theme';
 
 type ChatMessage = {
@@ -206,24 +206,9 @@ export default function ChatScreen() {
         input?.click();
         return;
       }
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        setError('Photo library permission is required');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8,
-        exif: false,
-        allowsEditing: true,
-        base64: true,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-      await uploadProcessed({
-        base64: result.assets[0].base64,
-        contentType: result.assets[0].mimeType || 'image/jpeg',
-        filename: 'photo.jpg',
-      });
+      const processed = await pickProcessedImage();
+      if (!processed) return;
+      await uploadProcessed(processed);
     } catch (err: any) {
       setError(err.message || 'Could not send photo');
     }
