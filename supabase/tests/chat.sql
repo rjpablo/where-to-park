@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(12);
+SELECT plan(14);
 
 -- Seeded ABC 1234 session already posted a system event on Sarah's Session Road thread.
 SELECT ok(
@@ -140,6 +140,17 @@ SELECT cmp_ok(
   '>=',
   1,
   'Sarah can read her chat-images object'
+);
+
+SELECT ok(
+  (SELECT length(bytes) FROM chat_image_blobs WHERE path LIKE '%/gate.jpg') > 10,
+  'Chat image bytes are stored for signed-URL serving'
+);
+
+SELECT is(
+  (get_chat_image((SELECT path FROM chat_image_blobs WHERE path LIKE '%/gate.jpg' LIMIT 1))->>'success')::BOOLEAN,
+  true,
+  'Sarah can read chat image bytes for a signed URL'
 );
 
 RESET ROLE;

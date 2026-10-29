@@ -244,6 +244,116 @@ function handleAuth(req, res, body) {
   });
 }
 
+function signStorageToken(path, sub) {
+  const now = Math.floor(Date.now() / 1000);
+  return signJwt({
+    iss: 'supabase-local-dev',
+    role: 'authenticated',
+    aud: 'authenticated',
+    exp: now + 3600,
+    iat: now,
+    sub,
+    url: path,
+  });
+}
+
+function storageBlobPath(pathname) {
+  const rest = decodeURIComponent(pathname.replace(/^\/storage\/v1\/object\/sign\//, ''));
+  const slash = rest.indexOf('/');
+  if (slash < 0) return rest;
+  return rest.slice(slash + 1);
+}
+
+function handleStorage(req, res, body) {
+  const url = new URL(req.url, 'http://127.0.0.1');
+  const path = url.pathname;
+
+  if (req.method === 'POST' && path.startsWith('/storage/v1/object/sign/')) {
+    const objectPath = storageBlobPath(path);
+    const auth = req.headers.authorization || '';
+    const token = auth.replace(/^Bearer\s+/i, '');
+    let sub = 'anon';
+    try {
+      sub = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).sub || sub;
+    } catch {
+      sub = 'anon';
+    }
+    const signed = signStorageToken(objectPath, sub);
+    // storage-js concatenates this onto `${supabaseUrl}/storage/v1`
+    const signedURL = `/object/sign/chat-images/${objectPath}?token=${signed}`;
+    return sendJson(res, 200, { signedURL, signedUrl: signedURL });
+  }
+
+  if (req.method === 'GET' && path.startsWith('/storage/v1/object/sign/')) {
+    const objectPath = storageBlobPath(path);
+    const token = url.searchParams.get('token') || '';
+    let payload;
+    try {
+      payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+    } catch {
+      return sendJson(res, 401, { message: 'bad token' });
+    }
+    const userJwt = signJwt({
+      iss: 'supabase-local-dev',
+      aud: 'authenticated',
+      role: 'authenticated',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      sub: payload.sub,
+    });
+    return rpcAuthed('get_chat_image', { p_path: objectPath }, userJwt)
+      .then((data) => {
+        if (!data?.base64) return sendJson(res, 404, { error: data?.error || 'not_found' });
+        const buf = Buffer.from(data.base64, 'base64');
+        res.writeHead(200, {
+          'Content-Type': data.content_type || 'image/png',
+          'Content-Length': buf.length,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'private, max-age=60',
+        });
+        res.end(buf);
+      })
+      .catch((err) => sendJson(res, 502, { error: err.message }));
+  }
+
+  return sendJson(res, 404, { message: 'Storage path not found', path });
+}
+
+function rpcAuthed(name, args, jwt) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(args);
+    const req = http.request(
+      {
+        host: POSTGREST.host,
+        port: POSTGREST.port,
+        path: `/rpc/${name}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${jwt}`,
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          try {
+            resolve(JSON.parse(raw));
+          } catch {
+            resolve({ error: raw || `rpc ${name} ${res.statusCode}` });
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 function proxyPostgrest(req, res, body) {
   const restPath = req.url.replace(/^\/rest\/v1/, '') || '/';
   const headers = { ...req.headers, host: `${POSTGREST.host}:${POSTGREST.port}` };
@@ -293,6 +403,7 @@ const server = http.createServer((req, res) => {
     const body = Buffer.concat(chunks);
     const path = req.url.split('?')[0];
     if (path.startsWith('/auth/v1')) return handleAuth(req, res, body.toString('utf8'));
+    if (path.startsWith('/storage/v1')) return handleStorage(req, res, body.toString('utf8'));
     if (path.startsWith('/rest/v1') || path === '/rest' || path === '/') {
       if (path === '/') return sendJson(res, 200, { status: 'ok', rest: '/rest/v1', auth: '/auth/v1' });
       return proxyPostgrest(req, res, body);

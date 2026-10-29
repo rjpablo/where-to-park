@@ -1,5 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Image,
+  Modal,
+  Pressable,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
@@ -18,7 +27,10 @@ type ChatMessage = {
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { locationId, driverId } = useLocalSearchParams<{ locationId: string; driverId?: string }>();
+  const { locationId, driverId } = useLocalSearchParams<{
+    locationId: string;
+    driverId?: string;
+  }>();
   const { user, initialize } = useAuthStore();
   const [locationName, setLocationName] = React.useState('Messages');
   const [threadId, setThreadId] = React.useState<string | null>(null);
@@ -26,6 +38,8 @@ export default function ChatScreen() {
   const [draft, setDraft] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [imageUrls, setImageUrls] = React.useState<Record<string, string>>({});
+  const [fullImage, setFullImage] = React.useState<string | null>(null);
 
   const loadMessages = React.useCallback(async (id: string) => {
     const { data, error: fetchError } = await supabase
@@ -38,7 +52,28 @@ export default function ChatScreen() {
       setError(fetchError.message);
       return;
     }
-    setMessages((data as ChatMessage[]) || []);
+    const rows = (data as ChatMessage[]) || [];
+    setMessages(rows);
+    const images = rows.filter((m) => m.kind === 'image' && m.image_path);
+    await Promise.all(
+      images.map(async (m) => {
+        const path = m.image_path as string;
+        const { data: signed, error: signError } = await supabase.storage
+          .from('chat-images')
+          .createSignedUrl(path, 3600);
+        if (!signError && signed?.signedUrl) {
+          setImageUrls((prev) => ({ ...prev, [path]: signed.signedUrl }));
+          return;
+        }
+        const { data: blob } = await supabase.rpc('get_chat_image', { p_path: path });
+        if (blob?.base64) {
+          setImageUrls((prev) => ({
+            ...prev,
+            [path]: `data:${blob.content_type || 'image/png'};base64,${blob.base64}`,
+          }));
+        }
+      })
+    );
   }, []);
 
   const openThread = React.useCallback(async () => {
@@ -48,7 +83,11 @@ export default function ChatScreen() {
       return;
     }
     setError(null);
-    const { data: loc } = await supabase.from('locations').select('name').eq('id', locationId).maybeSingle();
+    const { data: loc } = await supabase
+      .from('locations')
+      .select('name')
+      .eq('id', locationId)
+      .maybeSingle();
     if (loc?.name) setLocationName(loc.name);
 
     let id: string | null = null;
@@ -66,7 +105,9 @@ export default function ChatScreen() {
       }
       id = thread?.id || null;
     } else {
-      const { data, error: rpcError } = await supabase.rpc('start_thread', { p_location_id: locationId });
+      const { data, error: rpcError } = await supabase.rpc('start_thread', {
+        p_location_id: locationId,
+      });
       if (rpcError || data?.error) {
         setError(rpcError?.message || String(data?.error));
         setLoading(false);
@@ -100,7 +141,12 @@ export default function ChatScreen() {
       .channel(`chat-${threadId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `thread_id=eq.${threadId}`,
+        },
         () => {
           loadMessages(threadId);
         }
@@ -163,15 +209,30 @@ export default function ChatScreen() {
         {messages.map((m) => (
           <View
             key={m.id}
-            style={[styles.bubble, m.kind === 'system' && styles.systemBubble, m.sender_id === user.id && styles.mine]}
+            style={[
+              styles.bubble,
+              m.kind === 'system' && styles.systemBubble,
+              m.sender_id === user.id && styles.mine,
+            ]}
             testID={`chat-msg-${m.kind}`}
           >
             {m.kind === 'system' ? (
               <Text style={styles.systemText}>{m.body}</Text>
             ) : m.kind === 'image' ? (
-              <Text style={styles.body} testID="chat-photo-body">
-                Photo attached
-              </Text>
+              <Pressable
+                onPress={() => m.image_path && setFullImage(imageUrls[m.image_path] || null)}
+              >
+                {imageUrls[m.image_path || ''] ? (
+                  <Image
+                    source={{ uri: imageUrls[m.image_path as string] }}
+                    style={styles.thumb}
+                    testID="chat-photo-thumb"
+                    accessibilityLabel="Chat photo"
+                  />
+                ) : (
+                  <View style={styles.thumb} testID="chat-photo-loading" />
+                )}
+              </Pressable>
             ) : (
               <Text style={styles.body}>{m.body}</Text>
             )}
@@ -191,6 +252,22 @@ export default function ChatScreen() {
         <Button title="Send" onPress={send} testID="chat-send" />
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Modal
+        visible={!!fullImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFullImage(null)}
+      >
+        <Pressable
+          style={styles.lightbox}
+          onPress={() => setFullImage(null)}
+          testID="chat-photo-full"
+        >
+          {fullImage ? (
+            <Image source={{ uri: fullImage }} style={styles.fullImage} resizeMode="contain" />
+          ) : null}
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -210,8 +287,16 @@ const styles = StyleSheet.create({
   mine: { alignSelf: 'flex-end', backgroundColor: '#dbeafe' },
   systemBubble: { alignSelf: 'center', backgroundColor: theme.colors.surfaceDark },
   body: { ...theme.typography.body },
-  systemText: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, textAlign: 'center' },
-  meta: { ...theme.typography.caption, color: theme.colors.text.tertiary, marginTop: theme.spacing.xs },
+  systemText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+  },
+  meta: {
+    ...theme.typography.caption,
+    color: theme.colors.text.tertiary,
+    marginTop: theme.spacing.xs,
+  },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -221,4 +306,18 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', gap: theme.spacing.sm, justifyContent: 'flex-end' },
   error: { color: theme.colors.danger, marginTop: theme.spacing.md },
+  thumb: {
+    width: 160,
+    height: 112,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: '#2563eb',
+  },
+  lightbox: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+  },
+  fullImage: { width: '100%', height: '80%' },
 });

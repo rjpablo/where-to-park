@@ -20,10 +20,7 @@ async function main() {
     { timeout: 10000 }
   );
   await page.click('[data-testid="chat-photo"]');
-  await page.waitForFunction(
-    () => (document.body.innerText || '').includes('Photo attached'),
-    { timeout: 15000 }
-  );
+  await page.waitForSelector('[data-testid="chat-photo-thumb"]', { timeout: 15000 });
   await shot(page, '15_chat.png');
   await browser.close();
 }
