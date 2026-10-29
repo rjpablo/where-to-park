@@ -13,6 +13,7 @@ export function SearchScreen() {
   const {
     results,
     loading,
+    error,
     search,
     filters,
     sortBy,
@@ -114,13 +115,23 @@ export function SearchScreen() {
         pins={pins}
         onPinPress={handlePinPress}
         style={styles.map}
-        showsUserLocation
+        showsUserLocation={false}
         clusterPins
       />
 
       {/* Bottom Sheet */}
-      <View style={[styles.sheet, sheetPosition === 'expanded' && styles.sheetExpanded]}>
-        <View style={styles.sheetHandle} />
+      <View
+        style={[styles.sheet, sheetPosition === 'expanded' && styles.sheetExpanded]}
+        testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
+      >
+        <TouchableOpacity
+          testID="sheet-expand-toggle"
+          accessibilityLabel="Toggle search sheet"
+          onPress={() => setSheetPosition(sheetPosition === 'expanded' ? 'peek' : 'expanded')}
+          style={styles.sheetHandleHit}
+        >
+          <View style={styles.sheetHandle} />
+        </TouchableOpacity>
 
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>Parking Locations</Text>
@@ -166,7 +177,7 @@ export function SearchScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>
-                {loading ? 'Searching...' : 'No locations found'}
+                {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
               </Text>
             </View>
           }
@@ -198,13 +209,16 @@ const styles = StyleSheet.create({
   sheetExpanded: {
     height: '85%',
   },
+  sheetHandleHit: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+  },
   sheetHandle: {
     width: 40,
     height: 4,
     backgroundColor: theme.colors.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
   sheetHeader: {

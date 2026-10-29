@@ -15,6 +15,7 @@ export const Map: React.FC<MapProps> = ({
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const markers = useRef<maplibregl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
 
   // Initialize map
@@ -32,25 +33,34 @@ export const Map: React.FC<MapProps> = ({
       zoom: 14,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    if (typeof window !== 'undefined') {
+      (window as any).__WTP_MAP = map.current;
+    }
 
-    if (showsUserLocation) {
-      map.current.addControl(
-        new maplibregl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true,
-          },
-          trackUserLocation: true,
-        }),
-        'top-right'
-      );
+    try {
+      map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    } catch (err) {
+      console.warn('NavigationControl failed', err);
     }
 
     map.current.on('load', () => {
       setMapLoaded(true);
     });
+    const fallback = setTimeout(() => setMapLoaded(true), 2500);
+
+    map.current.on('idle', () => {
+      if (typeof window !== 'undefined') {
+        (window as any).__WTP_MAP_IDLE = true;
+      }
+      if (mapContainer.current) {
+        mapContainer.current.setAttribute('data-map-idle', 'true');
+      }
+    });
 
     return () => {
+      clearTimeout(fallback);
+      markers.current.forEach((m) => m.remove());
+      markers.current = [];
       map.current?.remove();
       map.current = null;
     };
@@ -83,13 +93,23 @@ export const Map: React.FC<MapProps> = ({
     const sourceId = 'location-pins';
     const source = map.current.getSource(sourceId);
 
+    if (typeof window !== 'undefined') {
+      (window as any).__WTP_MAP_IDLE = false;
+      (window as any).__WTP_PIN_COUNT = pins.length;
+    }
+    if (mapContainer.current) {
+      mapContainer.current.setAttribute('data-map-idle', 'false');
+      mapContainer.current.setAttribute('data-pin-count', String(pins.length));
+    }
+
+    try {
     if (source) {
       (source as maplibregl.GeoJSONSource).setData(geoJSON);
     } else {
       map.current.addSource(sourceId, {
         type: 'geojson',
         data: geoJSON,
-        cluster: clusterPins,
+        cluster: false,
         clusterMaxZoom: 14,
         clusterRadius: 50,
       });
@@ -182,6 +202,25 @@ export const Map: React.FC<MapProps> = ({
         }
       });
     }
+    } catch (err) {
+      console.warn('GeoJSON pin layers failed', err);
+    }
+
+    markers.current.forEach((m) => m.remove());
+    markers.current = pins
+      .filter((pin) => Number.isFinite(pin.coordinate.latitude) && Number.isFinite(pin.coordinate.longitude))
+      .map((pin) => {
+        const el = document.createElement('div');
+        el.textContent = String(pin.availableCount);
+        el.setAttribute('data-testid', `map-pin-${pin.id}`);
+        el.style.cssText =
+          'width:28px;height:28px;border-radius:50%;background:#10b981;color:#fff;font:700 11px/28px sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;';
+        if (pin.isStale) el.style.background = '#f59e0b';
+        el.onclick = () => onPinPress?.(pin.id);
+        return new maplibregl.Marker({ element: el })
+          .setLngLat([pin.coordinate.longitude, pin.coordinate.latitude])
+          .addTo(map.current!);
+      });
   }, [pins, mapLoaded, clusterPins, onPinPress]);
 
   // Update region

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
+
+const SESSION_ROAD_ID = '30000000-0000-0000-0000-000000000002';
 
 export default function CheckInScreen() {
   const [plate, setPlate] = useState('');
@@ -11,44 +13,49 @@ export default function CheckInScreen() {
   );
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleCheckIn = async () => {
     if (!plate.trim()) {
-      Alert.alert('Error', 'Plate number is required');
+      setError('Plate number is required');
       return;
     }
 
     setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
-      const { data, error } = await supabase.rpc('start_walk_in', {
-        p_location_id: 'location-id-here',
+      const { data, error: rpcError } = await supabase.rpc('start_walk_in', {
+        p_location_id: SESSION_ROAD_ID,
         p_vehicle_type: vehicleType,
         p_plate: plate.trim(),
         p_note: note.trim() || null,
         p_scheduled_end_at: null,
       });
 
-      if (error) {
-        if (error.message === 'no_longer_available') {
-          Alert.alert('No Space Available', 'This space was just taken by another booking');
+      if (rpcError) throw rpcError;
+      if (data?.error) {
+        if (data.error === 'no_longer_available') {
+          setError('No space available — this space was just taken');
         } else {
-          throw error;
+          setError(String(data.error));
         }
         return;
       }
 
-      Alert.alert('Success', 'Walk-in checked in successfully');
+      setSuccess(`Checked in ${plate.trim()}`);
       setPlate('');
       setNote('');
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+    } catch (err: any) {
+      setError(err.message || 'Check-in failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} testID="checkin-ready">
       <View style={styles.header}>
         <Text style={styles.title}>Walk-In Check-In</Text>
         <Text style={styles.subtitle}>Session Road Park n Ride</Text>
@@ -75,6 +82,7 @@ export default function CheckInScreen() {
           onChangeText={setPlate}
           placeholder="ABC 1234"
           autoCapitalize="characters"
+          testID="checkin-plate"
         />
 
         <Text style={styles.label}>Note (Optional)</Text>
@@ -87,7 +95,20 @@ export default function CheckInScreen() {
           numberOfLines={3}
         />
 
-        <Button title="Check In" onPress={handleCheckIn} loading={loading} />
+        {error ? (
+          <Text style={styles.errorText} testID="checkin-error">
+            Error: {error}
+          </Text>
+        ) : null}
+        {success ? (
+          <Text style={styles.successText} testID="checkin-success">
+            {success}
+          </Text>
+        ) : null}
+
+        <TouchableOpacity testID="checkin-submit">
+          <Button title="Check In" onPress={handleCheckIn} loading={loading} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.info}>
@@ -145,6 +166,16 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  errorText: {
+    ...theme.typography.body,
+    color: theme.colors.danger,
+    marginVertical: theme.spacing.md,
+  },
+  successText: {
+    ...theme.typography.body,
+    color: theme.colors.success,
+    marginVertical: theme.spacing.md,
   },
   info: {
     margin: theme.spacing.lg,

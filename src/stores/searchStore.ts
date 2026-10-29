@@ -4,6 +4,7 @@ import { supabase, type SearchResult } from '../lib/supabase';
 interface SearchState {
   results: SearchResult[];
   loading: boolean;
+  error: string | null;
   filters: {
     vehicleType: string | null;
     monthlyOnly: boolean;
@@ -23,6 +24,7 @@ interface SearchState {
 export const useSearchStore = create<SearchState>((set, get) => ({
   results: [],
   loading: false,
+  error: null,
   filters: {
     vehicleType: null,
     monthlyOnly: false,
@@ -33,7 +35,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   cameraPosition: null,
 
   search: async (lat: number, lng: number, radius = 2000) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
 
     try {
       const { filters, sortBy } = get();
@@ -51,10 +53,16 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
       if (error) throw error;
 
-      set({ results: data || [], loading: false });
-    } catch (error) {
+      const results: SearchResult[] = (data || []).map((row: any) => ({
+        ...row,
+        latitude: Number(row.lat ?? row.latitude),
+        longitude: Number(row.lng ?? row.longitude),
+      }));
+
+      set({ results, loading: false, error: null });
+    } catch (error: any) {
       console.error('Search error:', error);
-      set({ loading: false });
+      set({ loading: false, error: error?.message || 'Search failed' });
     }
   },
 

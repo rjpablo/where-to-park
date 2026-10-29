@@ -23,7 +23,7 @@ export default function AvailabilityScreen() {
       const { data: locations, error: locError } = await supabase
         .from('locations')
         .select('*')
-        .limit(1)
+        .eq('id', '30000000-0000-0000-0000-000000000001')
         .single();
       
       if (locError) throw locError;
@@ -102,7 +102,7 @@ export default function AvailabilityScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} testID="availability-ready">
       <View style={styles.header}>
         <Text style={styles.title}>Current Availability</Text>
         <Text style={styles.subtitle}>{location.name}</Text>

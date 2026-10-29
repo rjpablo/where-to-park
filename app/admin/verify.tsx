@@ -7,7 +7,8 @@ import { theme } from '../../src/lib/theme';
 
 export default function VerificationQueueScreen() {
   const [locations, setLocations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
     loadQueue();
@@ -15,17 +16,19 @@ export default function VerificationQueueScreen() {
 
   const loadQueue = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('locations')
         .select('*, operators(display_name)')
         .eq('verification_status', 'unverified')
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setLocations(data || []);
-    } catch (error) {
-      console.error('Load queue error:', error);
+    } catch (err: any) {
+      console.error('Load queue error:', err);
+      setError(err.message || 'Failed to load verification queue');
     } finally {
       setLoading(false);
     }
@@ -73,8 +76,25 @@ export default function VerificationQueueScreen() {
     </View>
   );
 
+  if (loading && locations.length === 0) {
+    return (
+      <View style={[styles.container, styles.emptyState]} testID="admin-loading">
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.emptyState]} testID="admin-error">
+        <Text style={styles.cardAddress}>Error: {error}</Text>
+        <Button title="Retry" onPress={loadQueue} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="admin-ready">
       <View style={styles.header}>
         <Text style={styles.title}>Verification Queue</Text>
         <Text style={styles.subtitle}>{locations.length} pending</Text>

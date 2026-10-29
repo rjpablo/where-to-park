@@ -93,7 +93,7 @@ export default function LocationDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} testID="location-ready">
       {/* Photo Gallery or Placeholder */}
       {location.location_photos?.length > 0 ? (
         <ScrollView horizontal style={styles.photoGallery}>

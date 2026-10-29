@@ -15,7 +15,7 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-anon-key',
   {
     auth: {
-      storage: undefined, // Will use AsyncStorage via custom implementation
+      storageKey: 'sb-wtp-auth-token',
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
