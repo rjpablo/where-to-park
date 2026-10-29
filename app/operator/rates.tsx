@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
-import { formatPeso } from '../../src/utils/formatters';
+import { formatLocalDate, formatPeso, fromDatetimeLocalValue } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
 const SESSION_ROAD = '30000000-0000-0000-0000-000000000002';
@@ -129,8 +129,8 @@ export default function RatesScreen() {
       p_first_hours: rateType === 'flat_then_hourly' ? Number(firstHours) : null,
       p_first_amount: rateType === 'flat_then_hourly' ? Number(firstAmount) : null,
       p_succeeding_hourly_amount: rateType === 'flat_then_hourly' ? Number(succeeding) : null,
-      p_effective_from: from ? new Date(from).toISOString() : null,
-      p_effective_to: to ? new Date(to).toISOString() : null,
+      p_effective_from: from ? fromDatetimeLocalValue(`${from}T00:00`) : null,
+      p_effective_to: to ? fromDatetimeLocalValue(`${to}T00:00`) : null,
     };
     const { data, error: rpcError } = await supabase.rpc('upsert_rate', payload);
     if (rpcError || data?.error) {
@@ -240,7 +240,8 @@ export default function RatesScreen() {
           </Text>
           {rate.effective_from || rate.effective_to ? (
             <Text style={styles.meta}>
-              {rate.effective_from || '—'} → {rate.effective_to || '—'}
+              {rate.effective_from ? formatLocalDate(rate.effective_from) : '—'} →{' '}
+              {rate.effective_to ? formatLocalDate(rate.effective_to) : '—'}
             </Text>
           ) : null}
           <View style={styles.row}>

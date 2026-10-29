@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
-import { formatRelativeTime } from '../../src/utils/formatters';
+import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
 export default function AdminReportsScreen() {
@@ -63,7 +63,9 @@ export default function AdminReportsScreen() {
           <Text style={styles.rowTitle}>{r.target_type === 'location' ? 'Listing' : 'Review'}</Text>
           <Text style={styles.reason}>{r.reason}</Text>
           {r.details ? <Text style={styles.meta}>{r.details}</Text> : null}
-          <Text style={styles.meta}>{formatRelativeTime(r.created_at)}</Text>
+          <Text style={styles.meta}>
+            {formatLocalDateTime(r.created_at)} · {formatRelativeTime(r.created_at)}
+          </Text>
           <View style={styles.row}>
             <Button title="Resolve" size="small" onPress={() => act(r.id, 'resolve')} />
             <Button

@@ -40,6 +40,79 @@ export function formatDuration(seconds: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+/** Display and edit times in Asia/Manila (UTC+8, no DST). Persist UTC. */
+export const DISPLAY_TIME_ZONE = 'Asia/Manila';
+
+function asDate(date: string | Date | null | undefined): Date | null {
+  if (date == null || date === '') return null;
+  const then = typeof date === 'string' ? new Date(date) : date;
+  return Number.isNaN(then.getTime()) ? null : then;
+}
+
+function manilaParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DISPLAY_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value || '';
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour'),
+    minute: get('minute'),
+  };
+}
+
+/**
+ * Friendly local clock time, e.g. "Oct 29, 6:47 PM".
+ */
+export function formatLocalDateTime(date: string | Date | null | undefined): string {
+  const then = asDate(date);
+  if (!then) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: DISPLAY_TIME_ZONE,
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(then);
+}
+
+/** Friendly local date, e.g. "Oct 29, 2026". */
+export function formatLocalDate(date: string | Date | null | undefined): string {
+  const then = asDate(date);
+  if (!then) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: DISPLAY_TIME_ZONE,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(then);
+}
+
+/** `datetime-local` value in Asia/Manila. */
+export function toDatetimeLocalValue(date: string | Date | null | undefined): string {
+  const then = asDate(date);
+  if (!then) return '';
+  const p = manilaParts(then);
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+/** Interpret a `datetime-local` string as Asia/Manila and return UTC ISO. */
+export function fromDatetimeLocalValue(value: string): string {
+  if (!value) return '';
+  const normalized = value.length === 16 ? `${value}:00` : value;
+  return new Date(`${normalized}+08:00`).toISOString();
+}
+
 /**
  * Format relative time (e.g., "updated 5min ago")
  */

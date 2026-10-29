@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
-import { formatRelativeTime } from '../../src/utils/formatters';
+import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
 export default function VerificationQueueScreen() {
@@ -60,7 +60,9 @@ export default function VerificationQueueScreen() {
 
       <Text style={styles.cardAddress}>{item.address}</Text>
       <Text style={styles.cardOperator}>Operator: {item.operators?.display_name || 'Unknown'}</Text>
-      <Text style={styles.cardTime}>Submitted {formatRelativeTime(new Date(item.created_at))}</Text>
+      <Text style={styles.cardTime}>
+        Submitted {formatLocalDateTime(item.created_at)} ({formatRelativeTime(item.created_at)})
+      </Text>
 
       <View style={styles.cardActions}>
         <Button

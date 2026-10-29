@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
-import { formatRelativeTime } from '../../src/utils/formatters';
+import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
 export default function OperatorInboxScreen() {
@@ -49,7 +49,8 @@ export default function OperatorInboxScreen() {
         <View key={t.id} style={styles.card} testID={`inbox-thread-${t.driver_id}`}>
           <Text style={styles.rowTitle}>{t.profiles?.display_name || 'Driver'}</Text>
           <Text style={styles.meta}>
-            {t.locations?.name} · {formatRelativeTime(t.last_message_at)}
+            {t.locations?.name} · {formatLocalDateTime(t.last_message_at)} (
+            {formatRelativeTime(t.last_message_at)})
           </Text>
           <Button
             title="Open"
