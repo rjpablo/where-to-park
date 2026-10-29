@@ -7,7 +7,8 @@ import { theme } from '../../src/lib/theme';
 export default function AvailabilityScreen() {
   const [location, setLocation] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadLocationData();
@@ -15,28 +16,37 @@ export default function AvailabilityScreen() {
 
   const loadLocationData = async () => {
     try {
+      setLoading(true);
+      setError(null);
+      
       // Get first location for operator (would use auth context in real app)
-      const { data: locations } = await supabase
+      const { data: locations, error: locError } = await supabase
         .from('locations')
         .select('*')
         .limit(1)
         .single();
       
+      if (locError) throw locError;
+      
       if (locations) {
         setLocation(locations);
         
         // Load recent sessions as activity
-        const { data: sessions } = await supabase
+        const { data: sessions, error: sessError } = await supabase
           .from('parking_sessions')
           .select('*, created_at')
           .eq('location_id', locations.id)
           .order('created_at', { ascending: false })
           .limit(5);
         
+        if (sessError) throw sessError;
         setRecentActivity(sessions || []);
       }
-    } catch (error) {
-      console.error('Load error:', error);
+    } catch (err: any) {
+      console.error('Load error:', err);
+      setError(err.message || 'Failed to load location data');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,10 +74,29 @@ export default function AvailabilityScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]} testID="availability-loading">
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centered]} testID="availability-error">
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <TouchableOpacity onPress={loadLocationData} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (!location) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>No locations found</Text>
       </View>
     );
   }
@@ -278,5 +307,29 @@ const styles = StyleSheet.create({
   activityTime: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  loadingText: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+  },
+  errorText: {
+    ...theme.typography.body,
+    color: theme.colors.danger,
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  retryButton: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+  },
+  retryButtonText: {
+    ...theme.typography.button,
+    color: '#fff',
   },
 });

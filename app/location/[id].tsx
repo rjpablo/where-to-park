@@ -11,14 +11,24 @@ export default function LocationDetailScreen() {
   const { id } = useLocalSearchParams();
   const [location, setLocation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadLocation();
   }, [id]);
 
   const loadLocation = async () => {
+    if (!id) {
+      setError('No location ID provided');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      setError(null);
+      
+      const { data, error: fetchError } = await supabase
         .from('locations')
         .select(
           `
@@ -32,10 +42,13 @@ export default function LocationDetailScreen() {
         .eq('id', id)
         .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
+      if (!data) throw new Error('Location not found');
+      
       setLocation(data);
-    } catch (error) {
-      console.error('Load location error:', error);
+    } catch (err: any) {
+      console.error('Load location error:', err);
+      setError(err.message || 'Failed to load location');
     } finally {
       setLoading(false);
     }
@@ -52,10 +65,29 @@ export default function LocationDetailScreen() {
     Linking.openURL(url);
   };
 
-  if (loading || !location) {
+  if (loading) {
+    return (
+      <View style={styles.loading} testID="location-loading">
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loading} testID="location-error">
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <TouchableOpacity onPress={loadLocation} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!location) {
     return (
       <View style={styles.loading}>
-        <Text>Loading...</Text>
+        <Text style={styles.errorText}>Location not found</Text>
       </View>
     );
   }
@@ -282,5 +314,21 @@ const styles = StyleSheet.create({
   photoPlaceholderText: {
     ...theme.typography.h3,
     color: theme.colors.text.tertiary,
+  },
+  errorText: {
+    ...theme.typography.body,
+    color: theme.colors.danger,
+    marginBottom: theme.spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.md,
+  },
+  retryButtonText: {
+    ...theme.typography.button,
+    color: '#fff',
   },
 });
