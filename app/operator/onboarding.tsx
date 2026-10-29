@@ -1,31 +1,110 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import { Button } from '../../src/components/Button';
+import { MapPinPicker } from '../../src/components/map/MapPinPicker';
+import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
+import type { Coordinate } from '../../src/components/map/types';
+
+type ListingType = 'commercial' | 'residential';
 
 export default function OnboardingScreen() {
   const [step, setStep] = React.useState(1);
   const [locationName, setLocationName] = React.useState('');
   const [address, setAddress] = React.useState('');
+  const [listingType, setListingType] = React.useState<ListingType>('commercial');
+  const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   const [capacity, setCapacity] = React.useState('10');
   const [rate, setRate] = React.useState('50.00');
+  const [rules, setRules] = React.useState('');
+  const [photoName, setPhotoName] = React.useState<string | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState<string | null>(null);
 
   const handleNext = () => {
+    setError(null);
+    if (step === 1 && (!locationName.trim() || !address.trim())) {
+      setError('Name and address are required');
+      return;
+    }
+    if (step === 3) {
+      const cap = Number(capacity);
+      const hourly = Number(rate);
+      if (!Number.isFinite(cap) || cap < 1) {
+        setError('Capacity must be at least 1');
+        return;
+      }
+      if (!Number.isFinite(hourly) || hourly < 0) {
+        setError('Hourly rate is required');
+        return;
+      }
+    }
     if (step < 5) setStep(step + 1);
   };
 
   const handleBack = () => {
+    setError(null);
     if (step > 1) setStep(step - 1);
   };
 
+  const onPickFile = (event: any) => {
+    const file = event?.target?.files?.[0];
+    if (file?.name) setPhotoName(file.name);
+  };
+
   const handleFinish = async () => {
-    // Submit operator and location creation
-    console.log('Creating location...');
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const { data, error: rpcError } = await supabase.rpc('create_location', {
+        p_name: locationName.trim(),
+        p_address: address.trim(),
+        p_lat: pin.latitude,
+        p_lng: pin.longitude,
+        p_capacity: Number(capacity),
+        p_hourly_amount: Number(rate),
+        p_listing_type: listingType,
+        p_rules: rules.trim() || null,
+      });
+      if (rpcError) throw rpcError;
+      if (data?.error) {
+        setError(String(data.error));
+        return;
+      }
+
+      if (photoName && data?.location_id) {
+        const { data: photoData, error: photoError } = await supabase.rpc('put_location_photo', {
+          p_location_id: data.location_id,
+          p_filename: photoName,
+          p_is_cover: true,
+          p_caption: null,
+        });
+        if (photoError) throw photoError;
+        if (photoData?.error) {
+          setError(String(photoData.error));
+          return;
+        }
+      }
+
+      setSuccess(`Submitted ${locationName.trim()} for verification`);
+    } catch (err: any) {
+      setError(err.message || 'Could not create location');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Progress indicator */}
+    <ScrollView style={styles.container} testID="onboarding-ready">
       <View style={styles.progress}>
         {[1, 2, 3, 4, 5].map((i) => (
           <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />
@@ -33,11 +112,12 @@ export default function OnboardingScreen() {
       </View>
 
       <Text style={styles.title}>List Your Parking Space</Text>
-      <Text style={styles.stepTitle}>Step {step} of 5</Text>
+      <Text style={styles.stepTitle} testID="onboarding-step">
+        Step {step} of 5
+      </Text>
 
-      {/* Step 1: Basic Info */}
       {step === 1 && (
-        <View style={styles.stepContent}>
+        <View style={styles.stepContent} testID="onboarding-step-1">
           <Text style={styles.stepHeading}>Basic Information</Text>
 
           <Text style={styles.label}>Location Name *</Text>
@@ -46,6 +126,7 @@ export default function OnboardingScreen() {
             value={locationName}
             onChangeText={setLocationName}
             placeholder="e.g., SM City Baguio Parking"
+            testID="onboarding-name"
           />
 
           <Text style={styles.label}>Address *</Text>
@@ -56,23 +137,35 @@ export default function OnboardingScreen() {
             placeholder="Full address"
             multiline
             numberOfLines={3}
+            testID="onboarding-address"
           />
 
-          <View style={styles.info}>
-            <Text style={styles.infoText}>
-              ✓ Default tracking mode: Count-only (you update available spaces)
-            </Text>
-            <Text style={styles.infoText}>
-              ✓ You can change this later to slot tracking or open/full mode
-            </Text>
+          <Text style={styles.label}>Listing type</Text>
+          <View style={styles.row}>
+            {(['commercial', 'residential'] as ListingType[]).map((type) => (
+              <Button
+                key={type}
+                title={type === 'commercial' ? 'Commercial' : 'Residential'}
+                variant={listingType === type ? 'primary' : 'outline'}
+                size="small"
+                onPress={() => setListingType(type)}
+              />
+            ))}
           </View>
         </View>
       )}
 
-      {/* Step 2: Capacity */}
       {step === 2 && (
-        <View style={styles.stepContent}>
-          <Text style={styles.stepHeading}>Capacity</Text>
+        <View style={styles.stepContent} testID="onboarding-step-2">
+          <Text style={styles.stepHeading}>Drop a pin</Text>
+          <Text style={styles.help}>Tap the map to set the exact entrance.</Text>
+          <MapPinPicker initialCoordinate={pin} onCoordinateSelect={setPin} />
+        </View>
+      )}
+
+      {step === 3 && (
+        <View style={styles.stepContent} testID="onboarding-step-3">
+          <Text style={styles.stepHeading}>Capacity and rate</Text>
 
           <Text style={styles.label}>Total Capacity *</Text>
           <TextInput
@@ -81,19 +174,8 @@ export default function OnboardingScreen() {
             onChangeText={setCapacity}
             placeholder="10"
             keyboardType="numeric"
+            testID="onboarding-capacity"
           />
-
-          <View style={styles.info}>
-            <Text style={styles.infoText}>✓ How many vehicles can you accommodate at once?</Text>
-            <Text style={styles.infoText}>✓ You can adjust this later</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Step 3: Rates */}
-      {step === 3 && (
-        <View style={styles.stepContent}>
-          <Text style={styles.stepHeading}>Set Your Rate</Text>
 
           <Text style={styles.label}>Hourly Rate (₱) *</Text>
           <TextInput
@@ -102,57 +184,103 @@ export default function OnboardingScreen() {
             onChangeText={setRate}
             placeholder="50.00"
             keyboardType="decimal-pad"
+            testID="onboarding-rate"
           />
 
           <View style={styles.info}>
             <Text style={styles.infoText}>✓ Default rate type: Hourly</Text>
-            <Text style={styles.infoText}>
-              ✓ You can add daily, monthly, and custom rates later
-            </Text>
+            <Text style={styles.infoText}>✓ You can add daily, monthly, and custom rates later</Text>
             <Text style={styles.infoText}>✓ Billing is per started hour</Text>
           </View>
         </View>
       )}
 
-      {/* Step 4: Payment */}
       {step === 4 && (
-        <View style={styles.stepContent}>
-          <Text style={styles.stepHeading}>Payment Method</Text>
+        <View style={styles.stepContent} testID="onboarding-step-4">
+          <Text style={styles.stepHeading}>Rules and photo</Text>
+
+          <Text style={styles.label}>House rules (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={rules}
+            onChangeText={setRules}
+            placeholder="Hours, height limit, overnight policy…"
+            multiline
+            numberOfLines={4}
+            testID="onboarding-rules"
+          />
+
+          <Text style={styles.label}>Facility photo (optional)</Text>
+          {Platform.OS === 'web' ? (
+            <input
+              type="file"
+              accept="image/*"
+              data-testid="onboarding-photo"
+              onChange={onPickFile}
+              style={{ marginTop: 8 }}
+            />
+          ) : (
+            <Button
+              title={photoName ? 'Change photo' : 'Choose photo'}
+              variant="outline"
+              onPress={() => setPhotoName('facility.jpg')}
+              testID="onboarding-photo"
+            />
+          )}
+          {photoName ? (
+            <Text style={styles.photoName} testID="onboarding-photo-name">
+              Selected: {photoName}
+            </Text>
+          ) : (
+            <Text style={styles.help}>Public can view; only operator members can upload.</Text>
+          )}
 
           <View style={styles.info}>
-            <Text style={styles.infoTitle}>Cash Only (Default)</Text>
-            <Text style={styles.infoText}>✓ Accept cash payments at your location</Text>
-            <Text style={styles.infoText}>✓ You can add GCash/Maya later</Text>
-            <Text style={styles.infoText}>✓ No commissions for Phase 1</Text>
+            <Text style={styles.infoTitle}>Cash only (Phase 1)</Text>
+            <Text style={styles.infoText}>✓ Accept cash at the location</Text>
+            <Text style={styles.infoText}>✓ GCash/Maya come later — no commissions</Text>
           </View>
         </View>
       )}
 
-      {/* Step 5: Review */}
       {step === 5 && (
-        <View style={styles.stepContent}>
+        <View style={styles.stepContent} testID="onboarding-step-5">
           <Text style={styles.stepHeading}>Review & Submit</Text>
 
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Location</Text>
             <Text style={styles.reviewValue}>{locationName}</Text>
           </View>
-
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Address</Text>
             <Text style={styles.reviewValue}>{address}</Text>
           </View>
-
+          <View style={styles.reviewItem}>
+            <Text style={styles.reviewLabel}>Type</Text>
+            <Text style={styles.reviewValue}>{listingType}</Text>
+          </View>
+          <View style={styles.reviewItem}>
+            <Text style={styles.reviewLabel}>Pin</Text>
+            <Text style={styles.reviewValue}>
+              {pin.latitude.toFixed(5)}, {pin.longitude.toFixed(5)}
+            </Text>
+          </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Capacity</Text>
             <Text style={styles.reviewValue}>{capacity} spaces</Text>
           </View>
-
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Rate</Text>
             <Text style={styles.reviewValue}>₱{rate}/hour</Text>
           </View>
-
+          <View style={styles.reviewItem}>
+            <Text style={styles.reviewLabel}>Rules</Text>
+            <Text style={styles.reviewValue}>{rules.trim() || 'None'}</Text>
+          </View>
+          <View style={styles.reviewItem}>
+            <Text style={styles.reviewLabel}>Photo</Text>
+            <Text style={styles.reviewValue}>{photoName || 'None'}</Text>
+          </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Payment</Text>
             <Text style={styles.reviewValue}>Cash only</Text>
@@ -160,25 +288,38 @@ export default function OnboardingScreen() {
 
           <View style={styles.info}>
             <Text style={styles.infoText}>
-              Your listing will be submitted for admin verification before going live.
+              Your listing will be published as Unverified until an admin reviews it.
             </Text>
           </View>
         </View>
       )}
 
-      {/* Navigation */}
+      {error ? (
+        <Text style={styles.error} testID="onboarding-error">
+          {error}
+        </Text>
+      ) : null}
+      {success ? (
+        <Text style={styles.success} testID="onboarding-success">
+          {success}
+        </Text>
+      ) : null}
+
       <View style={styles.navigation}>
         {step > 1 && <Button title="Back" variant="outline" onPress={handleBack} />}
         {step < 5 ? (
           <Button
             title="Next"
             onPress={handleNext}
+            testID="onboarding-next"
             style={{ flex: 1, marginLeft: step > 1 ? theme.spacing.md : 0 }}
           />
         ) : (
           <Button
             title="Submit for Verification"
             onPress={handleFinish}
+            loading={submitting}
+            testID="onboarding-submit"
             style={{ flex: 1, marginLeft: theme.spacing.md }}
           />
         )}
@@ -225,7 +366,7 @@ const styles = StyleSheet.create({
   },
   stepHeading: {
     ...theme.typography.h3,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   label: {
     ...theme.typography.body,
@@ -244,6 +385,19 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  help: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.md,
+  },
+  photoName: {
+    ...theme.typography.bodySmall,
+    marginTop: theme.spacing.sm,
   },
   info: {
     marginTop: theme.spacing.lg,
@@ -279,5 +433,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
+  },
+  error: {
+    ...theme.typography.body,
+    color: theme.colors.danger,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  success: {
+    ...theme.typography.body,
+    color: theme.colors.success,
+    paddingHorizontal: theme.spacing.lg,
+    fontWeight: '600',
   },
 });

@@ -1,73 +1,62 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import React, { useCallback, useState } from 'react';
+import { View, StyleSheet, Text } from 'react-native';
+import { Button } from '../Button';
+import { theme } from '../../lib/theme';
 import { Map } from './Map';
 import { MapPinPickerProps, Coordinate, MapRegion } from './types';
+
+const BAGUIO: Coordinate = { latitude: 16.412, longitude: 120.596 };
 
 export const MapPinPicker: React.FC<MapPinPickerProps> = ({
   initialCoordinate,
   onCoordinateSelect,
   style,
 }) => {
-  const [selectedCoordinate, setSelectedCoordinate] = useState<Coordinate | undefined>(
-    initialCoordinate
+  const [selectedCoordinate, setSelectedCoordinate] = useState<Coordinate>(
+    initialCoordinate || BAGUIO
   );
   const [region, setRegion] = useState<MapRegion>({
-    latitude: initialCoordinate?.latitude || 16.4120,
-    longitude: initialCoordinate?.longitude || 120.5960,
+    latitude: initialCoordinate?.latitude || BAGUIO.latitude,
+    longitude: initialCoordinate?.longitude || BAGUIO.longitude,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
 
   const handleMapPress = useCallback((coordinate: Coordinate) => {
     setSelectedCoordinate(coordinate);
-  }, []);
+    onCoordinateSelect(coordinate);
+  }, [onCoordinateSelect]);
 
   const handleConfirm = useCallback(() => {
-    if (selectedCoordinate) {
-      onCoordinateSelect(selectedCoordinate);
-    }
+    onCoordinateSelect(selectedCoordinate);
   }, [selectedCoordinate, onCoordinateSelect]);
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, style]} testID="map-pin-picker">
       <Map
         region={region}
         onRegionChange={setRegion}
-        pins={
-          selectedCoordinate
-            ? [
-                {
-                  id: 'selected',
-                  coordinate: selectedCoordinate,
-                  availableCount: 0,
-                  isStale: false,
-                  title: 'Selected Location',
-                },
-              ]
-            : []
-        }
-        showsUserLocation
+        onMapPress={handleMapPress}
+        pins={[
+          {
+            id: 'selected',
+            coordinate: selectedCoordinate,
+            availableCount: 1,
+            isStale: false,
+            title: 'Selected pin',
+          },
+        ]}
+        showsUserLocation={false}
         clusterPins={false}
         style={styles.map}
       />
 
       <View style={styles.footer}>
-        {selectedCoordinate && (
-          <View style={styles.coordInfo}>
-            <Text className="text-sm text-gray-600">
-              {selectedCoordinate.latitude.toFixed(6)}, {selectedCoordinate.longitude.toFixed(6)}
-            </Text>
-          </View>
-        )}
-        <Button
-          onPress={handleConfirm}
-          disabled={!selectedCoordinate}
-          className="w-full"
-        >
-          <Text>Confirm Location</Text>
-        </Button>
+        <Text style={styles.hint}>Tap the map to drop the pin</Text>
+        <Text style={styles.coords} testID="pin-coordinates">
+          {selectedCoordinate.latitude.toFixed(6)}, {selectedCoordinate.longitude.toFixed(6)}
+        </Text>
+        <Button title="Use this pin" onPress={handleConfirm} testID="pin-confirm" />
       </View>
     </View>
   );
@@ -75,19 +64,26 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    minHeight: 360,
   },
   map: {
-    flex: 1,
+    height: 280,
+    width: '100%',
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
   },
   footer: {
-    padding: 16,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    paddingTop: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
-  coordInfo: {
-    marginBottom: 12,
-    alignItems: 'center',
+  hint: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+  },
+  coords: {
+    ...theme.typography.body,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

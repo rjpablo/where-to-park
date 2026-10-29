@@ -24,6 +24,7 @@ export interface MapProps {
   region?: MapRegion;
   pins?: LocationPin[];
   onPinPress?: (locationId: string) => void;
+  onMapPress?: (coordinate: Coordinate) => void;
   onRegionChange?: (region: MapRegion) => void;
   style?: ViewStyle;
   showsUserLocation?: boolean;

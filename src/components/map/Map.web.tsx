@@ -8,6 +8,7 @@ export const Map: React.FC<MapProps> = ({
   region,
   pins = [],
   onPinPress,
+  onMapPress,
   onRegionChange,
   style,
   showsUserLocation = true,
@@ -16,7 +17,10 @@ export const Map: React.FC<MapProps> = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
+  const onMapPressRef = useRef(onMapPress);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  onMapPressRef.current = onMapPress;
 
   // Initialize map
   useEffect(() => {
@@ -45,6 +49,12 @@ export const Map: React.FC<MapProps> = ({
 
     map.current.on('load', () => {
       setMapLoaded(true);
+    });
+    map.current.on('click', (e) => {
+      onMapPressRef.current?.({
+        latitude: e.lngLat.lat,
+        longitude: e.lngLat.lng,
+      });
     });
     const fallback = setTimeout(() => setMapLoaded(true), 2500);
 
@@ -213,6 +223,7 @@ export const Map: React.FC<MapProps> = ({
         const el = document.createElement('div');
         el.textContent = String(pin.availableCount);
         el.setAttribute('data-testid', `map-pin-${pin.id}`);
+        if (pin.id === 'selected') el.setAttribute('data-testid', 'map-pin-selected');
         el.style.cssText =
           'width:28px;height:28px;border-radius:50%;background:#10b981;color:#fff;font:700 11px/28px sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;';
         if (pin.isStale) el.style.background = '#f59e0b';
