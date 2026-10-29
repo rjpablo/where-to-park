@@ -71,7 +71,8 @@ Array<{
 **Notes:**
 
 - Uses PostGIS `ST_DWithin` for radius search
-- Returns only `published = true` locations
+- Returns only `published = true` locations, including Unverified listings (clients show an Unverified badge from `verification_status`)
+- Unpublished listings are hidden from guests
 - `starting_rate` is the hourly rate for `p_vehicle_type` (or first hourly rate if null)
 
 ---
@@ -264,6 +265,7 @@ End a session with optional cash payment and waiver.
   success: boolean;
   session_id: UUID;
   final_balance: number;        // Always 0 after success
+  push_tokens?: string[];       // Expo tokens for Operator/staff
   error?: 'waiver_note_required' | 'waiver_not_allowed';
 }
 ```
@@ -288,6 +290,39 @@ End a session with optional cash payment and waiver.
 - Staff can waive only if `operators.staff_can_waive = true` (default on)
 - Waivers recorded as `folio_charges.type = 'waiver'` with negative `amount`
 - Waivers excluded from revenue and payouts
+- Notifies Operator/staff (`session_ended`) and returns Expo `push_tokens` for the acting client to deliver
+
+---
+
+#### `extend_session`
+
+Move a walk-in session's scheduled end forward after a reservation collision check.
+
+**Parameters:**
+
+```typescript
+{
+  p_session_id: UUID;
+  p_hours: number;              // Hours to add from max(scheduled_end, now)
+  p_reason?: string;
+}
+```
+
+**Returns:** `{ success: boolean; scheduled_end_at: timestamp; push_tokens?: string[] }`  
+**Auth:** Operator/staff for the location  
+**Errors:** `not_active`, `hours_required`, `reservation_collision`
+
+---
+
+#### `set_tracking_mode` / `set_open_status`
+
+Switch a location between Count and Open/Full, or toggle Open vs Full. Walk-ins call `claim_capacity`, which refuses a Full lot with `no_longer_available`.
+
+---
+
+#### `register_push_token` / `mark_notification_read` / `refresh_overdue`
+
+Register an Expo push token, mark an inbox row read, and flip active sessions past `scheduled_end_at` to overdue (writes `scheduled_end` notifications).
 
 ---
 
