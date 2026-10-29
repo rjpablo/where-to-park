@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^4.6.1",
-    "@maplibre/maplibre-react-native": "^10.0.0-alpha.26",
+    "@maplibre/maplibre-react-native": "^10.4.2",
     "@react-native-async-storage/async-storage": "^1.21.0",
     "@react-navigation/native": "^6.1.9",
     "@supabase/supabase-js": "^2.39.0",
@@ -40,6 +40,7 @@
     "expo-secure-store": "~12.8.0",
     "expo-status-bar": "~1.11.0",
     "expo-web-browser": "~12.8.0",
+    "maplibre-gl": "^4.7.1",
     "react": "18.2.0",
     "react-native": "0.73.0",
     "react-native-gesture-handler": "~2.14.0",
@@ -47,8 +48,7 @@
     "react-native-safe-area-context": "4.8.2",
     "react-native-screens": "~3.29.0",
     "react-native-svg": "14.1.0",
-    "zustand": "^4.4.7",
-    "maplibre-gl": "^4.0.0"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",
