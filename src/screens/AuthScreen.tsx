@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../stores/authStore';
+import { isLocalSupabaseUrl } from '../lib/env';
 import { theme } from '../lib/theme';
 
 export function AuthScreen() {
@@ -80,7 +81,7 @@ export function AuthScreen() {
             placeholder="123456"
             testID="auth-otp"
           />
-          {__DEV__ ? (
+          {__DEV__ && isLocalSupabaseUrl() ? (
             <Text style={styles.hint} testID="auth-otp-hint">
               Local test OTP is 123456
             </Text>

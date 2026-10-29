@@ -60,6 +60,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   requestOtp: async (phone: string) => {
     set({ loading: true });
     try {
+      // Hosted GoTrue phone OTP, or the local proxy /auth/v1/otp stub.
       const { error } = await supabase.auth.signInWithOtp({ phone });
       if (error) throw error;
     } finally {
