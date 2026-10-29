@@ -8,7 +8,12 @@ async function main() {
   await page.goto(`${BASE}/location/${SESSION_ROAD}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForSelector('[data-testid="location-ready"]', { timeout: 20000 });
   await page.waitForSelector('[data-testid="booked-via-app"]', { timeout: 10000 });
-  await page.$eval('[data-testid="booked-via-app"]', (el) => el.scrollIntoView({ block: 'center' }));
+  await page.waitForFunction(
+    () => (document.querySelector('[data-testid="reviews-heading"]') || {}).textContent?.includes('Reviews (1)'),
+    { timeout: 10000 }
+  );
+  await page.waitForSelector('[data-testid="reviews-average"]', { timeout: 10000 });
+  await page.$eval('[data-testid="reviews-heading"]', (el) => el.scrollIntoView({ block: 'center' }));
   await shot(page, '16_reviews.png');
   await browser.close();
 }

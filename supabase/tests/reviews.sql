@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(10);
+SELECT plan(11);
 
 SELECT ok(
   EXISTS (
@@ -9,6 +9,13 @@ SELECT ok(
       AND session_id IS NOT NULL
   ),
   'Sarah Session Road review is stamped Booked via app from her session'
+);
+
+SELECT is(
+  (SELECT review_count FROM location_rating_stats
+    WHERE location_id = '30000000-0000-0000-0000-000000000002'),
+  1,
+  'Session Road rating stats count matches the listed review'
 );
 
 SELECT ok(

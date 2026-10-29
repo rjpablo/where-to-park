@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TextInput, TouchableOpacity, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TextInput,
+  TouchableOpacity,
+  Linking,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
@@ -18,13 +27,18 @@ export default function LocationDetailScreen() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
-  const [reportTarget, setReportTarget] = useState<{ type: 'location' | 'review'; id: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<{
+    type: 'location' | 'review';
+    id: string;
+  } | null>(null);
   const [reportReason, setReportReason] = useState('Inaccurate rates');
   const [reportNotice, setReportNotice] = useState<string | null>(null);
 
   useEffect(() => {
     initialize();
     loadLocation();
+    // Reload when the route id changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const submitReview = async () => {
@@ -68,7 +82,7 @@ export default function LocationDetailScreen() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data, error: fetchError } = await supabase
         .from('locations')
         .select(
@@ -77,7 +91,8 @@ export default function LocationDetailScreen() {
           location_photos(*),
           location_policies(*),
           rates(*),
-          reviews(*, profiles(display_name))
+          reviews(*, profiles(display_name)),
+          location_rating_stats(review_count, avg_rating)
         `
         )
         .eq('id', id)
@@ -85,7 +100,7 @@ export default function LocationDetailScreen() {
 
       if (fetchError) throw fetchError;
       if (!data) throw new Error('Location not found');
-      
+
       setLocation(data);
     } catch (err: any) {
       console.error('Load location error:', err);
@@ -95,14 +110,22 @@ export default function LocationDetailScreen() {
     }
   };
 
-  const handleNavigate = () => {
-    if (!location) return;
+  const coords = () => {
+    const geog = location?.geog;
+    const lat = geog?.coordinates ? parseFloat(geog.coordinates[1]) : 16.412;
+    const lng = geog?.coordinates ? parseFloat(geog.coordinates[0]) : 120.596;
+    return { lat, lng };
+  };
 
-    // Extract coordinates from geography
-    const lat = location.geog ? parseFloat(location.geog.coordinates[1]) : 16.4120;
-    const lng = location.geog ? parseFloat(location.geog.coordinates[0]) : 120.5960;
-    
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  const openNav = async (app: 'google_maps' | 'waze') => {
+    const { lat, lng } = coords();
+    const url =
+      app === 'waze'
+        ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+        : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    if (user) {
+      await supabase.from('profiles').update({ preferred_nav_app: app }).eq('id', user.id);
+    }
     Linking.openURL(url);
   };
 
@@ -165,12 +188,21 @@ export default function LocationDetailScreen() {
           </View>
         </View>
 
-        {/* Navigate Button */}
-        <Button
-          title="Navigate"
-          onPress={handleNavigate}
-          style={{ marginBottom: theme.spacing.sm }}
-        />
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.spacing.sm }}>
+          <Button
+            title="Google Maps"
+            onPress={() => openNav('google_maps')}
+            testID="navigate-google"
+            style={{ flex: 1 }}
+          />
+          <Button
+            title="Waze"
+            variant="outline"
+            onPress={() => openNav('waze')}
+            testID="navigate-waze"
+            style={{ flex: 1 }}
+          />
+        </View>
         <Button
           title="Message"
           variant="outline"
@@ -225,10 +257,10 @@ export default function LocationDetailScreen() {
                     {rate.rate_type === 'hourly' && rate.hourly_amount
                       ? `${formatPeso(rate.hourly_amount)}/h`
                       : rate.rate_type === 'daily' && rate.daily_amount
-                      ? `${formatPeso(rate.daily_amount)}/day`
-                      : rate.rate_type === 'monthly' && rate.monthly_amount
-                      ? `${formatPeso(rate.monthly_amount)}/mo`
-                      : 'Contact for rates'}
+                        ? `${formatPeso(rate.daily_amount)}/day`
+                        : rate.rate_type === 'monthly' && rate.monthly_amount
+                          ? `${formatPeso(rate.monthly_amount)}/mo`
+                          : 'Contact for rates'}
                   </Text>
                 </View>
               ))
@@ -251,13 +283,26 @@ export default function LocationDetailScreen() {
 
         {/* Reviews */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reviews ({location.rating_count || 0})</Text>
-          {location.rating_avg && (
-            <View style={styles.ratingDisplay}>
-              <Text style={styles.ratingNumber}>{location.rating_avg.toFixed(1)}</Text>
-              <Text style={styles.ratingStars}>⭐</Text>
-            </View>
-          )}
+          {(() => {
+            const stats = Array.isArray(location.location_rating_stats)
+              ? location.location_rating_stats[0]
+              : location.location_rating_stats;
+            const count = Number(stats?.review_count ?? location.reviews?.length ?? 0);
+            const avg = Number(stats?.avg_rating ?? 0);
+            return (
+              <>
+                <Text style={styles.sectionTitle} testID="reviews-heading">
+                  Reviews ({count})
+                </Text>
+                {count > 0 && avg > 0 ? (
+                  <View style={styles.ratingDisplay} testID="reviews-average">
+                    <Text style={styles.ratingNumber}>{avg.toFixed(1)}</Text>
+                    <Text style={styles.ratingStars}>⭐</Text>
+                  </View>
+                ) : null}
+              </>
+            );
+          })()}
 
           {location.reviews?.map((review: any) => (
             <View key={review.id} style={styles.reviewItem} testID={`review-${review.author_id}`}>
@@ -312,7 +357,11 @@ export default function LocationDetailScreen() {
               {reviewNotice ? <Text style={styles.reviewNotice}>{reviewNotice}</Text> : null}
             </View>
           ) : (
-            <Button title="Sign in to review" variant="outline" onPress={() => router.push('/auth')} />
+            <Button
+              title="Sign in to review"
+              variant="outline"
+              onPress={() => router.push('/auth')}
+            />
           )}
         </View>
 
@@ -437,7 +486,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
-  reviewNotice: { ...theme.typography.bodySmall, color: theme.colors.success, marginTop: theme.spacing.sm },
+  reviewNotice: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.success,
+    marginTop: theme.spacing.sm,
+  },
   contactText: {
     ...theme.typography.body,
   },
