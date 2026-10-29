@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
 import { supabase } from '../../src/lib/supabase';
@@ -8,6 +8,7 @@ import { formatPeso, formatDistance } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 
 export default function LocationDetailScreen() {
+  const router = useRouter();
   const { id } = useLocalSearchParams();
   const [location, setLocation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -128,6 +129,13 @@ export default function LocationDetailScreen() {
         <Button
           title="Navigate"
           onPress={handleNavigate}
+          style={{ marginBottom: theme.spacing.sm }}
+        />
+        <Button
+          title="Message"
+          variant="outline"
+          onPress={() => router.push(`/chat/${id}`)}
+          testID="location-message"
           style={{ marginBottom: theme.spacing.lg }}
         />
 

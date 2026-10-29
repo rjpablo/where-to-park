@@ -32,6 +32,9 @@ export default function ProfileScreen() {
       {user.phone ? <Text style={styles.meta}>Phone: {user.phone}</Text> : null}
       {user.is_admin ? <Text style={styles.meta}>Admin</Text> : null}
       <Button title="Saved vehicles" onPress={() => router.push('/vehicles')} />
+      {user.account_type === 'operator' || user.is_admin ? (
+        <Button title="Messages" variant="outline" onPress={() => router.push('/operator/inbox')} />
+      ) : null}
       <Button
         title="Sign out"
         variant="outline"
