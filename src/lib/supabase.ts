@@ -71,8 +71,8 @@ export type SearchResult = {
   name: string;
   listing_type: 'commercial' | 'residential';
   address: string;
-  lat: number;
-  lng: number;
+  latitude: number;
+  longitude: number;
   distance_m: number;
   available_count: number;
   capacity: number;

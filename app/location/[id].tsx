@@ -44,7 +44,11 @@ export default function LocationDetailScreen() {
   const handleNavigate = () => {
     if (!location) return;
 
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
+    // Extract coordinates from geography
+    const lat = location.geog ? parseFloat(location.geog.coordinates[1]) : 16.4120;
+    const lng = location.geog ? parseFloat(location.geog.coordinates[0]) : 120.5960;
+    
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
     Linking.openURL(url);
   };
 
@@ -58,13 +62,17 @@ export default function LocationDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Photo Gallery */}
-      {location.location_photos?.length > 0 && (
+      {/* Photo Gallery or Placeholder */}
+      {location.location_photos?.length > 0 ? (
         <ScrollView horizontal style={styles.photoGallery}>
           {location.location_photos.map((photo: any) => (
             <Image key={photo.id} source={{ uri: photo.url }} style={styles.photo} />
           ))}
         </ScrollView>
+      ) : (
+        <View style={styles.photoPlaceholder}>
+          <Text style={styles.photoPlaceholderText}>📷 No photos available</Text>
+        </View>
       )}
 
       <View style={styles.content}>
@@ -94,14 +102,28 @@ export default function LocationDetailScreen() {
         {/* Rates */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Rates</Text>
-          {location.rates?.map((rate: any) => (
-            <View key={rate.id} style={styles.rateItem}>
-              <Text style={styles.rateType}>
-                {rate.rate_type} {rate.vehicle_type && `(${rate.vehicle_type})`}
-              </Text>
-              <Text style={styles.ratePrice}>{formatPeso(rate.hourly_rate)}/h</Text>
-            </View>
-          ))}
+          {location.rates?.filter((r: any) => r.active).length > 0 ? (
+            location.rates
+              .filter((r: any) => r.active)
+              .map((rate: any) => (
+                <View key={rate.id} style={styles.rateItem}>
+                  <Text style={styles.rateType}>
+                    {rate.name || rate.rate_type} {rate.vehicle_type && `(${rate.vehicle_type})`}
+                  </Text>
+                  <Text style={styles.ratePrice}>
+                    {rate.rate_type === 'hourly' && rate.hourly_amount
+                      ? `${formatPeso(rate.hourly_amount)}/h`
+                      : rate.rate_type === 'daily' && rate.daily_amount
+                      ? `${formatPeso(rate.daily_amount)}/day`
+                      : rate.rate_type === 'monthly' && rate.monthly_amount
+                      ? `${formatPeso(rate.monthly_amount)}/mo`
+                      : 'Contact for rates'}
+                  </Text>
+                </View>
+              ))
+          ) : (
+            <Text style={styles.placeholderText}>Contact location for rates</Text>
+          )}
         </View>
 
         {/* Rules & Policies */}
@@ -245,5 +267,20 @@ const styles = StyleSheet.create({
   },
   contactText: {
     ...theme.typography.body,
+  },
+  placeholderText: {
+    ...theme.typography.body,
+    color: theme.colors.text.tertiary,
+    fontStyle: 'italic',
+  },
+  photoPlaceholder: {
+    height: 240,
+    backgroundColor: theme.colors.surfaceDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPlaceholderText: {
+    ...theme.typography.h3,
+    color: theme.colors.text.tertiary,
   },
 });
