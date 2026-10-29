@@ -32,4 +32,5 @@ echo "Concurrency: $CONC_PASSED tests/assertions passed"
 echo ""
 
 echo "=== All Tests Complete ==="
-echo "Total: $(($PASSED + $CONC_PASSED)) assertions passed"
+TOTAL=$((PASSED + CONC_PASSED))
+echo "Total: $TOTAL assertions passed"

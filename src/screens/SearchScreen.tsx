@@ -1,11 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
+import { Map } from '../components/map';
+import { LocationPin, MapRegion } from '../components/map/types';
 import { formatPeso, formatDistance } from '../utils/formatters';
 import { theme } from '../lib/theme';
 
 export function SearchScreen() {
+  const router = useRouter();
   const {
     results,
     loading,
@@ -19,6 +23,40 @@ export function SearchScreen() {
   } = useSearchStore();
   const [location, setLocation] = useState({ lat: 16.412, lng: 120.596 }); // Default: Baguio City center
 
+  const region: MapRegion = useMemo(
+    () => ({
+      latitude: location.lat,
+      longitude: location.lng,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    }),
+    [location]
+  );
+
+  // Convert search results to map pins
+  const pins: LocationPin[] = useMemo(
+    () =>
+      results.map((result) => ({
+        id: result.id,
+        coordinate: {
+          latitude: result.latitude,
+          longitude: result.longitude,
+        },
+        availableCount: result.available_count || 0,
+        isStale:
+          result.stale_after_min && result.availability_updated_at
+            ? new Date().getTime() - new Date(result.availability_updated_at).getTime() >
+              result.stale_after_min * 60 * 1000
+            : false,
+        title: result.name,
+      })),
+    [results]
+  );
+
+  const handlePinPress = (locationId: string) => {
+    router.push(`/location/${locationId}`);
+  };
+
   useEffect(() => {
     // Initial search
     search(location.lat, location.lng);
@@ -31,9 +69,7 @@ export function SearchScreen() {
   const renderListItem = ({ item }: { item: (typeof results)[0] }) => (
     <TouchableOpacity
       style={styles.listItem}
-      onPress={() => {
-        /* Navigate to detail */
-      }}
+      onPress={() => router.push(`/location/${item.id}`)}
     >
       <View style={styles.listItemHeader}>
         <Text style={styles.listItemTitle}>{item.name}</Text>
@@ -72,12 +108,15 @@ export function SearchScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map would go here - MapLibre component */}
-      <View style={styles.mapPlaceholder}>
-        <Text style={styles.mapText}>Map View (MapLibre)</Text>
-        <Text style={styles.mapSubtext}>Baguio City, Philippines</Text>
-        <Text style={styles.mapSubtext}>{results.length} locations found</Text>
-      </View>
+      {/* Map with location pins */}
+      <Map
+        region={region}
+        pins={pins}
+        onPinPress={handlePinPress}
+        style={styles.map}
+        showsUserLocation
+        clusterPins
+      />
 
       {/* Bottom Sheet */}
       <View style={[styles.sheet, sheetPosition === 'expanded' && styles.sheetExpanded]}>
@@ -142,20 +181,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  mapPlaceholder: {
+  map: {
     flex: 1,
-    backgroundColor: theme.colors.surfaceDark,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mapText: {
-    ...theme.typography.h2,
-    color: theme.colors.text.secondary,
-  },
-  mapSubtext: {
-    ...theme.typography.body,
-    color: theme.colors.text.tertiary,
-    marginTop: theme.spacing.xs,
   },
   sheet: {
     position: 'absolute',
