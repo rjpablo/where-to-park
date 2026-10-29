@@ -1,27 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 
 export default function AvailabilityScreen() {
-  const [availableCount, setAvailableCount] = useState(10);
-  const [capacity] = useState(20);
+  const [location, setLocation] = useState<any>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    loadLocationData();
+  }, []);
+
+  const loadLocationData = async () => {
+    try {
+      // Get first location for operator (would use auth context in real app)
+      const { data: locations } = await supabase
+        .from('locations')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (locations) {
+        setLocation(locations);
+        
+        // Load recent sessions as activity
+        const { data: sessions } = await supabase
+          .from('parking_sessions')
+          .select('*, created_at')
+          .eq('location_id', locations.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        setRecentActivity(sessions || []);
+      }
+    } catch (error) {
+      console.error('Load error:', error);
+    }
+  };
+
   const adjustAvailability = async (delta: number) => {
+    if (!location) return;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc('adjust_availability', {
-        p_location_id: 'location-id-here', // Would come from context
+        p_location_id: location.id,
         p_delta: delta,
       });
 
       if (error) throw error;
 
       if (data?.available_count !== undefined) {
-        setAvailableCount(data.available_count);
+        setLocation({ ...location, available_count: data.available_count });
       }
+      
+      await loadLocationData(); // Refresh
     } catch (error: any) {
       console.error('Adjust availability error:', error);
     } finally {
@@ -29,26 +64,36 @@ export default function AvailabilityScreen() {
     }
   };
 
+  if (!location) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Current Availability</Text>
-        <Text style={styles.subtitle}>SM City Baguio Main Parking</Text>
+        <Text style={styles.subtitle}>{location.name}</Text>
       </View>
 
       <View style={styles.countDisplay}>
         <Text style={styles.countLabel}>Available Spaces</Text>
         <Text style={styles.countNumber}>
-          {availableCount} / {capacity}
+          {location.available_count} / {location.capacity}
         </Text>
-        <Text style={styles.countUpdated}>Updated just now</Text>
+        <Text style={styles.countUpdated}>
+          Updated {new Date(location.availability_updated_at).toLocaleTimeString()}
+        </Text>
       </View>
 
       <View style={styles.buttonRow}>
         <TouchableOpacity
           style={[styles.adjustButton, styles.decrementButton]}
           onPress={() => adjustAvailability(-1)}
-          disabled={loading || availableCount === 0}
+          disabled={loading || location.available_count === 0}
         >
           <Text style={styles.adjustButtonText}>-1</Text>
         </TouchableOpacity>
@@ -56,7 +101,7 @@ export default function AvailabilityScreen() {
         <TouchableOpacity
           style={[styles.adjustButton, styles.incrementButton]}
           onPress={() => adjustAvailability(1)}
-          disabled={loading || availableCount >= capacity}
+          disabled={loading || location.available_count >= location.capacity}
         >
           <Text style={styles.adjustButtonText}>+1</Text>
         </TouchableOpacity>
@@ -96,14 +141,20 @@ export default function AvailabilityScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.activityItem}>
-          <Text style={styles.activityText}>Walk-in checked in</Text>
-          <Text style={styles.activityTime}>2 minutes ago</Text>
-        </View>
-        <View style={styles.activityItem}>
-          <Text style={styles.activityText}>Manual adjustment (+1)</Text>
-          <Text style={styles.activityTime}>15 minutes ago</Text>
-        </View>
+        {recentActivity.length > 0 ? (
+          recentActivity.map((activity) => (
+            <View key={activity.id} style={styles.activityItem}>
+              <Text style={styles.activityText}>
+                {activity.status === 'active' ? '🚗 Check-in' : '✓ Check-out'}: {activity.plate}
+              </Text>
+              <Text style={styles.activityTime}>
+                {new Date(activity.created_at).toLocaleTimeString()}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.activityText}>No recent activity</Text>
+        )}
       </View>
     </ScrollView>
   );
