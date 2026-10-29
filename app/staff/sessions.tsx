@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, Platform } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
-import { formatPeso, formatRelativeTime } from '../../src/utils/formatters';
+import { formatLocalDateTime, formatPeso, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import { DateTimeField } from '../../src/components/DateTimeField';
+import { deliverReturnedPush } from '../../src/lib/push';
 
 export default function SessionsScreen() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -28,6 +30,7 @@ export default function SessionsScreen() {
   const [amountDue, setAmountDue] = useState('');
   const [overrideNotice, setOverrideNotice] = useState<string | null>(null);
   const [adjustId, setAdjustId] = useState<string | null>(null);
+  const [extendHours, setExtendHours] = useState('1');
 
   useEffect(() => {
     loadSessions();
@@ -139,6 +142,7 @@ export default function SessionsScreen() {
 
       setCloseSuccess('Session closed');
       setSelectedId(null);
+      await deliverReturnedPush(data, 'Session ended', 'A walk-in session was closed');
       await loadSessions();
     } catch (err: any) {
       setCloseError(err.message || 'Close failed');
@@ -183,8 +187,13 @@ export default function SessionsScreen() {
 
         <View style={styles.sessionDetails}>
           <Text style={styles.sessionTime}>
-            Started: {formatRelativeTime(new Date(item.started_at))}
+            Started: {formatLocalDateTime(item.started_at)} ({formatRelativeTime(item.started_at)})
           </Text>
+          {item.scheduled_end_at ? (
+            <Text style={styles.sessionTime} testID={`scheduled-end-${item.plate}`}>
+              Scheduled end: {formatLocalDateTime(item.scheduled_end_at)}
+            </Text>
+          ) : null}
           <Text style={styles.sessionLocation}>{item.locations?.name}</Text>
           <Text style={styles.sessionTime} testID={`parking-so-far-${item.plate}`}>
             Parking so far: {formatPeso(parkingSoFar)}
@@ -225,10 +234,9 @@ export default function SessionsScreen() {
               testID={`override-reason-${item.plate}`}
             />
             <Text style={styles.label}>Start time</Text>
-            <TextInput
-              style={styles.input}
-              value={overrideStart || item.started_at}
-              onChangeText={setOverrideStart}
+            <DateTimeField
+              valueUtc={overrideStart || item.started_at}
+              onChangeUtc={setOverrideStart}
               testID={`override-start-${item.plate}`}
             />
             <Button
@@ -251,10 +259,9 @@ export default function SessionsScreen() {
               }}
             />
             <Text style={styles.label}>Billed end time</Text>
-            <TextInput
-              style={styles.input}
-              value={overrideEnd || item.scheduled_end_at || ''}
-              onChangeText={setOverrideEnd}
+            <DateTimeField
+              valueUtc={overrideEnd || item.scheduled_end_at}
+              onChangeUtc={setOverrideEnd}
               testID={`override-end-${item.plate}`}
             />
             <Button
@@ -352,6 +359,40 @@ export default function SessionsScreen() {
             />
           </View>
         ) : null}
+
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.spacing.sm }}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={extendHours}
+            onChangeText={setExtendHours}
+            keyboardType="numeric"
+            testID={`extend-hours-${item.plate}`}
+          />
+          <Button
+            title="Extend"
+            size="small"
+            testID={`extend-session-${item.plate}`}
+            onPress={async () => {
+              setOverrideNotice(null);
+              const { data, error: rpcError } = await supabase.rpc('extend_session', {
+                p_session_id: item.id,
+                p_hours: Number(extendHours) || 1,
+                p_reason: overrideReason.trim() || 'Extended',
+              });
+              if (rpcError || data?.error) {
+                setOverrideNotice(rpcError?.message || String(data?.error));
+                return;
+              }
+              setOverrideNotice('Session extended');
+              await deliverReturnedPush(
+                data,
+                'Session extended',
+                `${item.plate} extended by ${extendHours}h`
+              );
+              await loadSessions();
+            }}
+          />
+        </View>
 
         {presets.map((preset) => (
           <Button
