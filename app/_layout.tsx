@@ -1,11 +1,21 @@
+import React from 'react';
 import { Stack } from 'expo-router';
+import { useAuthStore } from '../src/stores/authStore';
+import { registerPushToken } from '../src/lib/push';
 
 export default function RootLayout() {
+  const user = useAuthStore((s) => s.user);
+
+  React.useEffect(() => {
+    if (user) registerPushToken();
+  }, [user]);
+
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="auth" options={{ title: 'Sign in' }} />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+      <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="vehicles" options={{ title: 'Vehicles' }} />
       <Stack.Screen name="chat/[locationId]" options={{ title: 'Messages' }} />
       <Stack.Screen name="search" options={{ title: 'Find Parking' }} />

@@ -82,6 +82,11 @@ export default function ProfileScreen() {
         </Text>
       ) : null}
 
+      <Button
+        title="Notifications"
+        onPress={() => router.push('/notifications')}
+        testID="profile-notifications"
+      />
       <Button title="Saved vehicles" onPress={() => router.push('/vehicles')} />
       {user.account_type === 'operator' || user.is_admin ? (
         <Button title="Messages" variant="outline" onPress={() => router.push('/operator/inbox')} />
