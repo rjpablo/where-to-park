@@ -90,7 +90,9 @@ export const Map: React.FC<MapProps> = ({
       properties: {
         id: pin.id,
         availableCount: pin.availableCount,
-        isStale: pin.isStale,
+        pinLabel: pin.pinLabel || String(pin.availableCount),
+        isStale: pin.isStale ? 1 : 0,
+        isFull: pin.isFull ? 1 : 0,
         title: pin.title,
       },
     }));
@@ -119,9 +121,9 @@ export const Map: React.FC<MapProps> = ({
         map.current.addSource(sourceId, {
           type: 'geojson',
           data: geoJSON,
-          cluster: false,
-          clusterMaxZoom: 14,
-          clusterRadius: 50,
+          cluster: clusterPins,
+          clusterMaxZoom: 16,
+          clusterRadius: 80,
         });
 
         // Cluster circles
@@ -160,7 +162,14 @@ export const Map: React.FC<MapProps> = ({
           source: sourceId,
           filter: ['!', ['has', 'point_count']],
           paint: {
-            'circle-color': ['case', ['get', 'isStale'], '#f59e0b', '#10b981'],
+            'circle-color': [
+              'case',
+              ['==', ['get', 'isStale'], 1],
+              '#f59e0b',
+              ['==', ['get', 'isFull'], 1],
+              '#ef4444',
+              '#10b981',
+            ],
             'circle-radius': 16,
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2,
@@ -174,7 +183,7 @@ export const Map: React.FC<MapProps> = ({
           source: sourceId,
           filter: ['!', ['has', 'point_count']],
           layout: {
-            'text-field': ['get', 'availableCount'],
+            'text-field': ['get', 'pinLabel'],
             'text-font': ['Open Sans Bold'],
             'text-size': 11,
           },
@@ -206,30 +215,28 @@ export const Map: React.FC<MapProps> = ({
             map.current.getCanvas().style.cursor = '';
           }
         });
+
+        map.current.on('click', 'cluster-circle', (e) => {
+          const feature = e.features && e.features[0];
+          const clusterId = feature?.properties?.cluster_id;
+          const coords = (feature?.geometry as GeoJSON.Point | undefined)?.coordinates;
+          const src = map.current?.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+          if (clusterId == null || !src || !coords) return;
+          src.getClusterExpansionZoom(clusterId).then((zoom) => {
+            if (zoom == null || !map.current) return;
+            map.current.easeTo({ center: coords as [number, number], zoom });
+          });
+        });
       }
     } catch (err) {
       console.warn('GeoJSON pin layers failed', err);
     }
 
     markers.current.forEach((m) => m.remove());
-    markers.current = pins
-      .filter(
-        (pin) =>
-          Number.isFinite(pin.coordinate.latitude) && Number.isFinite(pin.coordinate.longitude)
-      )
-      .map((pin) => {
-        const el = document.createElement('div');
-        el.textContent = String(pin.availableCount);
-        el.setAttribute('data-testid', `map-pin-${pin.id}`);
-        if (pin.id === 'selected') el.setAttribute('data-testid', 'map-pin-selected');
-        el.style.cssText =
-          'width:28px;height:28px;border-radius:50%;background:#10b981;color:#fff;font:700 11px/28px sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;';
-        if (pin.isStale) el.style.background = '#f59e0b';
-        el.onclick = () => onPinPress?.(pin.id);
-        return new maplibregl.Marker({ element: el })
-          .setLngLat([pin.coordinate.longitude, pin.coordinate.latitude])
-          .addTo(map.current!);
-      });
+    markers.current = [];
+    if (mapContainer.current) {
+      mapContainer.current.setAttribute('data-cluster', clusterPins ? 'true' : 'false');
+    }
   }, [pins, mapLoaded, clusterPins, onPinPress]);
 
   // Update region

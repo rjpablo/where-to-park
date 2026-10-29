@@ -32,7 +32,9 @@ export const Map: React.FC<MapProps> = ({
         properties: {
           id: pin.id,
           availableCount: pin.availableCount,
+          pinLabel: pin.pinLabel || String(pin.availableCount),
           isStale: pin.isStale,
+          isFull: pin.isFull,
           title: pin.title,
         },
       })),
@@ -113,8 +115,10 @@ export const Map: React.FC<MapProps> = ({
               circleColor: [
                 'case',
                 ['get', 'isStale'],
-                '#f59e0b', // Stale warning color
-                '#10b981', // Available green
+                '#f59e0b',
+                ['get', 'isFull'],
+                '#ef4444',
+                '#10b981',
               ],
               circleRadius: 16,
               circleStrokeColor: '#ffffff',
@@ -127,7 +131,7 @@ export const Map: React.FC<MapProps> = ({
             id="pin-count"
             filter={['!', ['has', 'point_count']]}
             style={{
-              textField: ['get', 'availableCount'],
+              textField: ['get', 'pinLabel'],
               textSize: 11,
               textColor: '#ffffff',
               textFont: ['Open Sans Bold'],
