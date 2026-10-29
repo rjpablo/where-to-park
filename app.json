@@ -9,7 +9,12 @@
     "scheme": "wheretopark",
     "plugins": [
       "expo-router",
-      "@rnmapbox/maps"
+      [
+        "@maplibre/maplibre-react-native",
+        {
+          "RNMapboxMapsDownloadToken": ""
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,

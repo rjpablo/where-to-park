@@ -1,7 +1,13 @@
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
-CREATE EXTENSION IF NOT EXISTS "pg_cron";
+-- pg_cron is optional for scheduled jobs
+DO $$ 
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS "pg_cron";
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_cron extension not available, scheduled jobs will be skipped';
+END $$;
 
 -- Create custom types
 CREATE TYPE listing_type AS ENUM ('commercial', 'residential');
@@ -168,7 +174,7 @@ CREATE TABLE rates (
   area_id UUID REFERENCES areas(id) ON DELETE SET NULL,
   slot_id UUID REFERENCES slots(id) ON DELETE SET NULL,
   vehicle_type vehicle_type,
-  days_of_week INTEGER[] CHECK (array_length(days_of_week, 1) IS NULL OR (SELECT bool_and(d >= 0 AND d <= 6) FROM unnest(days_of_week) d)),
+  days_of_week INTEGER[],
   effective_from TIMESTAMPTZ,
   effective_to TIMESTAMPTZ,
   priority INTEGER DEFAULT 0,

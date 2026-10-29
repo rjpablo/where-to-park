@@ -94,6 +94,24 @@ FOR EACH ROW
 WHEN (NEW.is_cover = true)
 EXECUTE FUNCTION ensure_single_cover_photo();
 
+-- Trigger to validate days_of_week array in rates
+CREATE OR REPLACE FUNCTION validate_rate_days_of_week()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.days_of_week IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM unnest(NEW.days_of_week) d WHERE d < 0 OR d > 6) THEN
+      RAISE EXCEPTION 'days_of_week must contain values between 0 and 6';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER validate_rate_days_of_week_trigger
+BEFORE INSERT OR UPDATE ON rates
+FOR EACH ROW
+EXECUTE FUNCTION validate_rate_days_of_week();
+
 -- Trigger to create chat system events for session actions
 CREATE OR REPLACE FUNCTION create_session_chat_event()
 RETURNS TRIGGER AS $$
