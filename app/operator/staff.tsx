@@ -104,7 +104,9 @@ export default function StaffScreen() {
       <View style={styles.toggleRow} testID="staff-can-waive-row">
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>Staff can waive</Text>
-          <Text style={styles.meta}>When off, only owners and managers may waive a remaining balance.</Text>
+          <Text style={styles.meta}>
+            When off, only owners and managers may waive a remaining balance.
+          </Text>
         </View>
         <Switch value={canWaive} onValueChange={toggleWaive} testID="staff-can-waive" />
       </View>
@@ -115,9 +117,7 @@ export default function StaffScreen() {
       <Text style={styles.heading}>Members</Text>
       {members.map((member) => (
         <View key={member.id} style={styles.card} testID={`staff-row-${member.role}`}>
-          <Text style={styles.rowTitle}>
-            {member.profiles?.display_name || member.profile_id}
-          </Text>
+          <Text style={styles.rowTitle}>{member.profiles?.display_name || member.profile_id}</Text>
           <Text style={styles.meta}>
             {member.role}
             {member.profiles?.phone ? ` · ${member.profiles.phone}` : ''}
@@ -170,7 +170,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   centered: { justifyContent: 'center', alignItems: 'center' },
   title: { ...theme.typography.h2 },
-  subtitle: { ...theme.typography.body, color: theme.colors.text.secondary, marginBottom: theme.spacing.lg },
+  subtitle: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.lg,
+  },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   label: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },
   input: {
@@ -189,8 +193,17 @@ const styles = StyleSheet.create({
   },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
   rowTitle: { ...theme.typography.body, fontWeight: '600' },
-  meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: theme.spacing.xs },
-  waiveState: { ...theme.typography.body, fontWeight: '600', marginTop: theme.spacing.sm, color: theme.colors.primary },
+  meta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
+  },
+  waiveState: {
+    ...theme.typography.body,
+    fontWeight: '600',
+    marginTop: theme.spacing.sm,
+    color: theme.colors.primary,
+  },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.md },
 });

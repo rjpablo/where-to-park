@@ -22,10 +22,13 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
     longitudeDelta: 0.05,
   });
 
-  const handleMapPress = useCallback((coordinate: Coordinate) => {
-    setSelectedCoordinate(coordinate);
-    onCoordinateSelect(coordinate);
-  }, [onCoordinateSelect]);
+  const handleMapPress = useCallback(
+    (coordinate: Coordinate) => {
+      setSelectedCoordinate(coordinate);
+      onCoordinateSelect(coordinate);
+    },
+    [onCoordinateSelect]
+  );
 
   const handleConfirm = useCallback(() => {
     onCoordinateSelect(selectedCoordinate);

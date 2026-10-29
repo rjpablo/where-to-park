@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ScrollView,
-  Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Platform } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { MapPinPicker } from '../../src/components/map/MapPinPicker';
 import { supabase } from '../../src/lib/supabase';
@@ -189,7 +182,9 @@ export default function OnboardingScreen() {
 
           <View style={styles.info}>
             <Text style={styles.infoText}>✓ Default rate type: Hourly</Text>
-            <Text style={styles.infoText}>✓ You can add daily, monthly, and custom rates later</Text>
+            <Text style={styles.infoText}>
+              ✓ You can add daily, monthly, and custom rates later
+            </Text>
             <Text style={styles.infoText}>✓ Billing is per started hour</Text>
           </View>
         </View>

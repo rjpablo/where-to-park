@@ -68,6 +68,11 @@ export const typography = {
     fontWeight: '400' as const,
     lineHeight: 16,
   },
+  button: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    lineHeight: 24,
+  },
 };
 
 export const borderRadius = {

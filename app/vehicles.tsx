@@ -81,7 +81,12 @@ export default function VehiclesScreen() {
       ))}
 
       <Text style={styles.heading}>Add vehicle</Text>
-      <TextInput style={styles.input} value={nickname} onChangeText={setNickname} testID="vehicle-nickname" />
+      <TextInput
+        style={styles.input}
+        value={nickname}
+        onChangeText={setNickname}
+        testID="vehicle-nickname"
+      />
       <TextInput
         style={styles.input}
         value={plate}
@@ -110,7 +115,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   title: { ...theme.typography.h2 },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
-  meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm },
+  meta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
   card: {
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,
@@ -125,6 +134,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
   error: { color: theme.colors.danger, marginTop: theme.spacing.md },
 });

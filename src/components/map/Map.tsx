@@ -1,7 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
-import { MapProps, LocationPin } from './types';
+import { MapProps } from './types';
 
 // Configure MapLibre
 MapLibreGL.setAccessToken(null);
@@ -9,24 +9,14 @@ MapLibreGL.setAccessToken(null);
 export const Map: React.FC<MapProps> = ({
   region,
   pins = [],
-  onPinPress,
-  onRegionChange,
+  onPinPress: _onPinPress,
   style,
   showsUserLocation = true,
   clusterPins = true,
 }) => {
   const centerCoordinate = useMemo(
-    () => (region ? [region.longitude, region.latitude] : [120.5960, 16.4120]),
+    () => (region ? [region.longitude, region.latitude] : [120.596, 16.412]),
     [region]
-  );
-
-  const handlePinPress = useCallback(
-    (pin: LocationPin) => {
-      if (onPinPress) {
-        onPinPress(pin.id);
-      }
-    },
-    [onPinPress]
   );
 
   // Convert pins to GeoJSON
@@ -57,8 +47,17 @@ export const Map: React.FC<MapProps> = ({
     [pinFeatures]
   );
 
+  const NativeMapView = MapLibreGL.MapView as unknown as React.ComponentType<{
+    style?: object;
+    styleURL?: string;
+    compassEnabled?: boolean;
+    logoEnabled?: boolean;
+    attributionEnabled?: boolean;
+    children?: React.ReactNode;
+  }>;
+
   return (
-    <MapLibreGL.MapView
+    <NativeMapView
       style={[styles.map, style]}
       styleURL="https://tiles.openfreemap.org/styles/liberty"
       compassEnabled
@@ -136,7 +135,7 @@ export const Map: React.FC<MapProps> = ({
           />
         </MapLibreGL.ShapeSource>
       )}
-    </MapLibreGL.MapView>
+    </NativeMapView>
   );
 };
 

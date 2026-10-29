@@ -60,16 +60,25 @@ export default function AdminReportsScreen() {
       ) : null}
       {reports.map((r) => (
         <View key={r.id} style={styles.card} testID={`report-${r.target_type}`}>
-          <Text style={styles.rowTitle}>
-            {r.target_type === 'location' ? 'Listing' : 'Review'}
-          </Text>
+          <Text style={styles.rowTitle}>{r.target_type === 'location' ? 'Listing' : 'Review'}</Text>
           <Text style={styles.reason}>{r.reason}</Text>
           {r.details ? <Text style={styles.meta}>{r.details}</Text> : null}
           <Text style={styles.meta}>{formatRelativeTime(r.created_at)}</Text>
           <View style={styles.row}>
             <Button title="Resolve" size="small" onPress={() => act(r.id, 'resolve')} />
-            <Button title="Hide" size="small" variant="danger" onPress={() => act(r.id, 'hide')} testID="report-hide" />
-            <Button title="Dismiss" size="small" variant="outline" onPress={() => act(r.id, 'dismiss')} />
+            <Button
+              title="Hide"
+              size="small"
+              variant="danger"
+              onPress={() => act(r.id, 'hide')}
+              testID="report-hide"
+            />
+            <Button
+              title="Dismiss"
+              size="small"
+              variant="outline"
+              onPress={() => act(r.id, 'dismiss')}
+            />
           </View>
         </View>
       ))}
@@ -82,7 +91,11 @@ export default function AdminReportsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   title: { ...theme.typography.h2 },
-  meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm },
+  meta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
   reason: { ...theme.typography.body, marginBottom: theme.spacing.xs },
   notice: { ...theme.typography.body, color: theme.colors.success, marginBottom: theme.spacing.sm },
   card: {
@@ -92,6 +105,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   rowTitle: { ...theme.typography.body, fontWeight: '700' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginTop: theme.spacing.sm },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
   error: { color: theme.colors.danger, marginTop: theme.spacing.md },
 });

@@ -17,7 +17,9 @@ export default function OperatorInboxScreen() {
   const load = React.useCallback(async () => {
     const { data, error: fetchError } = await supabase
       .from('chat_threads')
-      .select('id, location_id, driver_id, last_message_at, locations(name), profiles:driver_id(display_name)')
+      .select(
+        'id, location_id, driver_id, last_message_at, locations(name), profiles:driver_id(display_name)'
+      )
       .order('last_message_at', { ascending: false });
     if (fetchError) setError(fetchError.message);
     setThreads(data || []);
@@ -70,7 +72,11 @@ export default function OperatorInboxScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   title: { ...theme.typography.h2 },
-  meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm },
+  meta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
   card: {
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,

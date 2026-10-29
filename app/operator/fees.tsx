@@ -21,14 +21,15 @@ export default function FeePresetsScreen() {
   const load = React.useCallback(async () => {
     setError(null);
     try {
-      const [{ data: presetRows, error: pErr }, { data: sessionRows, error: sErr }] = await Promise.all([
-        supabase.from('fee_presets').select('*').eq('operator_id', OPERATOR_ID).order('name'),
-        supabase
-          .from('parking_sessions')
-          .select('id, plate, status, folios(id, folio_charges(amount, type, description))')
-          .eq('location_id', SESSION_ROAD)
-          .in('status', ['active', 'overdue']),
-      ]);
+      const [{ data: presetRows, error: pErr }, { data: sessionRows, error: sErr }] =
+        await Promise.all([
+          supabase.from('fee_presets').select('*').eq('operator_id', OPERATOR_ID).order('name'),
+          supabase
+            .from('parking_sessions')
+            .select('id, plate, status, folios(id, folio_charges(amount, type, description))')
+            .eq('location_id', SESSION_ROAD)
+            .in('status', ['active', 'overdue']),
+        ]);
       if (pErr) throw pErr;
       if (sErr) throw sErr;
       setPresets(presetRows || []);
@@ -114,7 +115,12 @@ export default function FeePresetsScreen() {
                 setAmount(String(preset.amount));
               }}
             />
-            <Button title="Delete" size="small" variant="danger" onPress={() => remove(preset.id)} />
+            <Button
+              title="Delete"
+              size="small"
+              variant="danger"
+              onPress={() => remove(preset.id)}
+            />
           </View>
         </View>
       ))}
@@ -130,7 +136,11 @@ export default function FeePresetsScreen() {
         keyboardType="decimal-pad"
         testID="preset-amount"
       />
-      <Button title={editingId ? 'Save preset' : 'Create preset'} onPress={save} testID="preset-save" />
+      <Button
+        title={editingId ? 'Save preset' : 'Create preset'}
+        onPress={save}
+        testID="preset-save"
+      />
 
       <Text style={styles.heading}>Apply to a session ledger</Text>
       {sessions.length === 0 ? <Text style={styles.meta}>No active sessions</Text> : null}
@@ -174,7 +184,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   centered: { justifyContent: 'center', alignItems: 'center' },
   title: { ...theme.typography.h2 },
-  subtitle: { ...theme.typography.body, color: theme.colors.text.secondary, marginBottom: theme.spacing.lg },
+  subtitle: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.lg,
+  },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   label: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },
   input: {
@@ -193,7 +207,11 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   rowTitle: { ...theme.typography.body, fontWeight: '600' },
-  meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: theme.spacing.xs },
+  meta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
+  },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.md },
 });

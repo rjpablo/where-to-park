@@ -1,17 +1,15 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { MapProps, LocationPin } from './types';
+import { MapProps } from './types';
 
 export const Map: React.FC<MapProps> = ({
   region,
   pins = [],
   onPinPress,
   onMapPress,
-  onRegionChange,
   style,
-  showsUserLocation = true,
   clusterPins = true,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -28,7 +26,7 @@ export const Map: React.FC<MapProps> = ({
 
     const initialCenter: [number, number] = region
       ? [region.longitude, region.latitude]
-      : [120.5960, 16.4120];
+      : [120.596, 16.412];
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -74,6 +72,8 @@ export const Map: React.FC<MapProps> = ({
       map.current?.remove();
       map.current = null;
     };
+    // Map instance is created once; region updates fly in a later effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update pins
@@ -113,112 +113,110 @@ export const Map: React.FC<MapProps> = ({
     }
 
     try {
-    if (source) {
-      (source as maplibregl.GeoJSONSource).setData(geoJSON);
-    } else {
-      map.current.addSource(sourceId, {
-        type: 'geojson',
-        data: geoJSON,
-        cluster: false,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
-      });
+      if (source) {
+        (source as maplibregl.GeoJSONSource).setData(geoJSON);
+      } else {
+        map.current.addSource(sourceId, {
+          type: 'geojson',
+          data: geoJSON,
+          cluster: false,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+        });
 
-      // Cluster circles
-      map.current.addLayer({
-        id: 'cluster-circle',
-        type: 'circle',
-        source: sourceId,
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': '#2563eb',
-          'circle-radius': 20,
-          'circle-opacity': 0.9,
-        },
-      });
+        // Cluster circles
+        map.current.addLayer({
+          id: 'cluster-circle',
+          type: 'circle',
+          source: sourceId,
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': '#2563eb',
+            'circle-radius': 20,
+            'circle-opacity': 0.9,
+          },
+        });
 
-      // Cluster count
-      map.current.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: sourceId,
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count}',
-          'text-font': ['Open Sans Bold'],
-          'text-size': 12,
-        },
-        paint: {
-          'text-color': '#ffffff',
-        },
-      });
+        // Cluster count
+        map.current.addLayer({
+          id: 'cluster-count',
+          type: 'symbol',
+          source: sourceId,
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': '{point_count}',
+            'text-font': ['Open Sans Bold'],
+            'text-size': 12,
+          },
+          paint: {
+            'text-color': '#ffffff',
+          },
+        });
 
-      // Individual pins
-      map.current.addLayer({
-        id: 'pin-circle',
-        type: 'circle',
-        source: sourceId,
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': [
-            'case',
-            ['get', 'isStale'],
-            '#f59e0b',
-            '#10b981',
-          ],
-          'circle-radius': 16,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 2,
-        },
-      });
+        // Individual pins
+        map.current.addLayer({
+          id: 'pin-circle',
+          type: 'circle',
+          source: sourceId,
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-color': ['case', ['get', 'isStale'], '#f59e0b', '#10b981'],
+            'circle-radius': 16,
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2,
+          },
+        });
 
-      // Pin count
-      map.current.addLayer({
-        id: 'pin-count',
-        type: 'symbol',
-        source: sourceId,
-        filter: ['!', ['has', 'point_count']],
-        layout: {
-          'text-field': ['get', 'availableCount'],
-          'text-font': ['Open Sans Bold'],
-          'text-size': 11,
-        },
-        paint: {
-          'text-color': '#ffffff',
-        },
-      });
+        // Pin count
+        map.current.addLayer({
+          id: 'pin-count',
+          type: 'symbol',
+          source: sourceId,
+          filter: ['!', ['has', 'point_count']],
+          layout: {
+            'text-field': ['get', 'availableCount'],
+            'text-font': ['Open Sans Bold'],
+            'text-size': 11,
+          },
+          paint: {
+            'text-color': '#ffffff',
+          },
+        });
 
-      // Click handler
-      map.current.on('click', 'pin-circle', (e) => {
-        if (e.features && e.features[0] && onPinPress) {
-          const feature = e.features[0];
-          const locationId = feature.properties?.id;
-          if (locationId) {
-            onPinPress(locationId);
+        // Click handler
+        map.current.on('click', 'pin-circle', (e) => {
+          if (e.features && e.features[0] && onPinPress) {
+            const feature = e.features[0];
+            const locationId = feature.properties?.id;
+            if (locationId) {
+              onPinPress(locationId);
+            }
           }
-        }
-      });
+        });
 
-      // Change cursor on hover
-      map.current.on('mouseenter', 'pin-circle', () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = 'pointer';
-        }
-      });
+        // Change cursor on hover
+        map.current.on('mouseenter', 'pin-circle', () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = 'pointer';
+          }
+        });
 
-      map.current.on('mouseleave', 'pin-circle', () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = '';
-        }
-      });
-    }
+        map.current.on('mouseleave', 'pin-circle', () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = '';
+          }
+        });
+      }
     } catch (err) {
       console.warn('GeoJSON pin layers failed', err);
     }
 
     markers.current.forEach((m) => m.remove());
     markers.current = pins
-      .filter((pin) => Number.isFinite(pin.coordinate.latitude) && Number.isFinite(pin.coordinate.longitude))
+      .filter(
+        (pin) =>
+          Number.isFinite(pin.coordinate.latitude) && Number.isFinite(pin.coordinate.longitude)
+      )
       .map((pin) => {
         const el = document.createElement('div');
         el.textContent = String(pin.availableCount);

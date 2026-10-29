@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { formatPeso } from '../../src/utils/formatters';
@@ -58,7 +51,11 @@ export default function RatesScreen() {
       const [{ data: areaRows, error: areaErr }, { data: rateRows, error: rateErr }] =
         await Promise.all([
           supabase.from('areas').select('*').eq('location_id', SESSION_ROAD).order('sort_order'),
-          supabase.from('rates').select('*').eq('location_id', SESSION_ROAD).order('is_default', { ascending: false }),
+          supabase
+            .from('rates')
+            .select('*')
+            .eq('location_id', SESSION_ROAD)
+            .order('is_default', { ascending: false }),
         ]);
       if (areaErr) throw areaErr;
       if (rateErr) throw rateErr;
@@ -198,13 +195,16 @@ export default function RatesScreen() {
         <Button title="Refresh quote" onPress={refreshQuote} testID="quote-refresh" />
         {quote?.amount != null ? (
           <Text style={styles.quoteAmount} testID="quote-amount">
-            {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} · {quote.billed_hours}h billed
+            {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} ·{' '}
+            {quote.billed_hours}h billed
           </Text>
         ) : (
           <Text style={styles.meta}>{quote?.error || 'No quote yet'}</Text>
         )}
         {rateType === 'monthly' ? (
-          <Text style={styles.meta}>Monthly rates are listed for drivers and never price a session.</Text>
+          <Text style={styles.meta}>
+            Monthly rates are listed for drivers and never price a session.
+          </Text>
         ) : null}
       </View>
 
@@ -212,7 +212,12 @@ export default function RatesScreen() {
       {areas.map((area) => (
         <View key={area.id} style={styles.row}>
           <Text style={styles.rowTitle}>{area.name}</Text>
-          <Button title="Delete" size="small" variant="outline" onPress={() => removeArea(area.id)} />
+          <Button
+            title="Delete"
+            size="small"
+            variant="outline"
+            onPress={() => removeArea(area.id)}
+          />
         </View>
       ))}
       <TextInput
@@ -274,38 +279,84 @@ export default function RatesScreen() {
       {rateType === 'hourly' && (
         <>
           <Text style={styles.label}>Hourly amount (₱)</Text>
-          <TextInput style={styles.input} value={hourly} onChangeText={setHourly} keyboardType="decimal-pad" />
+          <TextInput
+            style={styles.input}
+            value={hourly}
+            onChangeText={setHourly}
+            keyboardType="decimal-pad"
+          />
         </>
       )}
       {rateType === 'daily' && (
         <>
           <Text style={styles.label}>Daily amount (₱)</Text>
-          <TextInput style={styles.input} value={daily} onChangeText={setDaily} keyboardType="decimal-pad" />
+          <TextInput
+            style={styles.input}
+            value={daily}
+            onChangeText={setDaily}
+            keyboardType="decimal-pad"
+          />
         </>
       )}
       {rateType === 'monthly' && (
         <>
           <Text style={styles.label}>Monthly amount (₱)</Text>
-          <TextInput style={styles.input} value={monthly} onChangeText={setMonthly} keyboardType="decimal-pad" />
+          <TextInput
+            style={styles.input}
+            value={monthly}
+            onChangeText={setMonthly}
+            keyboardType="decimal-pad"
+          />
         </>
       )}
       {rateType === 'flat_then_hourly' && (
         <>
           <Text style={styles.label}>First N hours</Text>
-          <TextInput style={styles.input} value={firstHours} onChangeText={setFirstHours} keyboardType="numeric" />
+          <TextInput
+            style={styles.input}
+            value={firstHours}
+            onChangeText={setFirstHours}
+            keyboardType="numeric"
+          />
           <Text style={styles.label}>Amount for first N (₱)</Text>
-          <TextInput style={styles.input} value={firstAmount} onChangeText={setFirstAmount} keyboardType="decimal-pad" />
+          <TextInput
+            style={styles.input}
+            value={firstAmount}
+            onChangeText={setFirstAmount}
+            keyboardType="decimal-pad"
+          />
           <Text style={styles.label}>Succeeding hourly (₱)</Text>
-          <TextInput style={styles.input} value={succeeding} onChangeText={setSucceeding} keyboardType="decimal-pad" />
+          <TextInput
+            style={styles.input}
+            value={succeeding}
+            onChangeText={setSucceeding}
+            keyboardType="decimal-pad"
+          />
         </>
       )}
 
       <Text style={styles.label}>Effective from (optional YYYY-MM-DD)</Text>
-      <TextInput style={styles.input} value={from} onChangeText={setFrom} placeholder="2026-12-24" testID="rate-from" />
+      <TextInput
+        style={styles.input}
+        value={from}
+        onChangeText={setFrom}
+        placeholder="2026-12-24"
+        testID="rate-from"
+      />
       <Text style={styles.label}>Effective to (optional)</Text>
-      <TextInput style={styles.input} value={to} onChangeText={setTo} placeholder="2026-12-26" testID="rate-to" />
+      <TextInput
+        style={styles.input}
+        value={to}
+        onChangeText={setTo}
+        placeholder="2026-12-26"
+        testID="rate-to"
+      />
 
-      <Button title={editingId ? 'Save rate' : 'Create rate'} onPress={saveRate} testID="rate-save" />
+      <Button
+        title={editingId ? 'Save rate' : 'Create rate'}
+        onPress={saveRate}
+        testID="rate-save"
+      />
 
       {error ? (
         <Text style={styles.error} testID="rates-error">
@@ -329,7 +380,11 @@ const styles = StyleSheet.create({
   },
   centered: { justifyContent: 'center', alignItems: 'center' },
   title: { ...theme.typography.h2 },
-  subtitle: { ...theme.typography.body, color: theme.colors.text.secondary, marginBottom: theme.spacing.lg },
+  subtitle: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.lg,
+  },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   label: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },
   input: {
@@ -340,16 +395,31 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     marginBottom: theme.spacing.sm,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm, gap: theme.spacing.sm },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
   rowTitle: { ...theme.typography.body, fontWeight: '600', flex: 1 },
-  meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs },
+  meta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
+  },
   card: {
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,
   },
-  types: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginVertical: theme.spacing.sm },
+  types: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginVertical: theme.spacing.sm,
+  },
   typeChip: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
