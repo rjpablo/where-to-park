@@ -186,7 +186,7 @@ export default function RatesScreen() {
       <Text style={styles.subtitle}>Session Road Park n Ride</Text>
 
       <View style={styles.preview} testID="quote-preview">
-        <Text style={styles.heading}>quote_price preview</Text>
+        <Text style={styles.heading}>Price preview</Text>
         <Text style={styles.label}>Hours</Text>
         <TextInput
           style={styles.input}
