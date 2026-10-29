@@ -86,7 +86,7 @@ INSERT INTO locations (
  'verified'
 );
 
--- Residential parking (16.4100, 120.5990)
+-- Residential parking (16.4100, 120.5990) - VERIFIED
 INSERT INTO locations (
   id, operator_id, name, listing_type, geog, address, rules,
   tracking_mode, capacity, available_count, published, verification_status
@@ -101,6 +101,25 @@ INSERT INTO locations (
  'count',
  2,
  1,
+ true,
+ 'verified'
+);
+
+-- Burnham Park Street Parking (16.4123, 120.5920) - UNVERIFIED
+INSERT INTO locations (
+  id, operator_id, name, listing_type, geog, address, rules,
+  tracking_mode, capacity, available_count, published, verification_status
+) VALUES
+('30000000-0000-0000-0000-000000000005',
+ '10000000-0000-0000-0000-000000000002',
+ 'Burnham Park Street Parking',
+ 'commercial',
+ ST_SetSRID(ST_MakePoint(120.5920, 16.4123), 4326)::GEOGRAPHY,
+ 'Burnham Park, Baguio, 2600 Benguet',
+ 'Street parking near Burnham Park. Pay at meter or attendant.',
+ 'count',
+ 15,
+ 7,
  true,
  'unverified'
 );

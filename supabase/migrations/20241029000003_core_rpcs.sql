@@ -9,6 +9,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Helper function to check if user is operator admin/owner
+CREATE OR REPLACE FUNCTION is_operator_admin(user_id UUID, op_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM operator_members
+    WHERE profile_id = user_id
+    AND operator_id = op_id
+    AND role IN ('owner', 'manager')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Helper function to check if user is operator member
 CREATE OR REPLACE FUNCTION is_operator_member(user_id UUID, op_id UUID, min_role TEXT DEFAULT 'staff')
 RETURNS BOOLEAN AS $$
