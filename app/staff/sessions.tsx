@@ -21,6 +21,13 @@ export default function SessionsScreen() {
   const [driverRating, setDriverRating] = useState(5);
   const [driverComment, setDriverComment] = useState('On time, clear plate');
   const [driverNotice, setDriverNotice] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<Record<string, any>>({});
+  const [overrideReason, setOverrideReason] = useState('Arrived early');
+  const [overrideStart, setOverrideStart] = useState('');
+  const [overrideEnd, setOverrideEnd] = useState('');
+  const [amountDue, setAmountDue] = useState('');
+  const [overrideNotice, setOverrideNotice] = useState<string | null>(null);
+  const [adjustId, setAdjustId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSessions();
@@ -34,6 +41,7 @@ export default function SessionsScreen() {
   const loadSessions = async () => {
     try {
       setError(null);
+      await supabase.rpc('refresh_overdue');
       const { data, error: fetchError } = await supabase
         .from('parking_sessions')
         .select(
@@ -53,6 +61,16 @@ export default function SessionsScreen() {
 
       if (fetchError) throw fetchError;
       setSessions(data || []);
+      const next: Record<string, any> = {};
+      await Promise.all(
+        (data || []).map(async (s: any) => {
+          const { data: preview } = await supabase.rpc('session_balance_preview', {
+            p_session_id: s.id,
+          });
+          if (preview?.success) next[s.id] = preview;
+        })
+      );
+      setPreviews(next);
       const driverIds = [...new Set((data || []).map((s: any) => s.driver_id).filter(Boolean))];
       if (driverIds.length) {
         const { data: reviews } = await supabase
@@ -74,19 +92,7 @@ export default function SessionsScreen() {
     }
   };
 
-  const folioBalance = (item: any) => {
-    const folio = Array.isArray(item.folios) ? item.folios[0] : item.folios;
-    if (!folio) return 0;
-    const charges = (folio.folio_charges || []).reduce(
-      (sum: number, c: any) => sum + Number(c.amount || 0),
-      0
-    );
-    const paid = (folio.payments || []).reduce(
-      (sum: number, p: any) => sum + Number(p.amount || 0),
-      0
-    );
-    return charges - paid;
-  };
+  const livePreview = (item: any) => previews[item.id] || null;
 
   const applyPreset = async (sessionId: string, preset: any) => {
     setApplyNotice(null);
@@ -142,9 +148,21 @@ export default function SessionsScreen() {
   };
 
   const renderSession = ({ item }: { item: any }) => {
-    const balance = folioBalance(item);
+    const preview = livePreview(item);
+    const balance = Number(preview?.live_balance ?? 0);
+    const parkingSoFar = Number(preview?.parking_so_far ?? 0);
+    const extraFees = Number(preview?.extra_fees ?? 0);
     const isOverdue = item.status === 'overdue';
     const open = selectedId === item.id;
+    const overdueMin = Number(
+      item.overdue_minutes ||
+        (item.scheduled_end_at
+          ? Math.max(
+              0,
+              Math.floor((Date.now() - new Date(item.scheduled_end_at).getTime()) / 60000)
+            )
+          : 0)
+    );
 
     return (
       <View
@@ -157,7 +175,7 @@ export default function SessionsScreen() {
             <Text style={styles.sessionType}>{item.vehicle_type || 'car'}</Text>
           </View>
           {isOverdue && (
-            <View style={styles.overdueBadge}>
+            <View style={styles.overdueBadge} testID={`overdue-badge-${item.plate}`}>
               <Text style={styles.overdueBadgeText}>OVERDUE</Text>
             </View>
           )}
@@ -168,8 +186,125 @@ export default function SessionsScreen() {
             Started: {formatRelativeTime(new Date(item.started_at))}
           </Text>
           <Text style={styles.sessionLocation}>{item.locations?.name}</Text>
-          <Text style={styles.sessionBalance}>Balance: {formatPeso(balance)}</Text>
+          <Text style={styles.sessionTime} testID={`parking-so-far-${item.plate}`}>
+            Parking so far: {formatPeso(parkingSoFar)}
+          </Text>
+          {extraFees ? (
+            <Text style={styles.sessionTime} testID={`extra-fees-${item.plate}`}>
+              Extra fees: {formatPeso(extraFees)}
+            </Text>
+          ) : null}
+          <Text style={styles.sessionBalance} testID={`session-balance-${item.plate}`}>
+            Balance: {formatPeso(balance)}
+          </Text>
+          {isOverdue ? (
+            <Text style={styles.overdueTime} testID={`overdue-time-${item.plate}`}>
+              Overdue {Math.floor(overdueMin / 60)}h {overdueMin % 60}m, not billed unless end time
+              or amount is edited
+            </Text>
+          ) : null}
         </View>
+
+        <Button
+          title={adjustId === item.id ? 'Hide adjustments' : 'Adjust times / amount'}
+          size="small"
+          variant="outline"
+          testID={`session-adjust-toggle-${item.plate}`}
+          onPress={() => setAdjustId(adjustId === item.id ? null : item.id)}
+          style={{ marginBottom: theme.spacing.sm }}
+        />
+
+        {adjustId === item.id ? (
+          <View style={styles.adjustBox} testID={`session-adjust-${item.plate}`}>
+            <Text style={styles.label}>Adjust times / amount (reason required)</Text>
+            <TextInput
+              style={styles.input}
+              value={overrideReason}
+              onChangeText={setOverrideReason}
+              placeholder="Reason"
+              testID={`override-reason-${item.plate}`}
+            />
+            <Text style={styles.label}>Start time</Text>
+            <TextInput
+              style={styles.input}
+              value={overrideStart || item.started_at}
+              onChangeText={setOverrideStart}
+              testID={`override-start-${item.plate}`}
+            />
+            <Button
+              title="Save start time"
+              size="small"
+              testID={`override-start-save-${item.plate}`}
+              onPress={async () => {
+                setOverrideNotice(null);
+                const { data, error: rpcError } = await supabase.rpc('override_session_start', {
+                  p_session_id: item.id,
+                  p_started_at: overrideStart || item.started_at,
+                  p_reason: overrideReason.trim(),
+                });
+                if (rpcError || data?.error) {
+                  setOverrideNotice(rpcError?.message || String(data?.error));
+                  return;
+                }
+                setOverrideNotice('Start time saved');
+                await loadSessions();
+              }}
+            />
+            <Text style={styles.label}>Billed end time</Text>
+            <TextInput
+              style={styles.input}
+              value={overrideEnd || item.scheduled_end_at || ''}
+              onChangeText={setOverrideEnd}
+              testID={`override-end-${item.plate}`}
+            />
+            <Button
+              title="Save billed end"
+              size="small"
+              testID={`override-end-save-${item.plate}`}
+              onPress={async () => {
+                setOverrideNotice(null);
+                const { data, error: rpcError } = await supabase.rpc('override_session_end', {
+                  p_session_id: item.id,
+                  p_ended_at: overrideEnd || item.scheduled_end_at,
+                  p_reason: overrideReason.trim(),
+                });
+                if (rpcError || data?.error) {
+                  setOverrideNotice(rpcError?.message || String(data?.error));
+                  return;
+                }
+                setOverrideNotice('Billed end saved');
+                await loadSessions();
+              }}
+            />
+            <Text style={styles.label}>Amount due (₱)</Text>
+            <TextInput
+              style={styles.input}
+              value={amountDue}
+              onChangeText={setAmountDue}
+              keyboardType="numeric"
+              testID={`amount-due-${item.plate}`}
+            />
+            <Button
+              title="Save amount due"
+              size="small"
+              testID={`amount-due-save-${item.plate}`}
+              onPress={async () => {
+                setOverrideNotice(null);
+                const { data, error: rpcError } = await supabase.rpc('edit_amount_due', {
+                  p_session_id: item.id,
+                  p_amount: Number(amountDue),
+                  p_reason: overrideReason.trim(),
+                });
+                if (rpcError || data?.error) {
+                  setOverrideNotice(rpcError?.message || String(data?.error));
+                  return;
+                }
+                setOverrideNotice(`Amount due ${formatPeso(data.amount_due)}`);
+                await loadSessions();
+              }}
+            />
+          </View>
+        ) : null}
 
         {item.driver_id ? (
           <View style={styles.driverReviewBox} testID={`driver-review-${item.plate}`}>
@@ -243,6 +378,9 @@ export default function SessionsScreen() {
 
         {open && (
           <View style={styles.closeForm} testID="session-close-form">
+            <Text style={styles.label}>Parking so far {formatPeso(parkingSoFar)}</Text>
+            <Text style={styles.label}>Extra fees {formatPeso(extraFees)}</Text>
+            <Text style={styles.sessionBalance}>Balance due {formatPeso(balance)}</Text>
             <Text style={styles.label}>Cash collected (₱)</Text>
             <TextInput
               style={styles.input}
@@ -331,6 +469,11 @@ export default function SessionsScreen() {
       {driverNotice ? (
         <Text style={styles.successBanner} testID="driver-review-saved">
           {driverNotice}
+        </Text>
+      ) : null}
+      {overrideNotice ? (
+        <Text style={styles.successBanner} testID="override-saved">
+          {overrideNotice}
         </Text>
       ) : null}
 
@@ -468,5 +611,17 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+  },
+  overdueTime: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.danger,
+    marginTop: theme.spacing.xs,
+  },
+  adjustBox: {
+    marginBottom: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    gap: theme.spacing.sm,
   },
 });
