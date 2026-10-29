@@ -9,7 +9,9 @@ export interface LocationPin {
   id: string;
   coordinate: Coordinate;
   availableCount: number;
+  pinLabel?: string;
   isStale: boolean;
+  isFull?: boolean;
   title: string;
 }
 

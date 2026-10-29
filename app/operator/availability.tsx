@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
+import { formatLocalDateTime } from '../../src/utils/formatters';
 
 export default function AvailabilityScreen() {
   const [location, setLocation] = useState<any>(null);
@@ -73,6 +74,38 @@ export default function AvailabilityScreen() {
     }
   };
 
+  const setMode = async (mode: 'count' | 'open_full') => {
+    if (!location) return;
+    setNotice(null);
+    const { data, error: rpcError } = await supabase.rpc('set_tracking_mode', {
+      p_location_id: location.id,
+      p_mode: mode,
+    });
+    if (rpcError || data?.error) {
+      setNotice(rpcError?.message || String(data?.error));
+      return;
+    }
+    await loadLocationData();
+  };
+
+  const setOpen = async (open: boolean) => {
+    if (!location) return;
+    setNotice(null);
+    const { data, error: rpcError } = await supabase.rpc('set_open_status', {
+      p_location_id: location.id,
+      p_open: open,
+    });
+    if (rpcError || data?.error) {
+      setNotice(rpcError?.message || String(data?.error));
+      return;
+    }
+    setLocation({
+      ...location,
+      tracking_mode: 'open_full',
+      open_status: data.open_status,
+    });
+  };
+
   const setManual = async (reserved: number, unavailable: number) => {
     if (!location) return;
     setNotice(null);
@@ -131,92 +164,154 @@ export default function AvailabilityScreen() {
         <Text style={styles.subtitle}>{location.name}</Text>
       </View>
 
+      <View style={styles.modeRow}>
+        <TouchableOpacity
+          style={[styles.modeChip, location.tracking_mode !== 'open_full' && styles.modeChipOn]}
+          onPress={() => setMode('count')}
+          testID="mode-count"
+        >
+          <Text
+            style={[
+              styles.modeChipText,
+              location.tracking_mode !== 'open_full' && styles.modeChipTextOn,
+            ]}
+          >
+            Count
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeChip, location.tracking_mode === 'open_full' && styles.modeChipOn]}
+          onPress={() => setMode('open_full')}
+          testID="mode-open-full"
+        >
+          <Text
+            style={[
+              styles.modeChipText,
+              location.tracking_mode === 'open_full' && styles.modeChipTextOn,
+            ]}
+          >
+            Open/Full
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.countDisplay}>
-        <Text style={styles.countLabel}>Available Spaces</Text>
-        <Text style={styles.countNumber}>
-          {location.available_count} / {location.capacity}
+        <Text style={styles.countLabel}>
+          {location.tracking_mode === 'open_full' ? 'Lot status' : 'Available Spaces'}
+        </Text>
+        <Text style={styles.countNumber} testID="availability-status">
+          {location.tracking_mode === 'open_full'
+            ? location.open_status
+              ? 'Open'
+              : 'Full'
+            : `${location.available_count} / ${location.capacity}`}
         </Text>
         <Text style={styles.countUpdated}>
-          Updated {new Date(location.availability_updated_at).toLocaleTimeString()}
+          Updated {formatLocalDateTime(location.availability_updated_at)}
         </Text>
       </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={[styles.adjustButton, styles.decrementButton]}
-          onPress={() => adjustAvailability(-1)}
-          disabled={loading || location.available_count === 0}
-        >
-          <Text style={styles.adjustButtonText}>-1</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.adjustButton, styles.incrementButton]}
-          onPress={() => adjustAvailability(1)}
-          disabled={loading || location.available_count >= location.capacity}
-        >
-          <Text style={styles.adjustButtonText}>+1</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Manual Adjustments</Text>
-
-        <View style={styles.manualRow}>
-          <View style={styles.manualItem}>
-            <Text style={styles.manualLabel}>Reserved</Text>
-            <View style={styles.stepper}>
-              <TouchableOpacity
-                style={styles.stepperButton}
-                onPress={() => setManual(reserved - 1, unavailable)}
-                disabled={reserved <= 0}
-                testID="reserved-minus"
-              >
-                <Text>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.stepperValue} testID="reserved-value">
-                {reserved}
-              </Text>
-              <TouchableOpacity
-                style={styles.stepperButton}
-                onPress={() => setManual(reserved + 1, unavailable)}
-                testID="reserved-plus"
-              >
-                <Text>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.manualItem}>
-            <Text style={styles.manualLabel}>Unavailable</Text>
-            <View style={styles.stepper}>
-              <TouchableOpacity
-                style={styles.stepperButton}
-                onPress={() => setManual(reserved, unavailable - 1)}
-                disabled={unavailable <= 0}
-                testID="unavailable-minus"
-              >
-                <Text>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.stepperValue} testID="unavailable-value">
-                {unavailable}
-              </Text>
-              <TouchableOpacity
-                style={styles.stepperButton}
-                onPress={() => setManual(reserved, unavailable + 1)}
-                testID="unavailable-plus"
-              >
-                <Text>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      {location.tracking_mode === 'open_full' ? (
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[styles.adjustButton, styles.incrementButton]}
+            onPress={() => setOpen(true)}
+            testID="toggle-open"
+          >
+            <Text style={styles.adjustButtonText}>Open</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.adjustButton, styles.decrementButton]}
+            onPress={() => setOpen(false)}
+            testID="toggle-full"
+          >
+            <Text style={styles.adjustButtonText}>Full</Text>
+          </TouchableOpacity>
         </View>
-        {notice ? (
-          <Text style={styles.errorText} testID="manual-notice">
-            {notice}
-          </Text>
-        ) : null}
-      </View>
+      ) : (
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[styles.adjustButton, styles.decrementButton]}
+            onPress={() => adjustAvailability(-1)}
+            disabled={loading || location.available_count === 0}
+          >
+            <Text style={styles.adjustButtonText}>-1</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.adjustButton, styles.incrementButton]}
+            onPress={() => adjustAvailability(1)}
+            disabled={loading || location.available_count >= location.capacity}
+          >
+            <Text style={styles.adjustButtonText}>+1</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {location.tracking_mode !== 'open_full' ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Manual Adjustments</Text>
+
+          <View style={styles.manualRow}>
+            <View style={styles.manualItem}>
+              <Text style={styles.manualLabel}>Reserved</Text>
+              <View style={styles.stepper}>
+                <TouchableOpacity
+                  style={styles.stepperButton}
+                  onPress={() => setManual(reserved - 1, unavailable)}
+                  disabled={reserved <= 0}
+                  testID="reserved-minus"
+                >
+                  <Text>-</Text>
+                </TouchableOpacity>
+                <Text style={styles.stepperValue} testID="reserved-value">
+                  {reserved}
+                </Text>
+                <TouchableOpacity
+                  style={styles.stepperButton}
+                  onPress={() => setManual(reserved + 1, unavailable)}
+                  testID="reserved-plus"
+                >
+                  <Text>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.manualItem}>
+              <Text style={styles.manualLabel}>Unavailable</Text>
+              <View style={styles.stepper}>
+                <TouchableOpacity
+                  style={styles.stepperButton}
+                  onPress={() => setManual(reserved, unavailable - 1)}
+                  disabled={unavailable <= 0}
+                  testID="unavailable-minus"
+                >
+                  <Text>-</Text>
+                </TouchableOpacity>
+                <Text style={styles.stepperValue} testID="unavailable-value">
+                  {unavailable}
+                </Text>
+                <TouchableOpacity
+                  style={styles.stepperButton}
+                  onPress={() => setManual(reserved, unavailable + 1)}
+                  testID="unavailable-plus"
+                >
+                  <Text>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          {notice ? (
+            <Text style={styles.errorText} testID="manual-notice">
+              {notice}
+            </Text>
+          ) : null}
+        </View>
+      ) : notice ? (
+        <Text style={styles.errorText} testID="manual-notice">
+          {notice}
+        </Text>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -229,9 +324,7 @@ export default function AvailabilityScreen() {
                   : 'Check-out'}
                 : {activity.plate}
               </Text>
-              <Text style={styles.activityTime}>
-                {new Date(activity.created_at).toLocaleTimeString()}
-              </Text>
+              <Text style={styles.activityTime}>{formatLocalDateTime(activity.created_at)}</Text>
             </View>
           ))
         ) : (
@@ -260,6 +353,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     opacity: 0.9,
     marginTop: theme.spacing.xs,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+  },
+  modeChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modeChipOn: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  modeChipText: {
+    ...theme.typography.bodySmall,
+    fontWeight: '600',
+  },
+  modeChipTextOn: {
+    color: '#fff',
   },
   countDisplay: {
     alignItems: 'center',
