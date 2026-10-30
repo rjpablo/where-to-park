@@ -6,6 +6,12 @@ import { firstParam } from '../../src/lib/params';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import {
+  latestByThread,
+  previewText,
+  threadHasUnread,
+  type InboxMessage,
+} from '../../src/lib/inbox';
 
 export default function OperatorInboxScreen() {
   const router = useRouter();
@@ -14,6 +20,7 @@ export default function OperatorInboxScreen() {
   );
   const { user, initialize } = useAuthStore();
   const [threads, setThreads] = React.useState<any[]>([]);
+  const [messages, setMessages] = React.useState<InboxMessage[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -27,7 +34,22 @@ export default function OperatorInboxScreen() {
     if (locationId) query = query.eq('location_id', locationId);
     const { data, error: fetchError } = await query;
     if (fetchError) setError(fetchError.message);
-    setThreads(data || []);
+    const rows = data || [];
+    // Messages for the listed threads: the newest one is the preview, and any unread one
+    // (read_at empty) makes the row bold. Opening a thread marks it read (mark_thread_read).
+    const ids = rows.map((t: any) => t.id);
+    if (ids.length) {
+      const { data: msgRows } = await supabase
+        .from('chat_messages')
+        .select('thread_id, sender_id, kind, body, read_at, hidden, created_at')
+        .in('thread_id', ids)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      setMessages((msgRows || []) as InboxMessage[]);
+    } else {
+      setMessages([]);
+    }
+    setThreads(rows);
     setLoading(false);
   }, [locationId]);
 
@@ -37,6 +59,8 @@ export default function OperatorInboxScreen() {
     const timer = setInterval(load, 2000);
     return () => clearInterval(timer);
   }, [initialize, load]);
+
+  const latest = latestByThread(messages);
 
   if (loading) {
     return (
@@ -49,30 +73,45 @@ export default function OperatorInboxScreen() {
   return (
     <ScrollView style={styles.container} testID="inbox-ready">
       {!user ? <Text style={styles.meta}>Sign in to see your messages</Text> : null}
-      {threads.map((t) => (
-        <TouchableOpacity
-          key={t.id}
-          style={styles.card}
-          onPress={() =>
-            router.push({
-              pathname: '/chat/[locationId]',
-              params: { locationId: t.location_id, driverId: t.driver_id },
-            })
-          }
-          accessibilityRole="button"
-          testID={`inbox-thread-${t.driver_id}`}
-        >
-          <Text style={styles.rowTitle}>
-            {t.driver_id === user?.id
-              ? t.locations?.name || 'Parking'
-              : t.public_profiles?.display_name || 'Driver'}
-          </Text>
-          <Text style={styles.meta}>
-            {t.locations?.name} · {formatLocalDateTime(t.last_message_at)} (
-            {formatRelativeTime(t.last_message_at)})
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {threads.map((t) => {
+        const unread = threadHasUnread(t, messages, user?.id);
+        return (
+          <TouchableOpacity
+            key={t.id}
+            style={styles.card}
+            onPress={() =>
+              router.push({
+                pathname: '/chat/[locationId]',
+                params: { locationId: t.location_id, driverId: t.driver_id },
+              })
+            }
+            accessibilityRole="button"
+            accessibilityState={{ selected: unread }}
+            testID={`inbox-thread-${t.driver_id}`}
+          >
+            <Text
+              style={[styles.rowTitle, unread && styles.unread]}
+              numberOfLines={1}
+              testID={`inbox-name-${t.id}`}
+            >
+              {t.driver_id === user?.id
+                ? t.locations?.name || 'Parking'
+                : t.public_profiles?.display_name || 'Driver'}
+            </Text>
+            <Text
+              style={[styles.preview, unread && styles.unread]}
+              numberOfLines={1}
+              testID={`inbox-preview-${t.id}`}
+            >
+              {previewText(latest[t.id], user?.id)}
+            </Text>
+            <Text style={styles.meta}>
+              {t.locations?.name} · {formatLocalDateTime(t.last_message_at)} (
+              {formatRelativeTime(t.last_message_at)})
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
       {threads.length === 0 ? <Text style={styles.meta}>No messages yet</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </ScrollView>
@@ -92,6 +131,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,
   },
-  rowTitle: { ...theme.typography.body, fontWeight: '600' },
+  // Name and preview are bold only while the thread has unread messages.
+  rowTitle: { ...theme.typography.body, fontWeight: '400' },
+  preview: { ...theme.typography.body, fontWeight: '400', color: theme.colors.text.primary },
+  unread: { fontWeight: '700' },
   error: { color: theme.colors.danger, marginTop: theme.spacing.md },
 });

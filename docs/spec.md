@@ -192,6 +192,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 - **In Phase 1**: History shows session system events inline (session started, extended or ended, payment recorded, fee added, balance waived)
 - **Reservation events** (made, approved, declined, fee paid) added when reservations ship in Phase 3
 - Push notification and unread badge for new messages; report a message/image to Admin queue
+- 🟧 **Messages list rows**: Each row shows the other person (driver name for operators, listing name for drivers), a one-line preview of the newest message ('You: …' for my own, '📷 Photo' for images), and the listing · time. The name and preview are **bold only while the thread has unread messages for me** (same rule as the unread badge: not read yet, not a system event or hidden, sent by someone else, and on the operator side sent by the driver); otherwise both are normal weight. Opening the thread marks it read, and the row turns normal on the next refresh (every 2 s)
 - Operators still cannot browse or search drivers; they only see threads that already exist (driver-started from listing, or auto-created when reservation/session links that driver)
 
 **Acceptance**: Only thread members can read messages/images; driver signed in can start thread from any published listing; Operator/staff cannot send first message to driver with no reservation/session; each relevant state change appears in thread once, in order; reported image can be hidden by Admin
