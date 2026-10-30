@@ -571,6 +571,8 @@ export function SearchScreen() {
           setSheetPosition(index >= 1 ? 'expanded' : 'peek');
         }}
         handleComponent={null}
+        // bottom-sheet v5 adds a content-sized snap point by default; ours are measured px.
+        enableDynamicSizing={false}
         enablePanDownToClose={false}
         // Horizontal drags (distance slider, chips) must not move the sheet.
         activeOffsetY={[-8, 8]}
