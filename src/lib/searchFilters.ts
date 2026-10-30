@@ -52,3 +52,15 @@ export function defaultVehicleFilter(
 export function optionLabel<T extends string>(options: DropdownOption<T>[], value: T | null) {
   return options.find((o) => o.value === value)?.label ?? 'All';
 }
+
+export const SORT_OPTIONS = ['distance', 'price', 'availability', 'rating', 'eta'] as const;
+export type SortOption = (typeof SORT_OPTIONS)[number];
+
+/** Chip labels; 'availability' sorts by most available slots first. */
+export const SORT_LABELS: Record<SortOption, string> = {
+  distance: 'distance',
+  price: 'price',
+  availability: 'Most slots',
+  rating: 'rating',
+  eta: 'eta',
+};

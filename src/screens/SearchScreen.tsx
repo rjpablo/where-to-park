@@ -37,7 +37,13 @@ import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
 import { FilterDropdown } from '../components/FilterDropdown';
-import { defaultVehicleFilter, isVehicleType, VEHICLE_FILTER_OPTIONS } from '../lib/searchFilters';
+import {
+  defaultVehicleFilter,
+  isVehicleType,
+  SORT_LABELS,
+  SORT_OPTIONS,
+  VEHICLE_FILTER_OPTIONS,
+} from '../lib/searchFilters';
 import { formatListingRating } from '../lib/rating';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
@@ -552,14 +558,15 @@ export function SearchScreen() {
 
           <View style={styles.sortRow}>
             <Text style={styles.sortLabel}>Sort by:</Text>
-            {['distance', 'price', 'availability', 'rating', 'eta'].map((sort) => (
+            {SORT_OPTIONS.map((sort) => (
               <TouchableOpacity
                 key={sort}
                 style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
-                onPress={() => setSortBy(sort as any)}
+                onPress={() => setSortBy(sort)}
+                testID={`sort-${sort}`}
               >
                 <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
-                  {sort}
+                  {SORT_LABELS[sort]}
                 </Text>
               </TouchableOpacity>
             ))}

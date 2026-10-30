@@ -34,3 +34,10 @@ test('vehicle dropdown default: own default vehicle type, else All', async () =>
   assert.equal(defaultVehicleFilter(true, 'boat'), null);
   assert.equal(defaultVehicleFilter(false, 'van'), null);
 });
+
+test("sort: 'availability' is labelled 'Most slots'; others unchanged", async () => {
+  const { SORT_LABELS, SORT_OPTIONS } = await import('./searchFilters.ts');
+  assert.equal(SORT_LABELS.availability, 'Most slots');
+  assert.deepEqual([...SORT_OPTIONS], ['distance', 'price', 'availability', 'rating', 'eta']);
+  assert.equal(SORT_LABELS.distance, 'distance');
+});
