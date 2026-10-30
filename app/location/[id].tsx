@@ -7,6 +7,7 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
@@ -14,7 +15,20 @@ import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
-import { locationPhotoPublicUrl } from '../../src/lib/storageUpload';
+import {
+  deleteReviewPhoto,
+  locationPhotoPublicUrl,
+  reviewPhotoPublicUrl,
+  uploadReviewPhoto,
+} from '../../src/lib/storageUpload';
+import {
+  photosLeft,
+  REVIEW_PHOTO_MAX,
+  reviewPhotoError,
+  reviewPhotoFilename,
+  sortReviewPhotos,
+} from '../../src/lib/reviewPhotos';
+import { pickProcessedImage, processWebFile } from '../../src/utils/processImage';
 import { theme } from '../../src/lib/theme';
 import { embeddedOne } from '../../src/lib/embed';
 import { useListingViewers } from '../../src/hooks/useListingViewers';
@@ -61,6 +75,11 @@ export default function LocationDetailScreen() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
+  // Photos picked in the review form, uploaded when the review is submitted.
+  const [stagedPhotos, setStagedPhotos] = useState<
+    { key: string; uri: string; base64: string; contentType: string }[]
+  >([]);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const [reportTarget, setReportTarget] = useState<{
     type: 'location' | 'review';
     id: string;
@@ -77,16 +96,77 @@ export default function LocationDetailScreen() {
 
   const submitReview = async () => {
     setReviewNotice(null);
-    const { data, error: rpcError } = await supabase.rpc('submit_location_review', {
-      p_location_id: id,
-      p_rating: rating,
-      p_comment: comment.trim() || null,
-    });
-    if (rpcError || data?.error) {
-      setReviewNotice(rpcError?.message || String(data?.error));
-      return;
+    setReviewBusy(true);
+    try {
+      const { data, error: rpcError } = await supabase.rpc('submit_location_review', {
+        p_location_id: id,
+        p_rating: rating,
+        p_comment: comment.trim() || null,
+      });
+      if (rpcError || data?.error) {
+        setReviewNotice(rpcError?.message || String(data?.error));
+        return;
+      }
+      let photoError: string | null = null;
+      const now = Date.now();
+      const left: typeof stagedPhotos = [];
+      for (let i = 0; i < stagedPhotos.length; i++) {
+        const photo = stagedPhotos[i];
+        const res = await uploadReviewPhoto({
+          reviewId: data.review_id,
+          filename: reviewPhotoFilename(i, now, Math.random().toString(36).slice(2)),
+          base64: photo.base64,
+          contentType: photo.contentType,
+        });
+        if (res.error) {
+          photoError = reviewPhotoError(res.code);
+          left.push(photo);
+        }
+      }
+      setStagedPhotos(left);
+      const saved = data.booked_via_app ? 'Review saved · Booked via app' : 'Review saved';
+      setReviewNotice(photoError ? `${saved} · ${photoError}` : saved);
+      await loadLocation();
+    } finally {
+      setReviewBusy(false);
     }
-    setReviewNotice(data.booked_via_app ? 'Review saved · Booked via app' : 'Review saved');
+  };
+
+  const stagePhoto = (p: { uri: string; base64: string; contentType: string }) =>
+    setStagedPhotos((prev) => [...prev, { ...p, key: `s-${Date.now()}-${prev.length}` }]);
+
+  const addReviewPhoto = async () => {
+    setReviewNotice(null);
+    try {
+      if (Platform.OS === 'web') {
+        const input = document.querySelector(
+          '[data-testid="review-photo-file"]'
+        ) as HTMLInputElement | null;
+        input?.click();
+        return;
+      }
+      const processed = await pickProcessedImage();
+      if (processed) stagePhoto(processed);
+    } catch (err: any) {
+      setReviewNotice(err.message || 'Could not add the photo');
+    }
+  };
+
+  const onReviewFiles = async (files: File[], room: number) => {
+    for (const file of files.slice(0, room)) {
+      try {
+        stagePhoto(await processWebFile(file));
+      } catch (err: any) {
+        setReviewNotice(err.message || 'Could not read the photo. Try another image.');
+      }
+    }
+    if (files.length > room) setReviewNotice(`A review can have up to ${REVIEW_PHOTO_MAX} photos`);
+  };
+
+  const removeSavedPhoto = async (photo: { id: string; storage_path: string }) => {
+    setReviewNotice(null);
+    const res = await deleteReviewPhoto(photo);
+    if (res.error) setReviewNotice(res.error);
     await loadLocation();
   };
 
@@ -125,7 +205,7 @@ export default function LocationDetailScreen() {
           location_photos(*),
           location_policies(*),
           rates(*),
-          reviews(*, public_profiles(display_name)),
+          reviews(*, public_profiles(display_name), review_photos(id, storage_path, sort_order)),
           location_rating_stats(review_count, avg_rating)
         `
         )
@@ -185,6 +265,12 @@ export default function LocationDetailScreen() {
       cancelled = true;
     };
   }, [listingId, originLat, originLng]);
+
+  // A review's photos for its thumbnails and carousel, in upload order.
+  const reviewImages = (review: any): CarouselImage[] =>
+    sortReviewPhotos<any>(review?.review_photos)
+      .map((p: any) => ({ key: `rv-${p.id}`, uri: reviewPhotoPublicUrl(p.storage_path) || '' }))
+      .filter((img) => !!img.uri);
 
   // Listing photos (operator uploads) for the gallery strip and the carousel.
   const galleryImages: CarouselImage[] = (location?.location_photos ?? [])
@@ -418,7 +504,26 @@ export default function LocationDetailScreen() {
                 </Text>
               ) : null}
               <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
-              <Text style={styles.reviewText}>{review.comment}</Text>
+              {(() => {
+                const images = reviewImages(review);
+                if (!images.length) return null;
+                return (
+                  <View style={styles.thumbRow} testID={`review-photos-${review.id}`}>
+                    {images.map((img, i) => (
+                      <TouchableOpacity
+                        key={img.key}
+                        onPress={() => setCarousel({ images, start: i })}
+                        accessibilityRole="imagebutton"
+                        accessibilityLabel={`Review photo ${i + 1} of ${images.length}`}
+                        testID={`review-photo-${review.id}-${i}`}
+                      >
+                        <Image source={{ uri: img.uri }} style={styles.thumb} resizeMode="cover" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                );
+              })()}
+              {review.comment ? <Text style={styles.reviewText}>{review.comment}</Text> : null}
               {user ? (
                 <Button
                   title="Report review"
@@ -456,7 +561,88 @@ export default function LocationDetailScreen() {
                 placeholder="How was parking here?"
                 testID="review-comment"
               />
-              <Button title="Submit review" onPress={submitReview} testID="review-submit" />
+              {(() => {
+                const mine = location.reviews?.find((r: any) => r.author_id === user.id);
+                const saved = sortReviewPhotos<any>(mine?.review_photos);
+                const room = photosLeft(saved.length, stagedPhotos.length);
+                return (
+                  <View style={styles.formPhotos} testID="review-form-photos">
+                    {saved.length + stagedPhotos.length > 0 ? (
+                      <View style={styles.thumbRow}>
+                        {saved.map((p: any) => (
+                          <View key={p.id}>
+                            <Image
+                              source={{ uri: reviewPhotoPublicUrl(p.storage_path) || '' }}
+                              style={styles.thumb}
+                              resizeMode="cover"
+                            />
+                            <TouchableOpacity
+                              style={styles.thumbRemove}
+                              onPress={() => removeSavedPhoto(p)}
+                              accessibilityLabel="Remove photo"
+                              testID={`review-photo-remove-${p.id}`}
+                            >
+                              <Text style={styles.thumbRemoveText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                        {stagedPhotos.map((p) => (
+                          <View key={p.key}>
+                            <Image
+                              source={{ uri: p.uri }}
+                              style={[styles.thumb, styles.thumbStaged]}
+                              resizeMode="cover"
+                            />
+                            <TouchableOpacity
+                              style={styles.thumbRemove}
+                              onPress={() =>
+                                setStagedPhotos((prev) => prev.filter((x) => x.key !== p.key))
+                              }
+                              accessibilityLabel="Remove photo"
+                              testID="review-photo-unstage"
+                            >
+                              <Text style={styles.thumbRemoveText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        data-testid="review-photo-file"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          e.target.value = '';
+                          onReviewFiles(files, room);
+                        }}
+                      />
+                    ) : null}
+                    <Button
+                      title={`Add photos (${saved.length + stagedPhotos.length}/${REVIEW_PHOTO_MAX})`}
+                      size="small"
+                      variant="outline"
+                      onPress={addReviewPhoto}
+                      disabled={room === 0 || reviewBusy}
+                      testID="review-add-photo"
+                    />
+                    {stagedPhotos.length > 0 ? (
+                      <Text style={styles.formPhotosHint}>
+                        Photos are added when you submit the review
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })()}
+              <Button
+                title={reviewBusy ? 'Saving…' : 'Submit review'}
+                onPress={submitReview}
+                disabled={reviewBusy}
+                testID="review-submit"
+              />
               {reviewNotice ? <Text style={styles.reviewNotice}>{reviewNotice}</Text> : null}
             </View>
           ) : (
@@ -596,6 +782,39 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   reviewForm: { marginTop: theme.spacing.md },
+  // Square thumbnails (cover-cropped) above a review's text.
+  thumbRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.xs,
+    marginVertical: theme.spacing.xs,
+  },
+  thumb: {
+    width: 72,
+    height: 72,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.surfaceDark,
+    overflow: 'hidden',
+  },
+  thumbStaged: { opacity: 0.7 },
+  thumbRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbRemoveText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  formPhotos: { marginBottom: theme.spacing.sm, alignItems: 'flex-start' },
+  formPhotosHint: {
+    ...theme.typography.caption,
+    color: theme.colors.text.tertiary,
+    marginTop: theme.spacing.xs,
+  },
   ratingRow: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   input: {
     borderWidth: 1,

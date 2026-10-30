@@ -21,7 +21,7 @@ export function locationPhotoPublicUrl(storagePath: string | null | undefined): 
 }
 
 async function uploadToBucket(
-  bucket: 'chat-images' | 'location-photos',
+  bucket: 'chat-images' | 'location-photos' | 'review-photos',
   path: string,
   base64: string,
   contentType: string
@@ -110,4 +110,62 @@ export async function uploadLocationPhoto(args: {
   });
   if (error || data?.error) return { error: PHOTO_UPLOAD_ERROR };
   return { storagePath: data?.storage_path || path };
+}
+
+/** Public URL of a review photo (bucket review-photos is public). */
+export function reviewPhotoPublicUrl(storagePath: string | null | undefined): string | null {
+  if (!storagePath) return null;
+  if (/^https?:\/\//i.test(storagePath)) return storagePath;
+  const path = storagePath.replace(/^review-photos\//, '').replace(/^\//, '');
+  const base = getSupabaseUrl();
+  if (!base || !path) return null;
+  return `${base}/storage/v1/object/public/review-photos/${path}`;
+}
+
+/**
+ * Attach a photo to my review: upload the bytes under '<review_id>/' (Storage RLS:
+ * only the review's author), then record it with register_review_photo (author check
+ * and the 5-photo default cap).
+ */
+export async function uploadReviewPhoto(args: {
+  reviewId: string;
+  filename: string;
+  base64: string;
+  contentType?: string;
+}): Promise<{ error?: string; code?: string }> {
+  const filename = sanitizeStorageFilename(args.filename);
+  const path = `${args.reviewId}/${filename}`;
+  const uploaded = await uploadToBucket(
+    'review-photos',
+    path,
+    args.base64,
+    args.contentType || 'image/jpeg'
+  );
+  if (uploaded.error) return { error: uploaded.error.message };
+  const { data, error } = await supabase.rpc('register_review_photo', {
+    p_review_id: args.reviewId,
+    p_filename: filename,
+  });
+  if (error || data?.error) {
+    // Not recorded (e.g. over the cap): don't leave the file behind.
+    await supabase.storage.from('review-photos').remove([path]);
+    return { error: error?.message || String(data?.error), code: data?.error };
+  }
+  return {};
+}
+
+/** Remove one of my review's photos (row first, so it leaves the collection, then the file). */
+export async function deleteReviewPhoto(photo: {
+  id: string;
+  storage_path: string;
+}): Promise<{ error?: string }> {
+  const { data, error } = await supabase
+    .from('review_photos')
+    .delete()
+    .eq('id', photo.id)
+    .select('id');
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: 'You can only remove photos from your own review' };
+  await supabase.storage.from('review-photos').remove([photo.storage_path]);
+  return {};
 }
