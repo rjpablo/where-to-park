@@ -37,6 +37,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   ref
 ) {
   const centerCoordinate = useMemo(() => mapCenter(region), [region]);
+  const mapViewRef = useRef<React.ElementRef<typeof MapLibreGL.MapView>>(null);
   const cameraRef = useRef<React.ElementRef<typeof MapLibreGL.Camera>>(null);
   const sourceRef = useRef<React.ElementRef<typeof MapLibreGL.ShapeSource>>(null);
   const sizeRef = useRef({ width: 0, height: 0 });
@@ -156,7 +157,29 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
       }}
     >
       <MapLibreGL.MapView
+        ref={mapViewRef}
         style={styles.map}
+        onDidFinishLoadingMap={async () => {
+          // Report the first viewport so callers know the visible area at start.
+          const view = mapViewRef.current;
+          if (!view || !onViewportChange) return;
+          try {
+            const [[neLng, neLat], [swLng, swLat]] = await view.getVisibleBounds();
+            const [lng, lat] = await view.getCenter();
+            const zoom = await view.getZoom();
+            onViewportChange({
+              center: { latitude: lat, longitude: lng },
+              zoom,
+              bounds: {
+                ne: { latitude: neLat, longitude: neLng },
+                sw: { latitude: swLat, longitude: swLng },
+              },
+              isUserInteraction: false,
+            });
+          } catch (err) {
+            console.warn('Initial viewport unavailable', err);
+          }
+        }}
         mapStyle={MAP_STYLE_URL}
         compassEnabled
         logoEnabled={false}

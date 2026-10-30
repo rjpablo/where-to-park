@@ -100,6 +100,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 - **List rows**: Cover photo, count/status, 'updated X ago' (warning style past threshold), starting rate, distance, ETA, rating, Residential/Unverified/Monthly tags
 - **Sort**: distance (nearest first, default), price (starting rate for selected vehicle), availability (most free first), rating, ETA
 - **Filters**: vehicle type, saved vehicle, Monthly (only listings with active Monthly rate), hide Full
+- 🟩 **Distance filter**: Slider from 0.5 km up to a max that follows the searched area: the distance from the search centre to the farthest corner of the visible map, rounded up to the next step (0.5 km steps below 10 km, then 1 km), never below 0.5 km and capped at 50 km. The max is recomputed every time a search runs, including 'Search this area'. The distance then becomes the driver's chosen value (5 km by default) if it fits under the new max, otherwise the max
 - **Tapping** pin or list row opens listing details
 - **State preservation**: Coming back from details restores camera, results, filters, sort, sheet position and list scroll; details open as stacked screen over mounted search screen; search-state store (e.g. Zustand) keeps state even if screen rebuilds
 

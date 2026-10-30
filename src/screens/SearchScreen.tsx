@@ -15,7 +15,12 @@ import {
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots } from '../lib/availability';
-import { MAX_DISTANCE_KM, MIN_DISTANCE_KM, roundDistanceKm } from '../lib/distance';
+import {
+  DEFAULT_DISTANCE_KM,
+  MAX_DISTANCE_KM,
+  fitDistanceToMax,
+  sliderMaxKm,
+} from '../lib/distance';
 import type { PlaceSuggestion } from '../lib/geocoding';
 import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
@@ -48,6 +53,11 @@ export function SearchScreen() {
   const mapRef = useRef<MapHandle>(null);
   const sheetRef = useRef<BottomSheet>(null);
   const [mapCenter, setMapCenter] = useState<Coordinate>({ latitude: 16.4023, longitude: 120.596 });
+  // Slider max = distance from the search centre to the farthest visible corner.
+  const [distanceMaxKm, setDistanceMaxKm] = useState(MAX_DISTANCE_KM);
+  // The distance the user chose (or the 5 km default); clamped to the max per search.
+  const preferredKmRef = useRef(DEFAULT_DISTANCE_KM);
+  const latestViewport = useRef<MapViewport | null>(null);
   const [placeMarker, setPlaceMarker] = useState<Coordinate | null>(null);
   // After jumping to a searched place, offer "Search this area" there too.
   const offerSearchAfterMove = useRef(false);
@@ -78,7 +88,11 @@ export function SearchScreen() {
   );
 
   const handleViewportChange = useCallback((viewport: MapViewport) => {
+    const first = latestViewport.current == null;
+    latestViewport.current = viewport;
     setMapCenter(viewport.center);
+    // First visible area known: re-run so the slider max matches it.
+    if (first) setSearchNonce((n) => n + 1);
     // Offer "Search this area" only after the user's own pan or zoom (or a place jump).
     if (viewport.isUserInteraction || offerSearchAfterMove.current) {
       offerSearchAfterMove.current = false;
@@ -94,18 +108,9 @@ export function SearchScreen() {
 
   const searchThisArea = () => {
     if (!movedViewport) return;
-    const { center, bounds } = movedViewport;
-    // Cover the whole visible map: centre to the farthest corner.
-    const halfDiagonal = distanceMeters(
-      [center.longitude, center.latitude],
-      [bounds.ne.longitude, bounds.ne.latitude]
-    );
-    // Match the distance filter to the visible area (slider range 0.5–50 km).
-    setFilters({
-      distanceKm: roundDistanceKm(
-        Math.min(MAX_DISTANCE_KM, Math.max(MIN_DISTANCE_KM, halfDiagonal / 1000))
-      ),
-    });
+    const { center } = movedViewport;
+    latestViewport.current = movedViewport;
+    // The search effect recomputes the slider max for this centre and viewport.
     setLocation({ lat: center.latitude, lng: center.longitude });
     setMovedViewport(null);
     setSearchNonce((n) => n + 1);
@@ -184,7 +189,31 @@ export function SearchScreen() {
   }, []);
 
   useEffect(() => {
+    // Each search recomputes the slider max from the visible map, then clamps the
+    // distance: the preferred value (default 5 km) if it fits, otherwise the max.
+    const viewport = latestViewport.current;
+    if (viewport) {
+      const origin: [number, number] = [location.lng, location.lat];
+      const { ne, sw } = viewport.bounds;
+      const farthest = Math.max(
+        ...[
+          [ne.longitude, ne.latitude],
+          [sw.longitude, sw.latitude],
+          [ne.longitude, sw.latitude],
+          [sw.longitude, ne.latitude],
+        ].map((corner) => distanceMeters(origin, corner as [number, number]))
+      );
+      const maxKm = sliderMaxKm(farthest);
+      setDistanceMaxKm(maxKm);
+      const fitted = fitDistanceToMax(preferredKmRef.current, maxKm);
+      if (fitted !== filters.distanceKm) {
+        setFilters({ distanceKm: fitted }); // re-runs this effect with the fitted value
+        return;
+      }
+    }
     search(location.lat, location.lng, Math.round(filters.distanceKm * 1000));
+    // searchNonce forces a re-run (e.g. Search this area on the same centre).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, sortBy, location.lat, location.lng, searchNonce, search]);
 
   useEffect(() => {
@@ -355,7 +384,11 @@ export function SearchScreen() {
 
             <DistanceSlider
               valueKm={filters.distanceKm}
-              onChangeKm={(km) => setFilters({ distanceKm: km })}
+              maxKm={distanceMaxKm}
+              onChangeKm={(km) => {
+                preferredKmRef.current = km;
+                setFilters({ distanceKm: km });
+              }}
               testID="filter-distance"
             />
           </View>

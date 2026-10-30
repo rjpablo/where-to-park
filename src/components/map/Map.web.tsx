@@ -132,7 +132,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
         longitude: e.lngLat.lng,
       });
     });
-    map.current.on('moveend', (e: any) => {
+    const emitViewport = (isUserInteraction: boolean) => {
       const m = map.current;
       if (!m || !onViewportChangeRef.current) return;
       const b = m.getBounds();
@@ -144,10 +144,13 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
           ne: { latitude: b.getNorth(), longitude: b.getEast() },
           sw: { latitude: b.getSouth(), longitude: b.getWest() },
         },
-        // Programmatic flyTo/easeTo calls have no originating DOM event.
-        isUserInteraction: !!e?.originalEvent,
+        isUserInteraction,
       });
-    });
+    };
+    // Report the first viewport too, so callers know the visible area at start.
+    map.current.on('load', () => emitViewport(false));
+    // Programmatic flyTo/easeTo calls have no originating DOM event.
+    map.current.on('moveend', (e: any) => emitViewport(!!e?.originalEvent));
     const fallback = setTimeout(() => setMapLoaded(true), 2500);
 
     map.current.on('idle', () => {

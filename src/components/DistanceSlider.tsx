@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
-  MAX_DISTANCE_KM,
   MIN_DISTANCE_KM,
   formatDistanceKm,
   kmToPosition,
@@ -13,6 +12,8 @@ import { theme } from '../lib/theme';
 
 type Props = {
   valueKm: number;
+  /** Upper end of the slider (follows the searched area). */
+  maxKm: number;
   /** Called once the user lets go (not on every move) so searches are not spammed. */
   onChangeKm: (km: number) => void;
   testID?: string;
@@ -20,8 +21,8 @@ type Props = {
 
 const THUMB = 24;
 
-/** Logarithmic distance slider (0.5–50 km) built on gesture-handler so it works inside the sheet. */
-export function DistanceSlider({ valueKm, onChangeKm, testID }: Props) {
+/** Logarithmic distance slider (0.5 km to the searched area's edge) built on gesture-handler so it works inside the sheet. */
+export function DistanceSlider({ valueKm, maxKm, onChangeKm, testID }: Props) {
   const [width, setWidth] = useState(0);
   const [draftKm, setDraftKm] = useState(valueKm);
   const dragging = useRef(false);
@@ -31,7 +32,7 @@ export function DistanceSlider({ valueKm, onChangeKm, testID }: Props) {
   }, [valueKm]);
 
   const usable = Math.max(1, width - THUMB);
-  const kmAt = (x: number) => positionToKm((x - THUMB / 2) / usable);
+  const kmAt = (x: number) => positionToKm((x - THUMB / 2) / usable, maxKm);
 
   const commit = (km: number) => {
     dragging.current = false;
@@ -60,7 +61,7 @@ export function DistanceSlider({ valueKm, onChangeKm, testID }: Props) {
   const draftKmRef = useRef(draftKm);
   draftKmRef.current = draftKm;
 
-  const left = kmToPosition(draftKm) * usable;
+  const left = kmToPosition(draftKm, maxKm) * usable;
 
   return (
     <View style={styles.wrap} testID={testID}>
@@ -80,7 +81,9 @@ export function DistanceSlider({ valueKm, onChangeKm, testID }: Props) {
           accessibilityValue={{ text: formatDistanceKm(draftKm) }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(e) =>
-            commit(stepDistanceKm(draftKm, e.nativeEvent.actionName === 'increment' ? 1 : -1))
+            commit(
+              stepDistanceKm(draftKm, e.nativeEvent.actionName === 'increment' ? 1 : -1, maxKm)
+            )
           }
         >
           <View style={styles.track} />
@@ -90,7 +93,9 @@ export function DistanceSlider({ valueKm, onChangeKm, testID }: Props) {
       </GestureDetector>
       <View style={styles.scale}>
         <Text style={styles.scaleText}>{formatDistanceKm(MIN_DISTANCE_KM)}</Text>
-        <Text style={styles.scaleText}>{formatDistanceKm(MAX_DISTANCE_KM)}</Text>
+        <Text style={styles.scaleText} testID={testID ? `${testID}-max` : undefined}>
+          {formatDistanceKm(maxKm)}
+        </Text>
       </View>
     </View>
   );

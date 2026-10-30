@@ -2,10 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_DISTANCE_KM,
+  fitDistanceToMax,
   formatDistanceKm,
   kmToPosition,
   positionToKm,
   roundDistanceKm,
+  sliderMaxKm,
   stepDistanceKm,
 } from './distance.ts';
 
@@ -35,4 +37,26 @@ test('formatting', () => {
   assert.equal(formatDistanceKm(0.5), '0.5 km');
   assert.equal(formatDistanceKm(5), '5 km');
   assert.equal(formatDistanceKm(12), '12 km');
+});
+
+test('slider max follows the farthest visible edge, rounded up, min 0.5 km', () => {
+  assert.equal(sliderMaxKm(1230), 1.5);
+  assert.equal(sliderMaxKm(1500), 1.5);
+  assert.equal(sliderMaxKm(120), 0.5);
+  assert.equal(sliderMaxKm(12_300), 13);
+  assert.equal(sliderMaxKm(400_000), 50, 'hard cap');
+});
+
+test('preferred/default distance is kept only when it fits under the max', () => {
+  assert.equal(fitDistanceToMax(5, 13), 5);
+  assert.equal(fitDistanceToMax(5, 1.5), 1.5);
+  assert.equal(fitDistanceToMax(20, 13), 13);
+});
+
+test('slider scale ends at the dynamic max', () => {
+  assert.equal(positionToKm(1, 1.5), 1.5);
+  assert.equal(positionToKm(0, 1.5), 0.5);
+  assert.equal(positionToKm(1, 0.5), 0.5);
+  assert.equal(kmToPosition(1.5, 1.5), 1);
+  assert.ok(roundDistanceKm(14, 13) <= 13);
 });
