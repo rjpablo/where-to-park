@@ -26,7 +26,7 @@ test('summary line wording', () => {
   assert.equal(searchSummary([]), 'No listings found');
   assert.equal(
     searchSummary([{ tracking_mode: 'count', available_count: 1 }]),
-    '1 listing · 1 slot available'
+    '1 listing · 1 spot available'
   );
   assert.equal(
     searchSummary([
@@ -34,6 +34,6 @@ test('summary line wording', () => {
       { tracking_mode: 'count', available_count: 8 },
       { tracking_mode: 'open_full', available_count: 0 },
     ]),
-    '3 listings · 48 slots available'
+    '3 listings · 48 spots available'
   );
 });
