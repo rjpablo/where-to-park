@@ -509,7 +509,9 @@ export function SearchScreen() {
           <View style={styles.sheetHeader}>
             <View style={styles.sheetTitleRow}>
               <View style={styles.sheetTitleBlock}>
-                <Text style={styles.sheetTitle}>Parking Locations</Text>
+                <Text style={styles.sheetTitle} testID="sheet-title">
+                  Search Result
+                </Text>
                 <Text
                   style={styles.sheetSummary}
                   numberOfLines={1}
