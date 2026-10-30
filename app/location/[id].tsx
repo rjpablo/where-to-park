@@ -36,6 +36,11 @@ import { viewersLabel } from '../../src/lib/viewerPresence';
 import { parseGeogPoint } from '../../src/lib/geog';
 import { openNavigation } from '../../src/lib/openNavigation';
 import { ImageCarousel, type CarouselImage } from '../../src/components/ImageCarousel';
+import {
+  collectionImages,
+  FROM_REVIEW_LABEL,
+  type CollectionImage,
+} from '../../src/lib/photoCollection';
 import { useSearchStore } from '../../src/stores/searchStore';
 import { formatDistance, formatDuration } from '../../src/utils/formatters';
 import {
@@ -49,6 +54,9 @@ import {
 import * as ExpoLocation from 'expo-location';
 import { navigateLabel, preferredNavApp } from '../../src/lib/navigation';
 
+const collectionUrl = (source: string, path: string) =>
+  source === 'review' ? reviewPhotoPublicUrl(path) : locationPhotoPublicUrl(path);
+
 export default function LocationDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -58,6 +66,7 @@ export default function LocationDetailScreen() {
   // the listing has loaded (not for 'Listing not found').
   const viewers = useListingViewers(location?.id ?? null);
   const [loading, setLoading] = useState(true);
+  const [collection, setCollection] = useState<CollectionImage[] | null>(null);
   // Open photo viewer: which photos and the one tapped.
   const [carousel, setCarousel] = useState<{ images: CarouselImage[]; start: number } | null>(null);
   // Distance + drive time, from the same origin as the results list (the search
@@ -214,6 +223,14 @@ export default function LocationDetailScreen() {
         .maybeSingle();
 
       if (fetchError) throw fetchError;
+      // Derived photo collection (listing_photo_collection view, migration 0037).
+      const { data: photoRows, error: photoError } = await supabase
+        .from('listing_photo_collection')
+        .select(
+          'id, source, storage_path, review_id, source_rank, cover_rank, sort_order, created_at'
+        )
+        .eq('location_id', id);
+      setCollection(photoError ? null : collectionImages(photoRows, collectionUrl));
       // Deleted (or never existing) listings: show 'Listing not found', not an error.
       setLocation(data || null);
     } catch (err: any) {
@@ -272,13 +289,15 @@ export default function LocationDetailScreen() {
       .map((p: any) => ({ key: `rv-${p.id}`, uri: reviewPhotoPublicUrl(p.storage_path) || '' }))
       .filter((img) => !!img.uri);
 
-  // Listing photos (operator uploads) for the gallery strip and the carousel.
-  const galleryImages: CarouselImage[] = (location?.location_photos ?? [])
-    .map((photo: any) => ({
-      key: `op-${photo.id}`,
-      uri: photo.url || locationPhotoPublicUrl(photo.storage_path) || '',
-    }))
-    .filter((img: CarouselImage) => !!img.uri);
+  // The listing's photo collection (operator photos + review photos) for the gallery
+  // strip and the carousel. Until the collection loads (or if the view is missing),
+  // the operator photos alone.
+  const galleryImages: CollectionImage[] =
+    collection ??
+    collectionImages(
+      (location?.location_photos ?? []).map((p: any) => ({ ...p, source: 'listing' })),
+      collectionUrl
+    );
 
   const listingPoint = parseGeogPoint(location?.geog);
   const distanceLine = distanceEtaLabel(
@@ -347,6 +366,11 @@ export default function LocationDetailScreen() {
               testID={`listing-photo-${i}`}
             >
               <Image source={{ uri: img.uri }} style={styles.photo} />
+              {img.fromReview ? (
+                <Text style={styles.fromReview} testID={`listing-photo-from-review-${i}`}>
+                  {FROM_REVIEW_LABEL}
+                </Text>
+              ) : null}
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -686,6 +710,18 @@ const styles = StyleSheet.create({
     width: 300,
     height: 240,
     marginRight: theme.spacing.sm,
+  },
+  fromReview: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    color: '#fff',
+    fontSize: 11,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   content: {
     padding: theme.spacing.lg,
