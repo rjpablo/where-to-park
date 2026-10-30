@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { availableSlots, totalAvailableSlots } from './availability.ts';
+import { availableSlots, searchSummary, totalAvailableSlots } from './availability.ts';
 
 test('count listings contribute their free slots; open/full contribute 0', () => {
   assert.equal(availableSlots({ tracking_mode: 'count', available_count: 7 }), 7);
@@ -20,4 +20,20 @@ test('totals add up', () => {
     13
   );
   assert.equal(totalAvailableSlots([]), 0);
+});
+
+test('summary line wording', () => {
+  assert.equal(searchSummary([]), 'No listings found');
+  assert.equal(
+    searchSummary([{ tracking_mode: 'count', available_count: 1 }]),
+    '1 listing · 1 slot available'
+  );
+  assert.equal(
+    searchSummary([
+      { tracking_mode: 'count', available_count: 40 },
+      { tracking_mode: 'count', available_count: 8 },
+      { tracking_mode: 'open_full', available_count: 0 },
+    ]),
+    '3 listings · 48 slots available'
+  );
 });

@@ -16,3 +16,13 @@ export function availableSlots(listing: SlotCountable): number {
 export function totalAvailableSlots(listings: SlotCountable[]): number {
   return listings.reduce((sum, l) => sum + availableSlots(l), 0);
 }
+
+/** Results sheet summary, e.g. "12 listings · 48 slots available". */
+export function searchSummary(listings: SlotCountable[]): string {
+  const n = listings.length;
+  if (n === 0) return 'No listings found';
+  const slots = totalAvailableSlots(listings);
+  return `${n} ${n === 1 ? 'listing' : 'listings'} · ${slots} ${
+    slots === 1 ? 'slot' : 'slots'
+  } available`;
+}

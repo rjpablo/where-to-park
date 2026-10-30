@@ -14,7 +14,7 @@ import {
 } from '../components/map/types';
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
 import { DistanceSlider } from '../components/DistanceSlider';
-import { availableSlots } from '../lib/availability';
+import { availableSlots, searchSummary } from '../lib/availability';
 import {
   DEFAULT_DISTANCE_KM,
   MAX_DISTANCE_KM,
@@ -347,7 +347,17 @@ export function SearchScreen() {
 
           <View style={styles.sheetHeader}>
             <View style={styles.sheetTitleRow}>
-              <Text style={styles.sheetTitle}>Parking Locations</Text>
+              <View style={styles.sheetTitleBlock}>
+                <Text style={styles.sheetTitle}>Parking Locations</Text>
+                <Text
+                  style={styles.sheetSummary}
+                  numberOfLines={1}
+                  testID="search-summary"
+                  accessibilityLiveRegion="polite"
+                >
+                  {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(results)}
+                </Text>
+              </View>
               <View style={styles.headerLinks}>
                 {hasWorkspace ? (
                   <TouchableOpacity
@@ -512,6 +522,17 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     ...theme.typography.h3,
+  },
+  sheetTitleBlock: {
+    flex: 1,
+    flexShrink: 1,
+    marginRight: theme.spacing.sm,
+  },
+  sheetSummary: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    fontWeight: '600',
+    marginTop: 2,
   },
   headerLinks: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
   authLink: {
