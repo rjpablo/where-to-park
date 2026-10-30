@@ -2,7 +2,8 @@
   "expo": {
     "name": "Where To Park",
     "slug": "where-to-park",
-    "version": "1.0.2",
+    "owner": "the-bad-company",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -42,7 +43,8 @@
         "POST_NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
-      ]
+      ],
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -55,7 +57,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "where-to-park"
+        "projectId": "811e8d6d-6c98-4307-9cca-f82f0c767a1a"
       }
     }
   }

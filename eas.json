@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 5.9.0"
+    "version": ">= 5.9.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -14,6 +15,11 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://pvxtdvyrqviuhhclbije.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eHRkdnlycXZpdWhoY2xiaWplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxNjcyNjgsImV4cCI6MjEwODc0MzI2OH0.7sTDnXq8Cb0jbYJXGPHHWkea1dOWaAJL-P9ukkXnA_4",
+        "PUPPETEER_SKIP_DOWNLOAD": "1"
       }
     },
     "production": {
