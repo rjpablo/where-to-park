@@ -4,6 +4,7 @@ import {
   DEFAULT_DISTANCE_KM,
   SEARCH_START_ZOOM,
   centerToCornerMeters,
+  distanceAfterSearch,
   fitDistanceToMax,
   formatDistanceKm,
   kmToPosition,
@@ -74,4 +75,16 @@ test('opening zoom makes the 3 km default selectable at launch', () => {
   assert.equal(fitDistanceToMax(DEFAULT_DISTANCE_KM, sliderMaxKm(typical)), 3);
   // "just enough": a quarter zoom closer would no longer reach 3 km on a small phone
   assert.ok(sliderMaxKm(centerToCornerMeters(360, 580, SEARCH_START_ZOOM + 0.25, lat)) < 3);
+});
+
+test('new searches start at the max; filter re-runs keep the chosen value', () => {
+  assert.equal(distanceAfterSearch(true, 3, 4.5), 4.5);
+  assert.equal(distanceAfterSearch(true, 1, 12), 12);
+  assert.equal(distanceAfterSearch(true, 50, 2), 2);
+  // same search, filter/sort changed: the slid-down value stays
+  assert.equal(distanceAfterSearch(false, 1.5, 4.5), 1.5);
+  // ...but never above the max
+  assert.equal(distanceAfterSearch(false, 8, 4.5), 4.5);
+  // stable: re-running with the max as current value keeps it
+  assert.equal(distanceAfterSearch(false, 4.5, 4.5), 4.5);
 });

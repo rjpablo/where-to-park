@@ -64,12 +64,23 @@ export function sliderMaxKm(farthestVisibleMeters: number): number {
   return Math.min(MAX_DISTANCE_KM, Math.max(MIN_DISTANCE_KM, up));
 }
 
-/**
- * Value to use after the max changes: the user's preferred distance (3 km by
- * default) if it fits, otherwise the max.
- */
+/** Clamp a distance under a new max (rounded to a slider step). */
 export function fitDistanceToMax(preferredKm: number, maxKm: number): number {
   return roundDistanceKm(Math.min(preferredKm, maxKm), maxKm);
+}
+
+/**
+ * Slider value after a search computes its max. A NEW search (first load,
+ * 'Search this area', incl. after picking a place) starts at the max so the
+ * whole visible map is covered; re-running the same search because a filter or
+ * sort changed keeps the user's value, clamped under the max.
+ */
+export function distanceAfterSearch(
+  isNewSearch: boolean,
+  currentKm: number,
+  maxKm: number
+): number {
+  return isNewSearch ? fitDistanceToMax(maxKm, maxKm) : fitDistanceToMax(currentKm, maxKm);
 }
 
 function ratio(maxKm: number): number {

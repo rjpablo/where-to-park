@@ -18,10 +18,10 @@ import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots, searchSummary } from '../lib/availability';
 import {
-  DEFAULT_DISTANCE_KM,
   MAX_DISTANCE_KM,
   SEARCH_START_ZOOM,
-  fitDistanceToMax,
+  centerToCornerMeters,
+  distanceAfterSearch,
   sliderMaxKm,
 } from '../lib/distance';
 import type { PlaceSuggestion } from '../lib/geocoding';
@@ -58,8 +58,9 @@ export function SearchScreen() {
   const [mapCenter, setMapCenter] = useState<Coordinate>({ latitude: 16.4023, longitude: 120.596 });
   // Slider max = distance from the search centre to the farthest visible corner.
   const [distanceMaxKm, setDistanceMaxKm] = useState(MAX_DISTANCE_KM);
-  // The distance the user chose (or the 3 km default); clamped to the max per search.
-  const preferredKmRef = useRef(DEFAULT_DISTANCE_KM);
+  // Identifies the current search (centre + 'Search this area' nonce) so the
+  // effect can tell a new search from a filter/sort re-run.
+  const lastSearchKey = useRef<string | null>(null);
   const latestViewport = useRef<MapViewport | null>(null);
   const [placeMarker, setPlaceMarker] = useState<Coordinate | null>(null);
   // After jumping to a searched place, offer "Search this area" there too.
@@ -67,7 +68,7 @@ export function SearchScreen() {
   const authUser = useAuthStore((s) => s.user);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   // Keep cluster zooms clear of the bottom sheet (40% / 85% of the screen).
   const overlayInsets = useMemo(
     () => ({
@@ -207,27 +208,31 @@ export function SearchScreen() {
   }, []);
 
   useEffect(() => {
-    // Each search recomputes the slider max from the visible map, then clamps the
-    // distance: the preferred value (default 3 km) if it fits, otherwise the max.
+    // Each search recomputes the slider max from the visible map. A new search
+    // (first load, 'Search this area') sets the distance to that max; a re-run
+    // for a filter/sort change keeps the user's value, clamped under the max.
+    const searchKey = `${location.lat},${location.lng},${searchNonce}`;
+    const isNewSearch = lastSearchKey.current !== searchKey;
+    lastSearchKey.current = searchKey;
+    const origin: [number, number] = [location.lng, location.lat];
     const viewport = latestViewport.current;
-    if (viewport) {
-      const origin: [number, number] = [location.lng, location.lat];
-      const { ne, sw } = viewport.bounds;
-      const farthest = Math.max(
-        ...[
-          [ne.longitude, ne.latitude],
-          [sw.longitude, sw.latitude],
-          [ne.longitude, sw.latitude],
-          [sw.longitude, ne.latitude],
-        ].map((corner) => distanceMeters(origin, corner as [number, number]))
-      );
-      const maxKm = sliderMaxKm(farthest);
-      setDistanceMaxKm(maxKm);
-      const fitted = fitDistanceToMax(preferredKmRef.current, maxKm);
-      if (fitted !== filters.distanceKm) {
-        setFilters({ distanceKm: fitted }); // re-runs this effect with the fitted value
-        return;
-      }
+    const farthest = viewport
+      ? Math.max(
+          ...[
+            [viewport.bounds.ne.longitude, viewport.bounds.ne.latitude],
+            [viewport.bounds.sw.longitude, viewport.bounds.sw.latitude],
+            [viewport.bounds.ne.longitude, viewport.bounds.sw.latitude],
+            [viewport.bounds.sw.longitude, viewport.bounds.ne.latitude],
+          ].map((corner) => distanceMeters(origin, corner as [number, number]))
+        )
+      : // Before the map reports its first viewport: estimate from the opening zoom.
+        centerToCornerMeters(windowWidth, windowHeight, SEARCH_START_ZOOM, location.lat);
+    const maxKm = sliderMaxKm(farthest);
+    setDistanceMaxKm(maxKm);
+    const next = distanceAfterSearch(isNewSearch, filters.distanceKm, maxKm);
+    if (next !== filters.distanceKm) {
+      setFilters({ distanceKm: next }); // re-runs this effect (same search) with the new value
+      return;
     }
     search(location.lat, location.lng, Math.round(filters.distanceKm * 1000));
     // searchNonce forces a re-run (e.g. Search this area on the same centre).
@@ -413,7 +418,6 @@ export function SearchScreen() {
               valueKm={filters.distanceKm}
               maxKm={distanceMaxKm}
               onChangeKm={(km) => {
-                preferredKmRef.current = km;
                 setFilters({ distanceKm: km });
               }}
               testID="filter-distance"
