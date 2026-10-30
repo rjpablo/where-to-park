@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import { useRouter } from 'expo-router';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
 import { Map } from '../components/map';
-import { LocationPin, MapRegion } from '../components/map/types';
+import { LocationPin, MapRegion, MapViewport } from '../components/map/types';
+import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
 import { useAuthStore } from '../stores/authStore';
@@ -32,7 +33,11 @@ export function SearchScreen() {
     sheetPosition,
     setSheetPosition,
   } = useSearchStore();
-  const [location] = useState({ lat: 16.4023, lng: 120.596 }); // Baguio City center
+  // Search origin: Baguio City centre until the user searches another area.
+  const [location, setLocation] = useState({ lat: 16.4023, lng: 120.596 });
+  const [radiusM, setRadiusM] = useState(5000);
+  const [searchNonce, setSearchNonce] = useState(0);
+  const [movedViewport, setMovedViewport] = useState<MapViewport | null>(null);
   const authUser = useAuthStore((s) => s.user);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
@@ -48,15 +53,35 @@ export function SearchScreen() {
     [windowHeight, sheetPosition]
   );
 
+  // Initial camera only; later moves come from the user, clusters or place search.
   const region: MapRegion = useMemo(
     () => ({
-      latitude: location.lat,
-      longitude: location.lng,
+      latitude: 16.4023,
+      longitude: 120.596,
       latitudeDelta: 0.05,
       longitudeDelta: 0.05,
     }),
-    [location]
+    []
   );
+
+  const handleViewportChange = useCallback((viewport: MapViewport) => {
+    // Offer "Search this area" only after the user's own pan or zoom.
+    if (viewport.isUserInteraction) setMovedViewport(viewport);
+  }, []);
+
+  const searchThisArea = () => {
+    if (!movedViewport) return;
+    const { center, bounds } = movedViewport;
+    // Cover the whole visible map: centre to the farthest corner.
+    const halfDiagonal = distanceMeters(
+      [center.longitude, center.latitude],
+      [bounds.ne.longitude, bounds.ne.latitude]
+    );
+    setRadiusM(Math.round(Math.min(50000, Math.max(500, halfDiagonal))));
+    setLocation({ lat: center.latitude, lng: center.longitude });
+    setMovedViewport(null);
+    setSearchNonce((n) => n + 1);
+  };
 
   // Convert search results to map pins
   const pins: LocationPin[] = useMemo(
@@ -130,8 +155,8 @@ export function SearchScreen() {
   }, []);
 
   useEffect(() => {
-    search(location.lat, location.lng, 5000);
-  }, [filters, sortBy, location.lat, location.lng, search]);
+    search(location.lat, location.lng, radiusM);
+  }, [filters, sortBy, location.lat, location.lng, radiusM, searchNonce, search]);
 
   useEffect(() => {
     if (!results.length) return;
@@ -203,7 +228,21 @@ export function SearchScreen() {
         showsUserLocation={false}
         clusterPins
         overlayInsets={overlayInsets}
+        onViewportChange={handleViewportChange}
       />
+
+      <View style={styles.topOverlay} pointerEvents="box-none">
+        {movedViewport ? (
+          <TouchableOpacity
+            style={styles.searchAreaButton}
+            onPress={searchThisArea}
+            accessibilityRole="button"
+            testID="search-this-area"
+          >
+            <Text style={styles.searchAreaText}>Search this area</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       {/* Bottom Sheet */}
       <View
@@ -313,6 +352,28 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  topOverlay: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    left: theme.spacing.md,
+    right: theme.spacing.md,
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  searchAreaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadows.md,
+  },
+  searchAreaText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.primary,
+    fontWeight: '700',
   },
   sheet: {
     position: 'absolute',

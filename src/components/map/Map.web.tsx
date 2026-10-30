@@ -72,7 +72,10 @@ export const Map: React.FC<MapProps> = ({
   style,
   clusterPins = true,
   overlayInsets = NO_INSETS,
+  onViewportChange,
 }) => {
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
   const insetsRef = useRef(overlayInsets);
   insetsRef.current = overlayInsets;
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -115,6 +118,22 @@ export const Map: React.FC<MapProps> = ({
       onMapPressRef.current?.({
         latitude: e.lngLat.lat,
         longitude: e.lngLat.lng,
+      });
+    });
+    map.current.on('moveend', (e: any) => {
+      const m = map.current;
+      if (!m || !onViewportChangeRef.current) return;
+      const b = m.getBounds();
+      const c = m.getCenter();
+      onViewportChangeRef.current({
+        center: { latitude: c.lat, longitude: c.lng },
+        zoom: m.getZoom(),
+        bounds: {
+          ne: { latitude: b.getNorth(), longitude: b.getEast() },
+          sw: { latitude: b.getSouth(), longitude: b.getWest() },
+        },
+        // Programmatic flyTo/easeTo calls have no originating DOM event.
+        isUserInteraction: !!e?.originalEvent,
       });
     });
     const fallback = setTimeout(() => setMapLoaded(true), 2500);

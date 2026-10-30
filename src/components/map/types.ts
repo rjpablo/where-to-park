@@ -22,12 +22,22 @@ export interface MapRegion {
   longitudeDelta: number;
 }
 
+/** What the map currently shows; reported after every camera move. */
+export interface MapViewport {
+  center: Coordinate;
+  zoom: number;
+  bounds: { ne: Coordinate; sw: Coordinate };
+  /** True when the move came from the user's own pan/zoom gesture. */
+  isUserInteraction: boolean;
+}
+
 export interface MapProps {
   region?: MapRegion;
   pins?: LocationPin[];
   onPinPress?: (locationId: string) => void;
   onMapPress?: (coordinate: Coordinate) => void;
   onRegionChange?: (region: MapRegion) => void;
+  onViewportChange?: (viewport: MapViewport) => void;
   style?: ViewStyle;
   showsUserLocation?: boolean;
   clusterPins?: boolean;

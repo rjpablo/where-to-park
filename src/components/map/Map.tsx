@@ -24,6 +24,7 @@ export const Map: React.FC<MapProps> = ({
   showsUserLocation = true,
   clusterPins = true,
   overlayInsets = NO_INSETS,
+  onViewportChange,
 }) => {
   const centerCoordinate = useMemo(() => mapCenter(region), [region]);
   const cameraRef = useRef<React.ElementRef<typeof MapLibreGL.Camera>>(null);
@@ -121,6 +122,22 @@ export const Map: React.FC<MapProps> = ({
         compassEnabled
         logoEnabled={false}
         attributionEnabled={false}
+        onRegionDidChange={(feature: any) => {
+          if (!onViewportChange) return;
+          const props = feature?.properties || {};
+          const [lng, lat] = feature?.geometry?.coordinates || [];
+          const [ne, sw] = props.visibleBounds || [];
+          if (lng == null || !ne || !sw) return;
+          onViewportChange({
+            center: { latitude: lat, longitude: lng },
+            zoom: props.zoomLevel,
+            bounds: {
+              ne: { latitude: ne[1], longitude: ne[0] },
+              sw: { latitude: sw[1], longitude: sw[0] },
+            },
+            isUserInteraction: !!props.isUserInteraction,
+          });
+        }}
         onPress={(feature) => {
           const geometry = feature.geometry;
           if (!geometry || geometry.type !== 'Point' || !onMapPress) return;
