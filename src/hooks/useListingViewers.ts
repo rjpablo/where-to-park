@@ -8,6 +8,11 @@ import { useAuthStore } from '../stores/authStore';
 import { countViewers, viewerChannelName, viewerPresenceKey } from '../lib/viewerPresence';
 
 const DEVICE_ID_KEY = 'wtp-viewer-device-id';
+// supabase.channel(topic) hands back an existing channel with the same topic, so a
+// re-join right after a leave (sign-in changes the presence key, leaving and coming
+// back to the page) could pick up the channel that is still being removed and never
+// see SUBSCRIBED (the count stuck at 0). Each join waits for that topic's removal.
+const pendingRemoval = new Map<string, Promise<unknown>>();
 let deviceIdPromise: Promise<string> | null = null;
 
 /** A random id kept on this device (all browser tabs share it), for guest presence. */
@@ -52,10 +57,12 @@ export function useListingViewers(locationId: string | null | undefined): number
     }
     let channel: RealtimeChannel | null = null;
     let cancelled = false;
+    const topic = viewerChannelName(locationId);
     (async () => {
       const key = viewerPresenceKey(userId, await getDeviceId());
+      await pendingRemoval.get(topic);
       if (cancelled) return;
-      channel = supabase.channel(viewerChannelName(locationId), {
+      channel = supabase.channel(topic, {
         config: { presence: { key } },
       });
       channel
@@ -74,8 +81,15 @@ export function useListingViewers(locationId: string | null | undefined): number
       cancelled = true;
       setCount(0);
       if (channel) {
-        channel.untrack();
-        supabase.removeChannel(channel);
+        const leaving = channel;
+        const removal = (async () => {
+          await leaving.untrack().catch(() => undefined);
+          await supabase.removeChannel(leaving).catch(() => undefined);
+        })();
+        pendingRemoval.set(topic, removal);
+        removal.finally(() => {
+          if (pendingRemoval.get(topic) === removal) pendingRemoval.delete(topic);
+        });
       }
     };
   }, [locationId, userId, active]);
