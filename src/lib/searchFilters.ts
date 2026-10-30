@@ -35,7 +35,7 @@ export type DropdownOption<T extends string> = { value: T | null; label: string 
 
 /** 'All' (no vehicle filter) plus each vehicle type. */
 export const VEHICLE_FILTER_OPTIONS: DropdownOption<VehicleType>[] = [
-  { value: null, label: 'All' },
+  { value: null, label: 'All vehicles' },
   ...VEHICLE_TYPES.map((v) => ({ value: v, label: VEHICLE_TYPE_LABELS[v] })),
 ];
 
@@ -52,7 +52,7 @@ export function defaultVehicleFilter(
 }
 
 export function optionLabel<T extends string>(options: DropdownOption<T>[], value: T | null) {
-  return options.find((o) => o.value === value)?.label ?? 'All';
+  return options.find((o) => o.value === value)?.label ?? options[0]?.label ?? 'All';
 }
 
 export const SORT_OPTIONS = ['distance', 'price', 'rating', 'eta', 'availability'] as const;

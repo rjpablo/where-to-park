@@ -525,13 +525,15 @@ export function SearchScreen() {
             <View style={styles.filterRow} testID="filter-row">
               <FilterDropdown
                 label="Vehicle"
+                showLabel={false}
                 value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
                 options={VEHICLE_FILTER_OPTIONS}
                 onChange={(vehicleType) => setFilters({ vehicleType })}
                 testID="search-vehicle-filter"
               />
               <FilterDropdown
-                label="Rate"
+                label="Rate type"
+                showLabel={false}
                 value={isRateType(filters.rateType) ? filters.rateType : null}
                 options={RATE_FILTER_OPTIONS}
                 onChange={(rateType) => setFilters({ rateType })}

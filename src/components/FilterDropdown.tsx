@@ -4,8 +4,11 @@ import type { DropdownOption } from '../lib/searchFilters';
 import { theme } from '../lib/theme';
 
 type Props<T extends string> = {
-  /** Shown before the value on the chip, e.g. 'Vehicle'. */
+  /** Menu title and screen-reader name, e.g. 'Vehicle'. */
   label: string;
+  /** Show the label before the value on the chip ('Maps app: Google Maps'). Off for the
+   *  search filters, whose option text says what they are ('All vehicles', 'Car'). */
+  showLabel?: boolean;
   value: T | null;
   options: DropdownOption<T>[];
   onChange: (value: T | null) => void;
@@ -17,6 +20,7 @@ type Props<T extends string> = {
 /** Chip that opens a list of options (filters: 'All' = no filter; also used for settings). */
 export function FilterDropdown<T extends string>({
   label,
+  showLabel = true,
   value,
   options,
   onChange,
@@ -36,7 +40,8 @@ export function FilterDropdown<T extends string>({
         testID={testID}
       >
         <Text style={styles.chipText} numberOfLines={1}>
-          {label}: {current.label} ▾
+          {showLabel ? `${label}: ` : ''}
+          {current.label} ▾
         </Text>
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
