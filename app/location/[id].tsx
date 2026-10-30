@@ -18,6 +18,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
 import { locationPhotoPublicUrl } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
+import { embeddedOne } from '../../src/lib/embed';
 import { parseGeogPoint } from '../../src/lib/geog';
 import {
   googleMapsUrl,
@@ -310,7 +311,7 @@ export default function LocationDetailScreen() {
           {location.reviews?.map((review: any) => (
             <View key={review.id} style={styles.reviewItem} testID={`review-${review.author_id}`}>
               <Text style={styles.reviewAuthor}>
-                {review.public_profiles?.display_name || 'Anonymous'}
+                {embeddedOne<any>(review.public_profiles)?.display_name || 'Anonymous'}
               </Text>
               {review.session_id || review.reservation_id ? (
                 <Text style={styles.bookedLabel} testID="booked-via-app">

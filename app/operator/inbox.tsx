@@ -6,6 +6,7 @@ import { firstParam } from '../../src/lib/params';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import { embeddedOne } from '../../src/lib/embed';
 import {
   latestByThread,
   previewText,
@@ -96,7 +97,7 @@ export default function OperatorInboxScreen() {
             >
               {t.driver_id === user?.id
                 ? t.locations?.name || 'Parking'
-                : t.public_profiles?.display_name || 'Driver'}
+                : embeddedOne<any>(t.public_profiles)?.display_name || 'Driver'}
             </Text>
             <Text
               style={[styles.preview, unread && styles.unread]}
