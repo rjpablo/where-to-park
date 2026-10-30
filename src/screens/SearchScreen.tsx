@@ -521,7 +521,15 @@ export function SearchScreen() {
               </View>
             </View>
 
-            <View style={styles.filterRow}>
+            {/* Vehicle, Rate, Show Full; wraps onto a second line on narrow screens. */}
+            <View style={styles.filterRow} testID="filter-row">
+              <FilterDropdown
+                label="Vehicle"
+                value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
+                options={VEHICLE_FILTER_OPTIONS}
+                onChange={(vehicleType) => setFilters({ vehicleType })}
+                testID="search-vehicle-filter"
+              />
               <FilterDropdown
                 label="Rate"
                 value={isRateType(filters.rateType) ? filters.rateType : null}
@@ -529,7 +537,6 @@ export function SearchScreen() {
                 onChange={(rateType) => setFilters({ rateType })}
                 testID="filter-rate-type"
               />
-
               <TouchableOpacity
                 style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
                 onPress={() => setFilters({ showFull: !filters.showFull })}
@@ -538,13 +545,6 @@ export function SearchScreen() {
               >
                 <Text style={styles.filterChipText}>Show Full</Text>
               </TouchableOpacity>
-              <FilterDropdown
-                label="Vehicle"
-                value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
-                options={VEHICLE_FILTER_OPTIONS}
-                onChange={(vehicleType) => setFilters({ vehicleType })}
-                testID="search-vehicle-filter"
-              />
             </View>
 
             <DistanceSlider
@@ -727,6 +727,8 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: theme.spacing.sm,
   },
   filterChip: {
