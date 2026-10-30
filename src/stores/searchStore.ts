@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase, type SearchResult } from '../lib/supabase';
+import { DEFAULT_DISTANCE_KM } from '../lib/distance';
 
 interface SearchState {
   results: SearchResult[];
@@ -9,6 +10,8 @@ interface SearchState {
     vehicleType: string | null;
     monthlyOnly: boolean;
     hideFull: boolean;
+    /** Only show results within this distance of the search origin. */
+    distanceKm: number;
   };
   sortBy: 'distance' | 'price' | 'availability' | 'rating' | 'eta';
   sheetPosition: 'peek' | 'expanded';
@@ -29,6 +32,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     vehicleType: null,
     monthlyOnly: false,
     hideFull: false,
+    distanceKm: DEFAULT_DISTANCE_KM,
   },
   sortBy: 'distance',
   sheetPosition: 'peek',

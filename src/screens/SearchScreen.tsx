@@ -13,6 +13,8 @@ import {
   MapViewport,
 } from '../components/map/types';
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
+import { DistanceSlider } from '../components/DistanceSlider';
+import { MAX_DISTANCE_KM, MIN_DISTANCE_KM, roundDistanceKm } from '../lib/distance';
 import type { PlaceSuggestion } from '../lib/geocoding';
 import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
@@ -40,7 +42,6 @@ export function SearchScreen() {
   } = useSearchStore();
   // Search origin: Baguio City centre until the user searches another area.
   const [location, setLocation] = useState({ lat: 16.4023, lng: 120.596 });
-  const [radiusM, setRadiusM] = useState(5000);
   const [searchNonce, setSearchNonce] = useState(0);
   const [movedViewport, setMovedViewport] = useState<MapViewport | null>(null);
   const mapRef = useRef<MapHandle>(null);
@@ -98,7 +99,12 @@ export function SearchScreen() {
       [center.longitude, center.latitude],
       [bounds.ne.longitude, bounds.ne.latitude]
     );
-    setRadiusM(Math.round(Math.min(50000, Math.max(500, halfDiagonal))));
+    // Match the distance filter to the visible area (slider range 0.5–50 km).
+    setFilters({
+      distanceKm: roundDistanceKm(
+        Math.min(MAX_DISTANCE_KM, Math.max(MIN_DISTANCE_KM, halfDiagonal / 1000))
+      ),
+    });
     setLocation({ lat: center.latitude, lng: center.longitude });
     setMovedViewport(null);
     setSearchNonce((n) => n + 1);
@@ -176,8 +182,8 @@ export function SearchScreen() {
   }, []);
 
   useEffect(() => {
-    search(location.lat, location.lng, radiusM);
-  }, [filters, sortBy, location.lat, location.lng, radiusM, searchNonce, search]);
+    search(location.lat, location.lng, Math.round(filters.distanceKm * 1000));
+  }, [filters, sortBy, location.lat, location.lng, searchNonce, search]);
 
   useEffect(() => {
     if (!results.length) return;
@@ -280,6 +286,9 @@ export function SearchScreen() {
         onChange={(index) => setSheetPosition(index >= 1 ? 'expanded' : 'peek')}
         handleComponent={null}
         enablePanDownToClose={false}
+        // Horizontal drags (distance slider, chips) must not move the sheet.
+        activeOffsetY={[-8, 8]}
+        failOffsetX={[-8, 8]}
         backgroundStyle={styles.sheetBackground}
         style={styles.sheet}
       >
@@ -341,6 +350,12 @@ export function SearchScreen() {
                 </View>
               ) : null}
             </View>
+
+            <DistanceSlider
+              valueKm={filters.distanceKm}
+              onChangeKm={(km) => setFilters({ distanceKm: km })}
+              testID="filter-distance"
+            />
           </View>
 
           <View style={styles.sortRow}>
