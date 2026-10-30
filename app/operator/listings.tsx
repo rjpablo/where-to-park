@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
+import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
 import { Button } from '../../src/components/Button';
 import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -29,6 +30,8 @@ export default function ListingsDashboardScreen() {
     setError(null);
     try {
       setLocations(await loadManagedLocations(user.id));
+      // The badges on screen show the outcome: verified/rejected now count as seen.
+      supabase.rpc('mark_listing_reviews_seen').then(() => refreshSidebarCounts());
     } catch (err: any) {
       setError(err.message || 'Could not load listings');
     } finally {

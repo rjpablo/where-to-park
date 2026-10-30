@@ -19,6 +19,7 @@ import { processChatImageFile } from '../../src/utils/chatImage';
 import { uploadChatImage } from '../../src/lib/storageUpload';
 import { pickProcessedImage } from '../../src/utils/processImage';
 import { theme } from '../../src/lib/theme';
+import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
 
 type ChatMessage = {
   id: string;
@@ -27,6 +28,7 @@ type ChatMessage = {
   image_path: string | null;
   sender_id: string | null;
   created_at: string;
+  read_at: string | null;
 };
 
 export default function ChatScreen() {
@@ -48,7 +50,7 @@ export default function ChatScreen() {
   const loadMessages = React.useCallback(async (id: string) => {
     const { data, error: fetchError } = await supabase
       .from('chat_messages')
-      .select('id, kind, body, image_path, sender_id, created_at')
+      .select('id, kind, body, image_path, sender_id, created_at, read_at')
       .eq('thread_id', id)
       .eq('hidden', false)
       .order('created_at', { ascending: true });
@@ -58,6 +60,11 @@ export default function ChatScreen() {
     }
     const rows = (data as ChatMessage[]) || [];
     setMessages(rows);
+    // Opening the thread reads it: clear my unread count (and the sidebar badge).
+    const me = useAuthStore.getState().user?.id;
+    if (rows.some((m) => !m.read_at && m.sender_id && m.sender_id !== me && m.kind !== 'system')) {
+      supabase.rpc('mark_thread_read', { p_thread_id: id }).then(() => refreshSidebarCounts());
+    }
     const images = rows.filter((m) => m.kind === 'image' && m.image_path);
     await Promise.all(
       images.map(async (m) => {

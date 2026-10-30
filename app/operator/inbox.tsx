@@ -56,7 +56,11 @@ export default function OperatorInboxScreen() {
       <Text style={styles.meta}>{user ? `Signed in as ${user.display_name}` : 'Sign in'}</Text>
       {threads.map((t) => (
         <View key={t.id} style={styles.card} testID={`inbox-thread-${t.driver_id}`}>
-          <Text style={styles.rowTitle}>{t.public_profiles?.display_name || 'Driver'}</Text>
+          <Text style={styles.rowTitle}>
+            {t.driver_id === user?.id
+              ? t.locations?.name || 'Parking'
+              : t.public_profiles?.display_name || 'Driver'}
+          </Text>
           <Text style={styles.meta}>
             {t.locations?.name} · {formatLocalDateTime(t.last_message_at)} (
             {formatRelativeTime(t.last_message_at)})

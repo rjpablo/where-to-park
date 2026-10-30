@@ -1,21 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../src/components/Button';
 import { useAuthStore } from '../src/stores/authStore';
 import { supabase } from '../src/lib/supabase';
-import { loadMyMemberships, type Membership } from '../src/lib/operatorAccess';
 import { theme } from '../src/lib/theme';
+import { refreshSidebarCounts, useSidebarStore } from '../src/stores/sidebarStore';
 
 type NavApp = 'google_maps' | 'waze' | 'default';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut, initialize } = useAuthStore();
+  const { user, initialize } = useAuthStore();
   const [navApp, setNavApp] = React.useState<NavApp>('default');
   const [navNotice, setNavNotice] = React.useState<string | null>(null);
-  const [memberships, setMemberships] = React.useState<Membership[]>([]);
-  const [listingBusy, setListingBusy] = React.useState(false);
+  const [name, setName] = React.useState(user?.display_name || '');
+  const [nameNotice, setNameNotice] = React.useState<string | null>(null);
+  const [nameBusy, setNameBusy] = React.useState(false);
+  const incomplete = (useSidebarStore((s) => s.counts.profile_incomplete) ?? 0) > 0;
 
   React.useEffect(() => {
     initialize();
@@ -26,37 +28,29 @@ export default function ProfileScreen() {
   }, [user?.preferred_nav_app]);
 
   React.useEffect(() => {
-    if (!user) {
-      setMemberships([]);
+    setName(user?.display_name || '');
+  }, [user?.display_name]);
+
+  React.useEffect(() => {
+    refreshSidebarCounts();
+  }, [user?.id]);
+
+  const saveName = async () => {
+    if (!user) return;
+    const trimmed = name.trim().replace(/\s+/g, ' ');
+    if (!trimmed) {
+      setNameNotice('Enter your name');
       return;
     }
-    loadMyMemberships(user.id)
-      .then(setMemberships)
-      .catch(() => setMemberships([]));
-  }, [user]);
-
-  const hasMembership = memberships.length > 0;
-  const isOperatorAccount = user?.account_type === 'operator' || hasMembership || !!user?.is_admin;
-  const showDriverListCta = !!user && !hasMembership && !user.is_admin;
-
-  const startListing = async () => {
-    if (!user) return;
-    setListingBusy(true);
-    try {
-      if (user.account_type !== 'operator') {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ account_type: 'operator' })
-          .eq('id', user.id);
-        if (error) throw error;
-        await initialize();
-      }
-      router.push('/operator/onboarding');
-    } catch (err: any) {
-      setNavNotice(err.message || 'Could not start listing');
-    } finally {
-      setListingBusy(false);
-    }
+    setNameBusy(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: trimmed.slice(0, 60) })
+      .eq('id', user.id);
+    setNameBusy(false);
+    setNameNotice(error ? error.message : 'Name saved');
+    await initialize();
+    refreshSidebarCounts();
   };
 
   const saveNav = async (app: NavApp) => {
@@ -89,6 +83,36 @@ export default function ProfileScreen() {
       {user.phone ? <Text style={styles.meta}>Phone: {user.phone}</Text> : null}
       {user.is_admin ? <Text style={styles.meta}>Admin</Text> : null}
 
+      <Text style={styles.section}>Your name</Text>
+      {incomplete ? (
+        <Text style={styles.warn} testID="profile-incomplete">
+          Add your name so operators and drivers know who they are talking to.
+        </Text>
+      ) : null}
+      <View style={styles.row}>
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          placeholder="Display name"
+          maxLength={60}
+          autoCapitalize="words"
+          testID="profile-name-input"
+        />
+        <Button
+          title="Save"
+          size="small"
+          onPress={saveName}
+          loading={nameBusy}
+          testID="profile-name-save"
+        />
+      </View>
+      {nameNotice ? (
+        <Text style={styles.notice} testID="profile-name-notice">
+          {nameNotice}
+        </Text>
+      ) : null}
+
       <Text style={styles.section}>Preferred maps app</Text>
       <View style={styles.row}>
         <Button
@@ -118,49 +142,9 @@ export default function ProfileScreen() {
           {navNotice}
         </Text>
       ) : null}
-
-      {isOperatorAccount ? (
-        <Button
-          title="My listings"
-          onPress={() => router.push('/operator/listings')}
-          testID="profile-listings"
-        />
-      ) : null}
-      {showDriverListCta ? (
-        <Button
-          title="List your parking space"
-          onPress={startListing}
-          loading={listingBusy}
-          testID="profile-list-space"
-        />
-      ) : null}
-      <Button
-        title="Notifications"
-        onPress={() => router.push('/notifications')}
-        testID="profile-notifications"
-      />
-      <Button title="Saved vehicles" onPress={() => router.push('/vehicles')} />
-      {isOperatorAccount ? (
-        <Button title="Messages" variant="outline" onPress={() => router.push('/operator/inbox')} />
-      ) : null}
-      {user.is_admin ? (
-        <Button
-          title="Verify listings"
-          onPress={() => router.push('/admin/verify')}
-          testID="profile-verify"
-        />
-      ) : null}
-      {user.is_admin ? (
-        <Button title="Moderation queue" onPress={() => router.push('/admin/reports')} />
-      ) : null}
-      <Button
-        title="Sign out"
-        variant="outline"
-        onPress={async () => {
-          await signOut();
-          router.replace('/search');
-        }}
-      />
+      <Text style={styles.hint}>
+        Messages, notifications, listings, vehicles and sign out are in the menu (☰) on the map.
+      </Text>
     </View>
   );
 }
@@ -177,4 +161,16 @@ const styles = StyleSheet.create({
   section: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },
   row: { flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' },
   notice: { ...theme.typography.bodySmall, color: theme.colors.success },
+  warn: { ...theme.typography.bodySmall, color: theme.colors.danger },
+  hint: { ...theme.typography.caption, color: theme.colors.text.tertiary },
+  input: {
+    ...theme.typography.body,
+    flex: 1,
+    minWidth: 160,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+  },
 });

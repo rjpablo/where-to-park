@@ -6,6 +6,7 @@ import { supabase } from '../src/lib/supabase';
 import { useAuthStore } from '../src/stores/authStore';
 import { formatLocalDateTime, formatRelativeTime } from '../src/utils/formatters';
 import { theme } from '../src/lib/theme';
+import { refreshSidebarCounts } from '../src/stores/sidebarStore';
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -71,6 +72,7 @@ export default function NotificationsScreen() {
                 onPress={async () => {
                   await supabase.rpc('mark_notification_read', { p_id: item.id });
                   await load();
+                  refreshSidebarCounts();
                 }}
               />
             ) : null}

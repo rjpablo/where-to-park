@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
@@ -13,6 +13,8 @@ import {
   MapViewport,
 } from '../components/map/types';
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
+import { Sidebar, SidebarToggle } from '../components/Sidebar';
+import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots, searchSummary } from '../lib/availability';
 import {
@@ -171,6 +173,21 @@ export function SearchScreen() {
       });
   }, [authUser]);
 
+  // Sidebar counts drive the toggle's red badge: refresh on focus, sign-in/out,
+  // and every 60 s while the map is on screen.
+  const refreshSidebar = useSidebarStore((s) => s.refresh);
+  useFocusEffect(
+    useCallback(() => {
+      refreshSidebar();
+      const timer = setInterval(refreshSidebar, 60_000);
+      return () => clearInterval(timer);
+    }, [refreshSidebar])
+  );
+  const authUserId = authUser?.id;
+  useEffect(() => {
+    refreshSidebar();
+  }, [authUserId, refreshSidebar]);
+
   useEffect(() => {
     (async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -303,11 +320,16 @@ export function SearchScreen() {
       />
 
       <View style={styles.topOverlay} pointerEvents="box-none">
-        <PlaceSearchBox
-          near={mapCenter}
-          onSelect={handlePlaceSelect}
-          onClear={() => setPlaceMarker(null)}
-        />
+        <View style={styles.topRow} pointerEvents="box-none">
+          <SidebarToggle />
+          <View style={styles.topSearch}>
+            <PlaceSearchBox
+              near={mapCenter}
+              onSelect={handlePlaceSelect}
+              onClear={() => setPlaceMarker(null)}
+            />
+          </View>
+        </View>
         {movedViewport ? (
           <TouchableOpacity
             style={styles.searchAreaButton}
@@ -359,22 +381,6 @@ export function SearchScreen() {
                 >
                   {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(results)}
                 </Text>
-              </View>
-              <View style={styles.headerLinks}>
-                {hasWorkspace ? (
-                  <TouchableOpacity
-                    onPress={() => router.push('/operator/listings')}
-                    testID="search-listings-link"
-                  >
-                    <Text style={styles.authLink}>My listings</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  onPress={() => router.push(authUser ? '/profile' : '/auth')}
-                  testID="search-auth-link"
-                >
-                  <Text style={styles.authLink}>{authUser ? 'Profile' : 'Sign in'}</Text>
-                </TouchableOpacity>
               </View>
             </View>
 
@@ -451,6 +457,8 @@ export function SearchScreen() {
           />
         </View>
       </BottomSheet>
+
+      <Sidebar hasWorkspace={hasWorkspace} />
     </View>
   );
 }
@@ -463,6 +471,13 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+    width: '100%',
+  },
+  topSearch: { flex: 1, minWidth: 0 },
   topOverlay: {
     position: 'absolute',
     top: theme.spacing.md,
@@ -535,12 +550,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     fontWeight: '600',
     marginTop: 2,
-  },
-  headerLinks: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
-  authLink: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.primary,
-    fontWeight: '600',
   },
   filterRow: {
     flexDirection: 'row',
