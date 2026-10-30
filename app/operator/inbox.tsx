@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -52,7 +51,18 @@ export default function OperatorInboxScreen() {
       <Text style={styles.title}>Messages</Text>
       <Text style={styles.meta}>{user ? `Signed in as ${user.display_name}` : 'Sign in'}</Text>
       {threads.map((t) => (
-        <View key={t.id} style={styles.card} testID={`inbox-thread-${t.driver_id}`}>
+        <TouchableOpacity
+          key={t.id}
+          style={styles.card}
+          onPress={() =>
+            router.push({
+              pathname: '/chat/[locationId]',
+              params: { locationId: t.location_id, driverId: t.driver_id },
+            })
+          }
+          accessibilityRole="button"
+          testID={`inbox-thread-${t.driver_id}`}
+        >
           <Text style={styles.rowTitle}>
             {t.driver_id === user?.id
               ? t.locations?.name || 'Parking'
@@ -62,17 +72,7 @@ export default function OperatorInboxScreen() {
             {t.locations?.name} · {formatLocalDateTime(t.last_message_at)} (
             {formatRelativeTime(t.last_message_at)})
           </Text>
-          <Button
-            title="Open"
-            size="small"
-            onPress={() =>
-              router.push({
-                pathname: '/chat/[locationId]',
-                params: { locationId: t.location_id, driverId: t.driver_id },
-              })
-            }
-          />
-        </View>
+        </TouchableOpacity>
       ))}
       {threads.length === 0 ? <Text style={styles.meta}>No messages yet</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
