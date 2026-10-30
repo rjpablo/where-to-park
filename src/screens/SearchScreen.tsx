@@ -21,7 +21,18 @@ import {
   recenterAction,
   recenterButtonTop,
 } from '../lib/userLocation';
-import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  expandedHeight,
+  peekHeight,
+  sheetContainerHeight,
+  sheetVisibleHeight,
+} from '../lib/sheetLayout';
 import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots, searchSummary } from '../lib/availability';
@@ -50,10 +61,16 @@ import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 
-// Peek and expanded heights of the results sheet.
-const SHEET_PEEK = 0.4;
+// Results sheet: collapsed it fits its top part (title, summary, distance slider);
+// expanded it takes 85% of the screen and shows filters, sort and the list too.
 const SHEET_EXPANDED = 0.85;
-const SHEET_SNAP_POINTS = [`${SHEET_PEEK * 100}%`, `${SHEET_EXPANDED * 100}%`];
+/** Collapsed height until the top part has been measured, and its limits. */
+const SHEET_PEEK_DEFAULT = 170;
+const SHEET_PEEK_MIN = 120;
+const SHEET_PEEK_MAX_FRACTION = 0.5;
+/** Expanded, the sheet's top stays below the place search box (72 px) plus a gap. */
+const SHEET_KEEP_CLEAR_TOP = 88;
+const SHEET_EXPANDED_MIN = 240;
 const RECENTER_SIZE = 46;
 const RECENTER_GAP = 16;
 /** Below the place search box (72 px) plus room for the location message. */
@@ -93,15 +110,35 @@ export function SearchScreen() {
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  // Keep cluster zooms clear of the bottom sheet (40% / 85% of the screen).
+  const insets = useSafeAreaInsets();
+  // Collapsed height = measured top part of the sheet (see onLayout below).
+  const [peekContentHeight, setPeekContentHeight] = useState<number | null>(null);
+  const peekPx = peekContentHeight
+    ? peekHeight(
+        peekContentHeight,
+        insets.bottom,
+        SHEET_PEEK_MIN,
+        SHEET_PEEK_MAX_FRACTION,
+        windowHeight
+      )
+    : SHEET_PEEK_DEFAULT;
+  const [screenH, setScreenH] = useState(windowHeight);
+  const expandedPx = Math.max(
+    peekPx + 1,
+    expandedHeight(screenH, SHEET_EXPANDED, SHEET_KEEP_CLEAR_TOP, SHEET_EXPANDED_MIN)
+  );
+  const snapPoints = useMemo(() => [peekPx, expandedPx], [peekPx, expandedPx]);
+  // Filters, sort chips and the list only render while the sheet is fully open.
+  const [showAll, setShowAll] = useState(sheetPosition === 'expanded');
+  // Keep cluster zooms clear of the bottom sheet (collapsed or expanded height).
   const overlayInsets = useMemo(
     () => ({
       top: 72, // place search box
       right: 0,
       left: 0,
-      bottom: Math.round(windowHeight * (sheetPosition === 'expanded' ? 0.85 : 0.4)),
+      bottom: sheetPosition === 'expanded' ? expandedPx : peekPx,
     }),
-    [windowHeight, sheetPosition]
+    [sheetPosition, peekPx, expandedPx]
   );
 
   // Initial camera only; later moves come from the user, clusters or place search.
@@ -165,9 +202,30 @@ export function SearchScreen() {
   const sheetIndex = useSharedValue(0);
   const sheetTopPx = useSharedValue(0);
   const screenHeight = useSharedValue(windowHeight);
+  const peekShared = useSharedValue(peekPx);
+  const expandedShared = useSharedValue(expandedPx);
+  const containerHeight = useSharedValue(0);
+  useEffect(() => {
+    peekShared.value = peekPx;
+    expandedShared.value = expandedPx;
+  }, [peekPx, expandedPx, peekShared, expandedShared]);
+  // The sheet's container height, re-derived each time it rests on a snap point.
+  useAnimatedReaction(
+    () => [sheetIndex.value, sheetTopPx.value, peekShared.value, expandedShared.value] as const,
+    ([index, position, peek, expanded]) => {
+      containerHeight.value = sheetContainerHeight(
+        index,
+        position,
+        peek,
+        expanded,
+        containerHeight.value
+      );
+    }
+  );
   const recenterStyle = useAnimatedStyle(() => {
-    const fraction = interpolate(sheetIndex.value, [0, 1], [SHEET_PEEK, SHEET_EXPANDED], 'clamp');
-    const sheetHeight = (sheetTopPx.value * fraction) / (1 - fraction);
+    const sheetHeight = containerHeight.value
+      ? sheetVisibleHeight(containerHeight.value, sheetTopPx.value)
+      : peekShared.value;
     const sheetTop = screenHeight.value - sheetHeight;
     const top = recenterButtonTop(sheetTop, RECENTER_SIZE, RECENTER_GAP, RECENTER_MIN_TOP);
     return top === null ? { opacity: 0, top: RECENTER_MIN_TOP } : { opacity: 1, top };
@@ -411,6 +469,7 @@ export function SearchScreen() {
       style={styles.container}
       onLayout={(e) => {
         screenHeight.value = e.nativeEvent.layout.height;
+        setScreenH(e.nativeEvent.layout.height);
       }}
     >
       {/* Map with location pins */}
@@ -483,8 +542,11 @@ export function SearchScreen() {
         animatedIndex={sheetIndex}
         animatedPosition={sheetTopPx}
         index={sheetPosition === 'expanded' ? 1 : 0}
-        snapPoints={SHEET_SNAP_POINTS}
-        onChange={(index) => setSheetPosition(index >= 1 ? 'expanded' : 'peek')}
+        snapPoints={snapPoints}
+        onChange={(index) => {
+          setShowAll(index >= 1);
+          setSheetPosition(index >= 1 ? 'expanded' : 'peek');
+        }}
         handleComponent={null}
         enablePanDownToClose={false}
         // Horizontal drags (distance slider, chips) must not move the sheet.
@@ -497,106 +559,123 @@ export function SearchScreen() {
           style={styles.sheetBody}
           testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
         >
-          <TouchableOpacity
-            testID="sheet-expand-toggle"
-            accessibilityLabel="Toggle search sheet"
-            onPress={() => sheetRef.current?.snapToIndex(sheetPosition === 'expanded' ? 0 : 1)}
-            style={styles.sheetHandleHit}
+          {/* Top part: always shown; its height (with filters hidden) is the collapsed height. */}
+          <View
+            testID="sheet-top"
+            onLayout={(e) => {
+              if (!showAll) setPeekContentHeight(e.nativeEvent.layout.height);
+            }}
           >
-            <View style={styles.sheetHandle} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              testID="sheet-expand-toggle"
+              accessibilityLabel="Toggle search sheet"
+              onPress={() => sheetRef.current?.snapToIndex(sheetPosition === 'expanded' ? 0 : 1)}
+              style={styles.sheetHandleHit}
+            >
+              <View style={styles.sheetHandle} />
+            </TouchableOpacity>
 
-          <View style={styles.sheetHeader}>
-            <View style={styles.sheetTitleRow}>
-              <View style={styles.sheetTitleBlock}>
-                <Text style={styles.sheetTitle} testID="sheet-title">
-                  Search Result
-                </Text>
-                <Text
-                  style={styles.sheetSummary}
-                  numberOfLines={1}
-                  testID="search-summary"
-                  accessibilityLiveRegion="polite"
-                >
-                  {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(results)}
-                </Text>
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetTitleRow}>
+                <View style={styles.sheetTitleBlock}>
+                  <Text style={styles.sheetTitle} testID="sheet-title">
+                    Search Result
+                  </Text>
+                  <Text
+                    style={styles.sheetSummary}
+                    numberOfLines={1}
+                    testID="search-summary"
+                    accessibilityLiveRegion="polite"
+                  >
+                    {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(results)}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            {/* Vehicle, Rate, Show Full; wraps onto a second line on narrow screens. */}
-            <View style={styles.filterRow} testID="filter-row">
-              <FilterDropdown
-                label="Vehicle"
-                showLabel={false}
-                value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
-                options={VEHICLE_FILTER_OPTIONS}
-                onChange={(vehicleType) => setFilters({ vehicleType })}
-                testID="search-vehicle-filter"
-              />
-              <FilterDropdown
-                label="Rate type"
-                showLabel={false}
-                value={isRateType(filters.rateType) ? filters.rateType : null}
-                options={RATE_FILTER_OPTIONS}
-                onChange={(rateType) => setFilters({ rateType })}
-                testID="filter-rate-type"
-              />
-              <TouchableOpacity
-                style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
-                onPress={() => setFilters({ showFull: !filters.showFull })}
-                accessibilityState={{ selected: filters.showFull }}
-                testID="filter-show-full"
-              >
-                <Text style={styles.filterChipText}>Show Full</Text>
-              </TouchableOpacity>
-            </View>
+              {/* Vehicle, Rate, Show Full; wraps onto a second line on narrow screens. Only when expanded. */}
+              {showAll ? (
+                <View style={styles.filterRow} testID="filter-row">
+                  <FilterDropdown
+                    label="Vehicle"
+                    showLabel={false}
+                    value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
+                    options={VEHICLE_FILTER_OPTIONS}
+                    onChange={(vehicleType) => setFilters({ vehicleType })}
+                    testID="search-vehicle-filter"
+                  />
+                  <FilterDropdown
+                    label="Rate type"
+                    showLabel={false}
+                    value={isRateType(filters.rateType) ? filters.rateType : null}
+                    options={RATE_FILTER_OPTIONS}
+                    onChange={(rateType) => setFilters({ rateType })}
+                    testID="filter-rate-type"
+                  />
+                  <TouchableOpacity
+                    style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
+                    onPress={() => setFilters({ showFull: !filters.showFull })}
+                    accessibilityState={{ selected: filters.showFull }}
+                    testID="filter-show-full"
+                  >
+                    <Text style={styles.filterChipText}>Show Full</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
 
-            <DistanceSlider
-              valueKm={filters.distanceKm}
-              maxKm={distanceMaxKm}
-              onChangeKm={(km) => {
-                setFilters({ distanceKm: km });
-              }}
-              testID="filter-distance"
-            />
+              <DistanceSlider
+                valueKm={filters.distanceKm}
+                maxKm={distanceMaxKm}
+                onChangeKm={(km) => {
+                  setFilters({ distanceKm: km });
+                }}
+                testID="filter-distance"
+              />
+            </View>
           </View>
 
-          <View style={styles.sortRow}>
-            <Text style={styles.sortLabel}>Sort by:</Text>
-            {SORT_OPTIONS.map((sort) => (
-              <TouchableOpacity
-                key={sort}
-                style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
-                onPress={() => setSortBy(sort)}
-                testID={`sort-${sort}`}
-              >
-                <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
-                  {SORT_LABELS[sort]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <BottomSheetFlatList
-            data={
-              sortBy === 'eta'
-                ? [...results].sort(
-                    (a, b) => (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
-                  )
-                : results
-            }
-            renderItem={renderListItem}
-            keyExtractor={(item) => item.id}
-            style={styles.list}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>
-                  {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
-                </Text>
+          {showAll ? (
+            <>
+              <View style={styles.sortRow}>
+                <Text style={styles.sortLabel}>Sort by:</Text>
+                {SORT_OPTIONS.map((sort) => (
+                  <TouchableOpacity
+                    key={sort}
+                    style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
+                    onPress={() => setSortBy(sort)}
+                    testID={`sort-${sort}`}
+                  >
+                    <Text
+                      style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}
+                    >
+                      {SORT_LABELS[sort]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            }
-          />
+
+              <BottomSheetFlatList
+                data={
+                  sortBy === 'eta'
+                    ? [...results].sort(
+                        (a, b) =>
+                          (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
+                      )
+                    : results
+                }
+                renderItem={renderListItem}
+                keyExtractor={(item) => item.id}
+                style={styles.list}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>
+                      {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
+                    </Text>
+                  </View>
+                }
+              />
+            </>
+          ) : null}
         </View>
       </BottomSheet>
 
