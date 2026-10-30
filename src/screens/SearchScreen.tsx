@@ -64,6 +64,7 @@ import { formatListingRating } from '../lib/rating';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 // Results sheet: collapsed it fits its top part (title, summary, filters, distance
 // slider); expanded it takes 85% of the screen. The sort chips and the list are always
@@ -119,6 +120,8 @@ export function SearchScreen() {
   const [hasWorkspace, setHasWorkspace] = useState(false);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  // Expanded, the sheet reaches the screen bottom (behind the nav bar): end the list above it.
+  const listBottom = useBottomInset(theme.spacing.lg);
   // Collapsed height = measured top part of the sheet (see onLayout below).
   const [peekContentHeight, setPeekContentHeight] = useState<number | null>(null);
   const peekPx = peekContentHeight
@@ -689,7 +692,7 @@ export function SearchScreen() {
             renderItem={renderListItem}
             keyExtractor={(item) => item.id}
             style={styles.list}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, listBottom]}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>
