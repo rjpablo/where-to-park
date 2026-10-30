@@ -200,6 +200,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 - 🟧 Operators and staff (members of the listing's operator) can reply once the driver has written in the thread, or at any time when that driver has a reservation/session at one of their locations; they can't send the first message to a driver without one (was: replies needed a reservation/session too, so pre-booking questions got 'Permission denied'). Same rule for text and images (`operator_can_message_thread`)
 - Chat replaces showing contact number or Request info button
 - Text and image messages; images go to private Storage bucket, resized and EXIF-stripped, visible only to thread members
+- 🟧 **Chat images stay put**: Each image's signed URL (1 hour) is created once and reused by the thread's 2 s refresh and realtime updates, and renewed only 5 minutes before it expires; images load through expo-image with the storage path as the cache key (memory and disk). Message rows re-render only when the thread actually changes. Before, every refresh made new signed URLs, so on the Android dev build the images kept switching between the photo and an empty blue box. The full-screen view uses the same cached image.
 - **In Phase 1**: History shows session system events inline (session started, extended or ended, payment recorded, fee added, balance waived)
 - **Reservation events** (made, approved, declined, fee paid) added when reservations ship in Phase 3
 - Push notification and unread badge for new messages; report a message/image to Admin queue

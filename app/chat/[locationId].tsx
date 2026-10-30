@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TextInput,
   ScrollView,
-  Image,
   Modal,
   Pressable,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -20,6 +20,11 @@ import { uploadChatImage } from '../../src/lib/storageUpload';
 import { pickProcessedImage } from '../../src/utils/processImage';
 import { theme } from '../../src/lib/theme';
 import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
+import { pathsNeedingUrl, sameMessages, type SignedUrlEntry } from '../../src/lib/signedUrls';
+
+/** Signed chat-image URLs last an hour and are renewed 5 minutes before they expire. */
+const SIGNED_URL_TTL_S = 3600;
+const SIGNED_URL_REFRESH_BEFORE_MS = 5 * 60 * 1000;
 
 type ChatMessage = {
   id: string;
@@ -44,48 +49,88 @@ export default function ChatScreen() {
   const [draft, setDraft] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [imageUrls, setImageUrls] = React.useState<Record<string, string>>({});
-  const [fullImage, setFullImage] = React.useState<string | null>(null);
+  // One URL per image path, kept across the 2 s polls and realtime refetches: a new
+  // signed URL is a new URI string, which made every thumbnail reload (flicker).
+  const [imageUrls, setImageUrls] = React.useState<Record<string, SignedUrlEntry>>({});
+  const imageUrlsRef = React.useRef<Record<string, SignedUrlEntry>>({});
+  const signingRef = React.useRef<Set<string>>(new Set());
+  const [fullImagePath, setFullImagePath] = React.useState<string | null>(null);
+  // Rows are memoised; this minute tick keeps their '5 min ago' text current.
+  const [minuteTick, setMinuteTick] = React.useState(0);
+  React.useEffect(() => {
+    const timer = setInterval(() => setMinuteTick((t) => t + 1), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const loadMessages = React.useCallback(async (id: string) => {
-    const { data, error: fetchError } = await supabase
-      .from('chat_messages')
-      .select('id, kind, body, image_path, sender_id, created_at, read_at')
-      .eq('thread_id', id)
-      .eq('hidden', false)
-      .order('created_at', { ascending: true });
-    if (fetchError) {
-      setError(fetchError.message);
-      return;
-    }
-    const rows = (data as ChatMessage[]) || [];
-    setMessages(rows);
-    // Opening the thread reads it: clear my unread count (and the sidebar badge).
-    const me = useAuthStore.getState().user?.id;
-    if (rows.some((m) => !m.read_at && m.sender_id && m.sender_id !== me && m.kind !== 'system')) {
-      supabase.rpc('mark_thread_read', { p_thread_id: id }).then(() => refreshSidebarCounts());
-    }
-    const images = rows.filter((m) => m.kind === 'image' && m.image_path);
+  const ensureImageUrls = React.useCallback(async (paths: string[]) => {
+    const todo = pathsNeedingUrl(
+      paths,
+      imageUrlsRef.current,
+      signingRef.current,
+      Date.now(),
+      SIGNED_URL_REFRESH_BEFORE_MS
+    );
+    if (!todo.length) return;
+    todo.forEach((path) => signingRef.current.add(path));
+    const found: Record<string, SignedUrlEntry> = {};
     await Promise.all(
-      images.map(async (m) => {
-        const path = m.image_path as string;
-        const { data: signed, error: signError } = await supabase.storage
-          .from('chat-images')
-          .createSignedUrl(path, 3600);
-        if (!signError && signed?.signedUrl) {
-          setImageUrls((prev) => ({ ...prev, [path]: signed.signedUrl }));
-          return;
-        }
-        const { data: blob } = await supabase.rpc('get_chat_image', { p_path: path });
-        if (blob?.base64) {
-          setImageUrls((prev) => ({
-            ...prev,
-            [path]: `data:${blob.content_type || 'image/png'};base64,${blob.base64}`,
-          }));
+      todo.map(async (path) => {
+        try {
+          const { data: signed, error: signError } = await supabase.storage
+            .from('chat-images')
+            .createSignedUrl(path, SIGNED_URL_TTL_S);
+          if (!signError && signed?.signedUrl) {
+            found[path] = {
+              url: signed.signedUrl,
+              expiresAt: Date.now() + SIGNED_URL_TTL_S * 1000,
+            };
+            return;
+          }
+          const { data: blob } = await supabase.rpc('get_chat_image', { p_path: path });
+          if (blob?.base64) {
+            found[path] = {
+              url: `data:${blob.content_type || 'image/png'};base64,${blob.base64}`,
+              expiresAt: Number.POSITIVE_INFINITY,
+            };
+          }
+        } finally {
+          signingRef.current.delete(path);
         }
       })
     );
+    if (!Object.keys(found).length) return;
+    imageUrlsRef.current = { ...imageUrlsRef.current, ...found };
+    setImageUrls(imageUrlsRef.current);
   }, []);
+
+  const loadMessages = React.useCallback(
+    async (id: string) => {
+      const { data, error: fetchError } = await supabase
+        .from('chat_messages')
+        .select('id, kind, body, image_path, sender_id, created_at, read_at')
+        .eq('thread_id', id)
+        .eq('hidden', false)
+        .order('created_at', { ascending: true });
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+      const rows = (data as ChatMessage[]) || [];
+      // Polls usually return the same thread: keep the old array so rows don't re-render.
+      setMessages((prev) => (sameMessages(prev, rows) ? prev : rows));
+      // Opening the thread reads it: clear my unread count (and the sidebar badge).
+      const me = useAuthStore.getState().user?.id;
+      if (
+        rows.some((m) => !m.read_at && m.sender_id && m.sender_id !== me && m.kind !== 'system')
+      ) {
+        supabase.rpc('mark_thread_read', { p_thread_id: id }).then(() => refreshSidebarCounts());
+      }
+      await ensureImageUrls(
+        rows.filter((m) => m.kind === 'image' && m.image_path).map((m) => m.image_path as string)
+      );
+    },
+    [ensureImageUrls]
+  );
 
   const openThread = React.useCallback(async () => {
     if (!locationId) {
@@ -253,39 +298,14 @@ export default function ChatScreen() {
       <Text style={styles.title}>{locationName}</Text>
       <ScrollView style={styles.thread} testID="chat-thread">
         {messages.map((m) => (
-          <View
+          <MessageRow
             key={m.id}
-            style={[
-              styles.bubble,
-              m.kind === 'system' && styles.systemBubble,
-              m.sender_id === user.id && styles.mine,
-            ]}
-            testID={`chat-msg-${m.kind}`}
-          >
-            {m.kind === 'system' ? (
-              <Text style={styles.systemText}>{m.body}</Text>
-            ) : m.kind === 'image' ? (
-              <Pressable
-                onPress={() => m.image_path && setFullImage(imageUrls[m.image_path] || null)}
-              >
-                {imageUrls[m.image_path || ''] ? (
-                  <Image
-                    source={{ uri: imageUrls[m.image_path as string] }}
-                    style={styles.thumb}
-                    testID="chat-photo-thumb"
-                    accessibilityLabel="Chat photo"
-                  />
-                ) : (
-                  <View style={styles.thumb} testID="chat-photo-loading" />
-                )}
-              </Pressable>
-            ) : (
-              <Text style={styles.body}>{m.body}</Text>
-            )}
-            <Text style={styles.meta}>
-              {formatLocalDateTime(m.created_at)} · {formatRelativeTime(m.created_at)}
-            </Text>
-          </View>
+            message={m}
+            mine={m.sender_id === user.id}
+            imageUri={m.image_path ? imageUrls[m.image_path]?.url : undefined}
+            onOpenImage={setFullImagePath}
+            minuteTick={minuteTick}
+          />
         ))}
       </ScrollView>
       <TextInput
@@ -314,24 +334,78 @@ export default function ChatScreen() {
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Modal
-        visible={!!fullImage}
+        visible={!!fullImagePath && !!imageUrls[fullImagePath]}
         transparent
         animationType="fade"
-        onRequestClose={() => setFullImage(null)}
+        onRequestClose={() => setFullImagePath(null)}
       >
         <Pressable
           style={styles.lightbox}
-          onPress={() => setFullImage(null)}
+          onPress={() => setFullImagePath(null)}
           testID="chat-photo-full"
         >
-          {fullImage ? (
-            <Image source={{ uri: fullImage }} style={styles.fullImage} resizeMode="contain" />
+          {fullImagePath && imageUrls[fullImagePath] ? (
+            <Image
+              source={{ uri: imageUrls[fullImagePath].url, cacheKey: fullImagePath }}
+              style={styles.fullImage}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
           ) : null}
         </Pressable>
       </Modal>
     </View>
   );
 }
+
+/** One message bubble. Memoised: polls that bring no change don't re-render it, and an
+ *  image keeps the same URI (and cache key = storage path) for as long as its URL is valid. */
+const MessageRow = React.memo(function MessageRow({
+  message: m,
+  mine,
+  imageUri,
+  onOpenImage,
+}: {
+  /** Changes once a minute so the relative time re-renders. */
+  minuteTick: number;
+  message: ChatMessage;
+  mine: boolean;
+  imageUri?: string;
+  onOpenImage: (path: string) => void;
+}) {
+  return (
+    <View
+      style={[styles.bubble, m.kind === 'system' && styles.systemBubble, mine && styles.mine]}
+      testID={`chat-msg-${m.kind}`}
+    >
+      {m.kind === 'system' ? (
+        <Text style={styles.systemText}>{m.body}</Text>
+      ) : m.kind === 'image' ? (
+        <Pressable onPress={() => m.image_path && onOpenImage(m.image_path)}>
+          {imageUri && m.image_path ? (
+            <Image
+              source={{ uri: imageUri, cacheKey: m.image_path }}
+              recyclingKey={m.image_path}
+              style={styles.thumb}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={0}
+              testID="chat-photo-thumb"
+              accessibilityLabel="Chat photo"
+            />
+          ) : (
+            <View style={styles.thumb} testID="chat-photo-loading" />
+          )}
+        </Pressable>
+      ) : (
+        <Text style={styles.body}>{m.body}</Text>
+      )}
+      <Text style={styles.meta}>
+        {formatLocalDateTime(m.created_at)} · {formatRelativeTime(m.created_at)}
+      </Text>
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
