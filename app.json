@@ -3,7 +3,7 @@
     "name": "Where To Park",
     "slug": "where-to-park",
     "owner": "the-bad-company",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -44,7 +44,7 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ],
-      "versionCode": 6
+      "versionCode": 7
     },
     "web": {
       "favicon": "./assets/favicon.png"
