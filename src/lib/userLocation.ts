@@ -47,3 +47,19 @@ export function permissionFrom(res: {
   if (res.status === 'undetermined') return 'unknown';
   return res.canAskAgain === false ? 'blocked' : 'denied';
 }
+
+/**
+ * Top (px, in the search screen) for the recenter button so it always sits just
+ * above the results sheet and moves with it. Returns null to hide it when the
+ * sheet leaves no room below the place search box. Runs as a Reanimated worklet.
+ */
+export function recenterButtonTop(
+  sheetTop: number,
+  buttonSize: number,
+  gap: number,
+  minTop: number
+): number | null {
+  'worklet';
+  const top = sheetTop - gap - buttonSize;
+  return top < minTop ? null : top;
+}

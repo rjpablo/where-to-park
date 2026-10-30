@@ -15,7 +15,13 @@ import {
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
 import { Sidebar } from '../components/Sidebar';
 import { useUserLocation } from '../hooks/useUserLocation';
-import { locationMessage, RECENTER_ZOOM, recenterAction } from '../lib/userLocation';
+import {
+  locationMessage,
+  RECENTER_ZOOM,
+  recenterAction,
+  recenterButtonTop,
+} from '../lib/userLocation';
+import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots, searchSummary } from '../lib/availability';
@@ -35,7 +41,13 @@ import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 
 // Peek and expanded heights of the results sheet.
-const SHEET_SNAP_POINTS = ['40%', '85%'];
+const SHEET_PEEK = 0.4;
+const SHEET_EXPANDED = 0.85;
+const SHEET_SNAP_POINTS = [`${SHEET_PEEK * 100}%`, `${SHEET_EXPANDED * 100}%`];
+const RECENTER_SIZE = 46;
+const RECENTER_GAP = 16;
+/** Below the place search box (72 px) plus room for the location message. */
+const RECENTER_MIN_TOP = 140;
 
 export function SearchScreen() {
   const router = useRouter();
@@ -133,6 +145,23 @@ export function SearchScreen() {
     }
     setLocationNotice(locationMessage(permission));
   };
+  // The ◎ button rides just above the sheet (and moves while it's dragged); it
+  // hides when the sheet leaves no room below the search box, so it never
+  // covers the results list.
+  // Sheet top in this screen's px. The sheet's own container can be taller than
+  // this screen (on web it is the whole window), but both end at the bottom, so
+  // use the sheet's height: its container height (position / (1 - fraction))
+  // minus its top (position).
+  const sheetIndex = useSharedValue(0);
+  const sheetTopPx = useSharedValue(0);
+  const screenHeight = useSharedValue(windowHeight);
+  const recenterStyle = useAnimatedStyle(() => {
+    const fraction = interpolate(sheetIndex.value, [0, 1], [SHEET_PEEK, SHEET_EXPANDED], 'clamp');
+    const sheetHeight = (sheetTopPx.value * fraction) / (1 - fraction);
+    const sheetTop = screenHeight.value - sheetHeight;
+    const top = recenterButtonTop(sheetTop, RECENTER_SIZE, RECENTER_GAP, RECENTER_MIN_TOP);
+    return top === null ? { opacity: 0, top: RECENTER_MIN_TOP } : { opacity: 1, top };
+  });
   // Center as soon as the first fix arrives after a recenter tap.
   useEffect(() => {
     if (pendingRecenter.current && userLocation) {
@@ -356,7 +385,12 @@ export function SearchScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onLayout={(e) => {
+        screenHeight.value = e.nativeEvent.layout.height;
+      }}
+    >
       {/* Map with location pins */}
       <Map
         ref={mapRef}
@@ -391,33 +425,41 @@ export function SearchScreen() {
         ) : null}
       </View>
 
-      <View style={styles.recenterWrap} pointerEvents="box-none">
-        {locationNotice ? (
-          <View style={styles.locationNotice} testID="location-notice">
-            <Text style={styles.locationNoticeText}>{locationNotice}</Text>
-          </View>
-        ) : null}
-        <TouchableOpacity
-          style={styles.recenterButton}
-          onPress={handleRecenter}
-          accessibilityRole="button"
-          accessibilityLabel="Center the map on my location"
-          testID="recenter-button"
+      <Animated.View style={[styles.recenterWrap, recenterStyle]}>
+        {/* Hidden over the expanded sheet: never intercept taps on the list. */}
+        <View
+          style={styles.recenterInner}
+          pointerEvents={sheetPosition === 'expanded' ? 'none' : 'box-none'}
         >
-          <View
-            style={[
-              styles.recenterIcon,
-              permission === 'granted' && userLocation ? styles.recenterIconActive : null,
-            ]}
+          {locationNotice ? (
+            <View style={styles.locationNotice} testID="location-notice">
+              <Text style={styles.locationNoticeText}>{locationNotice}</Text>
+            </View>
+          ) : null}
+          <TouchableOpacity
+            style={styles.recenterButton}
+            onPress={handleRecenter}
+            accessibilityRole="button"
+            accessibilityLabel="Center the map on my location"
+            testID="recenter-button"
           >
-            <View style={styles.recenterDot} />
-          </View>
-        </TouchableOpacity>
-      </View>
+            <View
+              style={[
+                styles.recenterIcon,
+                permission === 'granted' && userLocation ? styles.recenterIconActive : null,
+              ]}
+            >
+              <View style={styles.recenterDot} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
 
       {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
       <BottomSheet
         ref={sheetRef}
+        animatedIndex={sheetIndex}
+        animatedPosition={sheetTopPx}
         index={sheetPosition === 'expanded' ? 1 : 0}
         snapPoints={SHEET_SNAP_POINTS}
         onChange={(index) => setSheetPosition(index >= 1 ? 'expanded' : 'peek')}
@@ -547,16 +589,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: theme.spacing.md,
     left: theme.spacing.md,
-    bottom: '40%',
-    marginBottom: theme.spacing.md,
-    alignItems: 'flex-end',
-    gap: theme.spacing.sm,
     zIndex: 5,
   },
+  recenterInner: { alignItems: 'flex-end' },
   recenterButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: RECENTER_SIZE,
+    height: RECENTER_SIZE,
+    borderRadius: RECENTER_SIZE / 2,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
@@ -579,7 +618,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   locationNotice: {
-    alignSelf: 'stretch',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: RECENTER_SIZE + theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
