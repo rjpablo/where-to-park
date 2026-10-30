@@ -6,7 +6,7 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
+    "web": "node scripts/copy-maplibre-worker.js && expo start --web",
     "test": "jest",
     "test:unit": "node --experimental-strip-types --test src/lib/*.test.ts src/components/map/*.test.ts src/lib/geocoding/*.test.ts",
     "test:db": "./scripts/test-db.sh",
@@ -18,7 +18,8 @@
     "db:reset": "./scripts/reset-local-db.sh",
     "dev:proxy": "node scripts/local-api-proxy.js",
     "db:migrate": "supabase db push",
-    "functions:serve": "supabase functions serve"
+    "functions:serve": "supabase functions serve",
+    "postinstall": "node scripts/copy-maplibre-worker.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "^58.0.15",

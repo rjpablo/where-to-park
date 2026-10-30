@@ -21,6 +21,12 @@ import {
 
 const PIN_PIXEL_RATIO = 2;
 
+// Metro's Babel pass injects helpers into maplibre-gl's inlined worker source,
+// which then fails inside the worker ("_wrapNativeSuper is not defined") and the
+// map never loads. Use the prebuilt CSP worker served from /public instead
+// (copied by scripts/copy-maplibre-worker.js).
+maplibregl.setWorkerUrl('/maplibre-gl-csp-worker.js');
+
 /** Draws the teardrop pin on a canvas (same geometry as the native PNGs). */
 function pinImageData(name: PinImageName): ImageData | null {
   if (typeof document === 'undefined') return null;
@@ -363,6 +369,12 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
       .setLngLat([focusMarker.longitude, focusMarker.latitude])
       .addTo(map.current);
   }, [focusMarker, mapLoaded]);
+
+  // Keep the zoom/compass buttons below overlays such as the place search box.
+  useEffect(() => {
+    const ctrl = mapContainer.current?.querySelector<HTMLElement>('.maplibregl-ctrl-top-right');
+    if (ctrl) ctrl.style.top = `${overlayInsets.top}px`;
+  }, [overlayInsets.top, mapLoaded]);
 
   // Update region
   useEffect(() => {
