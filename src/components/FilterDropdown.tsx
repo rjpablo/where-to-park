@@ -9,20 +9,23 @@ type Props<T extends string> = {
   value: T | null;
   options: DropdownOption<T>[];
   onChange: (value: T | null) => void;
+  /** Fill the chip when a non-'All' value is picked (filters); off for settings. */
+  highlightActive?: boolean;
   testID?: string;
 };
 
-/** Filter chip that opens a list of options ('All' = no filter). */
+/** Chip that opens a list of options (filters: 'All' = no filter; also used for settings). */
 export function FilterDropdown<T extends string>({
   label,
   value,
   options,
   onChange,
+  highlightActive = true,
   testID,
 }: Props<T>) {
   const [open, setOpen] = React.useState(false);
   const current = options.find((o) => o.value === value) ?? options[0];
-  const active = value !== null;
+  const active = highlightActive && value !== null;
   return (
     <>
       <TouchableOpacity

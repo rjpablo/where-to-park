@@ -5,6 +5,8 @@ import { Button } from '../src/components/Button';
 import { useAuthStore } from '../src/stores/authStore';
 import { supabase } from '../src/lib/supabase';
 import { theme } from '../src/lib/theme';
+import { FilterDropdown } from '../src/components/FilterDropdown';
+import { NAV_APP_OPTIONS } from '../src/lib/navigation';
 import { refreshSidebarCounts, useSidebarStore } from '../src/stores/sidebarStore';
 
 type NavApp = 'google_maps' | 'waze' | 'default';
@@ -113,28 +115,15 @@ export default function ProfileScreen() {
         </Text>
       ) : null}
 
-      <Text style={styles.section}>Preferred maps app</Text>
+      <Text style={styles.section}>Maps app for Navigate</Text>
       <View style={styles.row}>
-        <Button
-          title="Google Maps"
-          size="small"
-          variant={navApp === 'google_maps' ? 'primary' : 'outline'}
-          onPress={() => saveNav('google_maps')}
-          testID="pref-nav-google"
-        />
-        <Button
-          title="Waze"
-          size="small"
-          variant={navApp === 'waze' ? 'primary' : 'outline'}
-          onPress={() => saveNav('waze')}
-          testID="pref-nav-waze"
-        />
-        <Button
-          title="Default"
-          size="small"
-          variant={navApp === 'default' ? 'primary' : 'outline'}
-          onPress={() => saveNav('default')}
-          testID="pref-nav-default"
+        <FilterDropdown
+          label="Maps app"
+          value={navApp}
+          options={NAV_APP_OPTIONS}
+          onChange={(app) => saveNav(app ?? 'default')}
+          highlightActive={false}
+          testID="pref-nav"
         />
       </View>
       {navNotice ? (
@@ -143,7 +132,8 @@ export default function ProfileScreen() {
         </Text>
       ) : null}
       <Text style={styles.hint}>
-        Messages, notifications, listings, vehicles and sign out are in the menu (☰) on the map.
+        Messages, notifications, listings, vehicles and sign out are in the menu (☰) next to 'Find
+        Parking'.
       </Text>
     </View>
   );

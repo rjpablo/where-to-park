@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { geoUri, navigateLabel, navigationUrl, preferredNavApp } from './navigation.ts';
+import {
+  geoUri,
+  NAV_APP_OPTIONS,
+  navigateLabel,
+  navigationUrl,
+  preferredNavApp,
+} from './navigation.ts';
 
 const t = { lat: 16.4166, lng: 120.598, name: 'SM City (Main) Parking' };
 
@@ -31,4 +37,15 @@ test('guests and unset preference use the phone default; labels', () => {
   assert.equal(navigateLabel('default'), 'Navigate');
   assert.equal(navigateLabel('waze'), 'Navigate with Waze');
   assert.equal(navigateLabel('google_maps'), 'Navigate with Google Maps');
+});
+
+test('profile maps-app dropdown options', () => {
+  assert.deepEqual(
+    NAV_APP_OPTIONS.map((o) => [o.value, o.label]),
+    [
+      ['default', 'Phone default'],
+      ['google_maps', 'Google Maps'],
+      ['waze', 'Waze'],
+    ]
+  );
 });

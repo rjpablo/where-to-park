@@ -42,3 +42,10 @@ export function navigateLabel(app: NavApp): string {
   if (app === 'waze') return 'Navigate with Waze';
   return 'Navigate';
 }
+
+/** Profile dropdown for preferred_nav_app. */
+export const NAV_APP_OPTIONS: { value: NavApp; label: string }[] = [
+  { value: 'default', label: 'Phone default' },
+  { value: 'google_maps', label: 'Google Maps' },
+  { value: 'waze', label: 'Waze' },
+];
