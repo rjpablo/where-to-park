@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import { MapProps } from './types';
 import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './style';
+import { cameraForPoints, NO_INSETS, type LngLat } from './camera';
 import { PIN_IMAGE_EXPRESSION, PIN_LABEL_OFFSET, PIN_LABEL_SIZE } from './pins';
 
 const PIN_IMAGES = {
@@ -22,8 +23,58 @@ export const Map: React.FC<MapProps> = ({
   style,
   showsUserLocation = true,
   clusterPins = true,
+  overlayInsets = NO_INSETS,
 }) => {
   const centerCoordinate = useMemo(() => mapCenter(region), [region]);
+  const cameraRef = useRef<React.ElementRef<typeof MapLibreGL.Camera>>(null);
+  const sourceRef = useRef<React.ElementRef<typeof MapLibreGL.ShapeSource>>(null);
+  const sizeRef = useRef({ width: 0, height: 0 });
+  const insetsRef = useRef(overlayInsets);
+  insetsRef.current = overlayInsets;
+  const firstRegion = useRef(true);
+
+  // Re-centre when the caller changes `region` (the camera is otherwise
+  // uncontrolled so user pans and cluster zooms are not snapped back).
+  useEffect(() => {
+    if (firstRegion.current) {
+      firstRegion.current = false;
+      return;
+    }
+    cameraRef.current?.setCamera({
+      centerCoordinate,
+      zoomLevel: DEFAULT_MAP_ZOOM,
+      animationDuration: 1000,
+      animationMode: 'flyTo',
+    });
+  }, [centerCoordinate]);
+
+  const expandCluster = async (feature: GeoJSON.Feature) => {
+    const source = sourceRef.current;
+    if (!source) return;
+    try {
+      const count = Number(feature.properties?.point_count) || 100;
+      const [leaves, expansionZoom] = await Promise.all([
+        source.getClusterLeaves(feature, count, 0),
+        source.getClusterExpansionZoom(feature).catch(() => DEFAULT_MAP_ZOOM + 2),
+      ]);
+      const points = (leaves?.features || [])
+        .map((f: any) => f?.geometry?.coordinates as LngLat | undefined)
+        .filter((c): c is LngLat => Array.isArray(c));
+      const camera = cameraForPoints(points, sizeRef.current, {
+        insets: insetsRef.current,
+        fallbackZoom: Math.max(expansionZoom, 16),
+      });
+      if (!camera) return;
+      cameraRef.current?.setCamera({
+        centerCoordinate: camera.center,
+        zoomLevel: camera.zoom,
+        animationDuration: 600,
+        animationMode: 'easeTo',
+      });
+    } catch (err) {
+      console.warn('Cluster expansion failed', err);
+    }
+  };
 
   const pinFeatures = useMemo(
     () =>
@@ -55,93 +106,105 @@ export const Map: React.FC<MapProps> = ({
   );
 
   return (
-    <MapLibreGL.MapView
+    <View
       style={[styles.map, style]}
-      mapStyle={MAP_STYLE_URL}
-      compassEnabled
-      logoEnabled={false}
-      attributionEnabled={false}
-      onPress={(feature) => {
-        const geometry = feature.geometry;
-        if (!geometry || geometry.type !== 'Point' || !onMapPress) return;
-        onMapPress({
-          longitude: geometry.coordinates[0],
-          latitude: geometry.coordinates[1],
-        });
+      onLayout={(e: LayoutChangeEvent) => {
+        sizeRef.current = {
+          width: e.nativeEvent.layout.width,
+          height: e.nativeEvent.layout.height,
+        };
       }}
     >
-      <MapLibreGL.Camera
-        defaultSettings={{
-          centerCoordinate,
-          zoomLevel: DEFAULT_MAP_ZOOM,
+      <MapLibreGL.MapView
+        style={styles.map}
+        mapStyle={MAP_STYLE_URL}
+        compassEnabled
+        logoEnabled={false}
+        attributionEnabled={false}
+        onPress={(feature) => {
+          const geometry = feature.geometry;
+          if (!geometry || geometry.type !== 'Point' || !onMapPress) return;
+          onMapPress({
+            longitude: geometry.coordinates[0],
+            latitude: geometry.coordinates[1],
+          });
         }}
-        centerCoordinate={centerCoordinate}
-        zoomLevel={DEFAULT_MAP_ZOOM}
-        animationMode="flyTo"
-        animationDuration={1000}
-      />
-
-      <MapLibreGL.Images images={PIN_IMAGES} />
-
-      {showsUserLocation && <MapLibreGL.UserLocation visible />}
-
-      {pinGeoJSON.features.length > 0 && (
-        <MapLibreGL.ShapeSource
-          id="location-pins"
-          shape={pinGeoJSON}
-          cluster={clusterPins}
-          clusterRadius={50}
-          clusterMaxZoomLevel={14}
-          hitbox={{ width: 44, height: 72 }}
-          onPress={(event) => {
-            const feature = event.features?.[0];
-            const locationId = feature?.properties?.id;
-            if (locationId) onPinPress?.(String(locationId));
+      >
+        <MapLibreGL.Camera
+          ref={cameraRef}
+          defaultSettings={{
+            centerCoordinate,
+            zoomLevel: DEFAULT_MAP_ZOOM,
           }}
-        >
-          <MapLibreGL.CircleLayer
-            id="cluster-circle"
-            filter={['has', 'point_count']}
-            style={{
-              circleColor: '#2563eb',
-              circleRadius: 20,
-              circleOpacity: 0.9,
-            }}
-          />
+        />
 
-          <MapLibreGL.SymbolLayer
-            id="cluster-count"
-            filter={['has', 'point_count']}
-            style={{
-              textField: ['get', 'point_count'],
-              textSize: 12,
-              textColor: '#ffffff',
-              textFont: MAP_LABEL_FONT,
-              textAllowOverlap: true,
-            }}
-          />
+        <MapLibreGL.Images images={PIN_IMAGES} />
 
-          {/* Single listings: teardrop pin whose tip marks the exact entrance. */}
-          <MapLibreGL.SymbolLayer
-            id="pin-marker"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              iconImage: PIN_IMAGE_EXPRESSION as any,
-              iconAnchor: 'bottom',
-              iconAllowOverlap: true,
-              iconIgnorePlacement: true,
-              textField: ['get', 'pinLabel'],
-              textSize: PIN_LABEL_SIZE,
-              textColor: '#ffffff',
-              textFont: MAP_LABEL_FONT,
-              textOffset: PIN_LABEL_OFFSET,
-              textAllowOverlap: true,
-              textIgnorePlacement: true,
+        {showsUserLocation && <MapLibreGL.UserLocation visible />}
+
+        {pinGeoJSON.features.length > 0 && (
+          <MapLibreGL.ShapeSource
+            ref={sourceRef}
+            id="location-pins"
+            shape={pinGeoJSON}
+            cluster={clusterPins}
+            clusterRadius={50}
+            clusterMaxZoomLevel={14}
+            hitbox={{ width: 44, height: 72 }}
+            onPress={(event) => {
+              const feature = event.features?.[0];
+              if (feature?.properties?.cluster || feature?.properties?.point_count) {
+                expandCluster(feature);
+                return;
+              }
+              const locationId = feature?.properties?.id;
+              if (locationId) onPinPress?.(String(locationId));
             }}
-          />
-        </MapLibreGL.ShapeSource>
-      )}
-    </MapLibreGL.MapView>
+          >
+            <MapLibreGL.CircleLayer
+              id="cluster-circle"
+              filter={['has', 'point_count']}
+              style={{
+                circleColor: '#2563eb',
+                circleRadius: 20,
+                circleOpacity: 0.9,
+              }}
+            />
+
+            <MapLibreGL.SymbolLayer
+              id="cluster-count"
+              filter={['has', 'point_count']}
+              style={{
+                textField: ['get', 'point_count'],
+                textSize: 12,
+                textColor: '#ffffff',
+                textFont: MAP_LABEL_FONT,
+                textAllowOverlap: true,
+              }}
+            />
+
+            {/* Single listings: teardrop pin whose tip marks the exact entrance. */}
+            <MapLibreGL.SymbolLayer
+              id="pin-marker"
+              filter={['!', ['has', 'point_count']]}
+              style={{
+                iconImage: PIN_IMAGE_EXPRESSION as any,
+                iconAnchor: 'bottom',
+                iconAllowOverlap: true,
+                iconIgnorePlacement: true,
+                textField: ['get', 'pinLabel'],
+                textSize: PIN_LABEL_SIZE,
+                textColor: '#ffffff',
+                textFont: MAP_LABEL_FONT,
+                textOffset: PIN_LABEL_OFFSET,
+                textAllowOverlap: true,
+                textIgnorePlacement: true,
+              }}
+            />
+          </MapLibreGL.ShapeSource>
+        )}
+      </MapLibreGL.MapView>
+    </View>
   );
 };
 

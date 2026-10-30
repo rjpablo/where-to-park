@@ -4,6 +4,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapProps } from './types';
 import { BAGUIO, DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL } from './style';
+import { cameraForPoints, NO_INSETS, type LngLat } from './camera';
 import {
   PIN_CENTER_Y,
   PIN_COLORS,
@@ -70,7 +71,10 @@ export const Map: React.FC<MapProps> = ({
   onMapPress,
   style,
   clusterPins = true,
+  overlayInsets = NO_INSETS,
 }) => {
+  const insetsRef = useRef(overlayInsets);
+  insetsRef.current = overlayInsets;
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
@@ -268,10 +272,27 @@ export const Map: React.FC<MapProps> = ({
           const coords = (feature?.geometry as GeoJSON.Point | undefined)?.coordinates;
           const src = map.current?.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
           if (clusterId == null || !src || !coords) return;
-          src.getClusterExpansionZoom(clusterId).then((zoom) => {
-            if (zoom == null || !map.current) return;
-            map.current.easeTo({ center: coords as [number, number], zoom });
-          });
+          const count = Number(feature?.properties?.point_count) || 100;
+          // Zoom until every leaf of the cluster is visible above the overlays.
+          Promise.all([
+            src.getClusterLeaves(clusterId, count, 0),
+            src.getClusterExpansionZoom(clusterId).catch(() => DEFAULT_MAP_ZOOM + 2),
+          ])
+            .then(([leaves, expansionZoom]) => {
+              const m = map.current;
+              if (!m) return;
+              const points = leaves
+                .map((f) => (f.geometry as GeoJSON.Point | undefined)?.coordinates as LngLat)
+                .filter((c) => Array.isArray(c));
+              const container = m.getContainer();
+              const camera = cameraForPoints(
+                points,
+                { width: container.clientWidth, height: container.clientHeight },
+                { insets: insetsRef.current, fallbackZoom: Math.max(expansionZoom, 16) }
+              );
+              if (camera) m.easeTo({ center: camera.center, zoom: camera.zoom, duration: 600 });
+            })
+            .catch((err) => console.warn('Cluster expansion failed', err));
         });
       }
     } catch (err) {

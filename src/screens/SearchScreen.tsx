@@ -1,5 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  useWindowDimensions,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
@@ -29,6 +36,17 @@ export function SearchScreen() {
   const authUser = useAuthStore((s) => s.user);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
+  const { height: windowHeight } = useWindowDimensions();
+  // Keep cluster zooms clear of the bottom sheet (40% / 85% of the screen).
+  const overlayInsets = useMemo(
+    () => ({
+      top: 0,
+      right: 0,
+      left: 0,
+      bottom: Math.round(windowHeight * (sheetPosition === 'expanded' ? 0.85 : 0.4)),
+    }),
+    [windowHeight, sheetPosition]
+  );
 
   const region: MapRegion = useMemo(
     () => ({
@@ -184,6 +202,7 @@ export function SearchScreen() {
         style={styles.map}
         showsUserLocation={false}
         clusterPins
+        overlayInsets={overlayInsets}
       />
 
       {/* Bottom Sheet */}

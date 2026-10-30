@@ -31,6 +31,8 @@ export interface MapProps {
   style?: ViewStyle;
   showsUserLocation?: boolean;
   clusterPins?: boolean;
+  /** Px of the map covered by overlays (search box, bottom sheet) to keep pins out of. */
+  overlayInsets?: { top: number; right: number; bottom: number; left: number };
 }
 
 export interface MapPinPickerProps {
