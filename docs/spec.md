@@ -65,6 +65,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 - Last status/count and 'updated X ago' always show; past Operator threshold (default 2h) styled as warning (e.g. amber)
 - New listings publish as 'Unverified'; admins notified and verify after review
 - Manual Reserved/Unavailable changes go through `claim_capacity` (same locked path as check-ins/reservations)
+- 🟪 **Deleting a listing (server)**: `delete_location(p_location_id)` (SECURITY DEFINER, signed-in only). Only the operator's **owner** may delete (managers and staff get 'forbidden'). It takes the same row lock as `claim_capacity`, so it can't race a check-in, then refuses with `has_active` plus `active_sessions` / `active_reservations` counts while any session isn't ended or any reservation isn't finished (completed, cancelled, declined, expired, no-show; any other or future status counts as active). It is a **soft delete**: `deleted_at`/`deleted_by` are set and the listing is unpublished, but the row stays so sessions, folios, payments, reviews and chat keep their references. Deleted listings are left out of `search_nearby`, `get_etas`, the admin queue count and the My listings count in `get_sidebar_counts`, and the public read policy; `claim_capacity` refuses them (no new check-ins or reservations); owners/managers can't edit or un-delete them through the API. Operator members can still read the row, so names in their session and chat history still show
 
 ### F2. Parking Rates
 
