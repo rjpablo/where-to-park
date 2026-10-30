@@ -14,6 +14,7 @@ import {
 } from '../components/map/types';
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
 import { DistanceSlider } from '../components/DistanceSlider';
+import { availableSlots } from '../lib/availability';
 import { MAX_DISTANCE_KM, MIN_DISTANCE_KM, roundDistanceKm } from '../lib/distance';
 import type { PlaceSuggestion } from '../lib/geocoding';
 import { distanceMeters } from '../components/map/camera';
@@ -120,6 +121,7 @@ export function SearchScreen() {
           longitude: result.longitude,
         },
         availableCount: result.available_count || 0,
+        availableSlots: availableSlots(result),
         pinLabel:
           result.tracking_mode === 'open_full'
             ? result.open_status

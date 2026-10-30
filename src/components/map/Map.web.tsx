@@ -6,6 +6,8 @@ import { MapHandle, MapProps } from './types';
 import { BAGUIO, DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL } from './style';
 import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
 import {
+  CLUSTER_LABEL_EXPRESSION,
+  CLUSTER_PROPERTIES,
   PIN_CENTER_Y,
   PIN_COLORS,
   PIN_HEIGHT,
@@ -182,6 +184,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
       properties: {
         id: pin.id,
         availableCount: pin.availableCount,
+        availableSlots: pin.availableSlots ?? Math.max(0, pin.availableCount || 0),
         pinLabel: pin.pinLabel || String(pin.availableCount),
         isStale: pin.isStale ? 1 : 0,
         isFull: pin.isFull ? 1 : 0,
@@ -214,6 +217,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
           type: 'geojson',
           data: geoJSON,
           cluster: clusterPins,
+          clusterProperties: CLUSTER_PROPERTIES as any,
           clusterMaxZoom: 16,
           clusterRadius: 80,
         });
@@ -238,7 +242,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
           source: sourceId,
           filter: ['has', 'point_count'],
           layout: {
-            'text-field': '{point_count}',
+            'text-field': CLUSTER_LABEL_EXPRESSION as any,
             'text-font': MAP_LABEL_FONT,
             'text-size': 12,
           },

@@ -4,7 +4,13 @@ import MapLibreGL from '@maplibre/maplibre-react-native';
 import { MapHandle, MapProps } from './types';
 import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './style';
 import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
-import { PIN_IMAGE_EXPRESSION, PIN_LABEL_OFFSET, PIN_LABEL_SIZE } from './pins';
+import {
+  CLUSTER_LABEL_EXPRESSION,
+  CLUSTER_PROPERTIES,
+  PIN_IMAGE_EXPRESSION,
+  PIN_LABEL_OFFSET,
+  PIN_LABEL_SIZE,
+} from './pins';
 
 const PIN_IMAGES = {
   'pin-open': require('../../../assets/map/pin-open.png'),
@@ -121,6 +127,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
         properties: {
           id: pin.id,
           availableCount: pin.availableCount,
+          availableSlots: pin.availableSlots ?? Math.max(0, pin.availableCount || 0),
           pinLabel: pin.pinLabel || String(pin.availableCount),
           isStale: pin.isStale,
           isFull: pin.isFull,
@@ -197,6 +204,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
             id="location-pins"
             shape={pinGeoJSON}
             cluster={clusterPins}
+            clusterProperties={CLUSTER_PROPERTIES as any}
             clusterRadius={50}
             clusterMaxZoomLevel={14}
             hitbox={{ width: 44, height: 72 }}
@@ -224,7 +232,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
               id="cluster-count"
               filter={['has', 'point_count']}
               style={{
-                textField: ['get', 'point_count'],
+                textField: CLUSTER_LABEL_EXPRESSION as any,
                 textSize: 12,
                 textColor: '#ffffff',
                 textFont: MAP_LABEL_FONT,

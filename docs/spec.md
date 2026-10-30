@@ -95,7 +95,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 - Search around current location or a point on the map, no sign-in needed
 - **Map pins**: Each shows available count (or Open/Full), net of held/reserved spaces; past stale threshold use warning style (e.g. amber outline); Full listings greyed
-- **Dense areas cluster**: Cluster bubble shows count, zooms in on tap (MapLibre GeoJSON clustering)
+- 🟩 **Dense areas cluster**: Cluster bubble shows the **total available slots** of the listings inside it (sum of their counts; Open/Full listings add 0), not the number of listings, via MapLibre GeoJSON clustering with a summed cluster property. Tapping a cluster zooms in until all its pins are visible
 - **Results sheet**: Same results as a list in a bottom sheet over the map, partly open by default (peek ~1/3 screen). Dragging the handle expands to nearly full screen or restores; map stays usable at peek
 - **List rows**: Cover photo, count/status, 'updated X ago' (warning style past threshold), starting rate, distance, ETA, rating, Residential/Unverified/Monthly tags
 - **Sort**: distance (nearest first, default), price (starting rate for selected vehicle), availability (most free first), rating, ETA

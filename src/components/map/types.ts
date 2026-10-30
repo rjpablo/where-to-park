@@ -9,6 +9,8 @@ export interface LocationPin {
   id: string;
   coordinate: Coordinate;
   availableCount: number;
+  /** Free slots summed into cluster pins (defaults to availableCount; 0 for Open/Full). */
+  availableSlots?: number;
   pinLabel?: string;
   isStale: boolean;
   isFull?: boolean;
