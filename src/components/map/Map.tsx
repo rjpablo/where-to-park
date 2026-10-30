@@ -1,7 +1,18 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
-import MapLibreGL from '@maplibre/maplibre-react-native';
-import { MapHandle, MapProps } from './types';
+// MapLibre React Native v11 (New Architecture only; MapLibre GL JS-style API).
+import {
+  Camera,
+  GeoJSONSource,
+  Images,
+  Layer,
+  Map as MapLibreMap,
+  UserLocation,
+  type CameraRef,
+  type GeoJSONSourceRef,
+  type MapRef,
+} from '@maplibre/maplibre-react-native';
+import { MapHandle, MapProps, MapViewport } from './types';
 import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './style';
 import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
 import {
@@ -13,14 +24,32 @@ import {
   USER_PUCK,
 } from './pins';
 
+/** v11 bounds are [west, south, east, north]. */
+function viewportFrom(
+  center: [number, number] | number[],
+  zoom: number,
+  bounds: [number, number, number, number] | number[],
+  isUserInteraction: boolean
+): MapViewport {
+  const [lng, lat] = center;
+  const [west, south, east, north] = bounds;
+  return {
+    center: { latitude: lat, longitude: lng },
+    zoom,
+    bounds: {
+      ne: { latitude: north, longitude: east },
+      sw: { latitude: south, longitude: west },
+    },
+    isUserInteraction,
+  };
+}
+
 const PIN_IMAGES = {
   'pin-open': require('../../../assets/map/pin-open.png'),
   'pin-full': require('../../../assets/map/pin-full.png'),
   'pin-stale': require('../../../assets/map/pin-stale.png'),
   'pin-place': require('../../../assets/map/pin-place.png'),
 };
-
-MapLibreGL.setAccessToken(null);
 
 export const Map = forwardRef<MapHandle, MapProps>(function Map(
   {
@@ -40,9 +69,9 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   ref
 ) {
   const centerCoordinate = useMemo(() => mapCenter(region), [region]);
-  const mapViewRef = useRef<React.ElementRef<typeof MapLibreGL.MapView>>(null);
-  const cameraRef = useRef<React.ElementRef<typeof MapLibreGL.Camera>>(null);
-  const sourceRef = useRef<React.ElementRef<typeof MapLibreGL.ShapeSource>>(null);
+  const mapViewRef = useRef<MapRef>(null);
+  const cameraRef = useRef<CameraRef>(null);
+  const sourceRef = useRef<GeoJSONSourceRef>(null);
   const sizeRef = useRef({ width: 0, height: 0 });
   const insetsRef = useRef(overlayInsets);
   insetsRef.current = overlayInsets;
@@ -55,24 +84,14 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
       firstRegion.current = false;
       return;
     }
-    cameraRef.current?.setCamera({
-      centerCoordinate,
-      zoomLevel: initialZoom,
-      animationDuration: 1000,
-      animationMode: 'flyTo',
-    });
+    cameraRef.current?.flyTo({ center: centerCoordinate, zoom: initialZoom, duration: 1000 });
   }, [centerCoordinate, initialZoom]);
 
   useImperativeHandle(ref, () => ({
     focus: (target) => {
       const camera = cameraForPlace(target, sizeRef.current, insetsRef.current);
       if (!camera) return;
-      cameraRef.current?.setCamera({
-        centerCoordinate: camera.center,
-        zoomLevel: camera.zoom,
-        animationDuration: 1200,
-        animationMode: 'flyTo',
-      });
+      cameraRef.current?.flyTo({ center: camera.center, zoom: camera.zoom, duration: 1200 });
     },
   }));
 
@@ -111,11 +130,14 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
     if (!source) return;
     try {
       const count = Number(feature.properties?.point_count) || 100;
+      // v11 cluster methods take the cluster_id, not the feature.
+      const clusterId = Number(feature.properties?.cluster_id);
+      if (!Number.isFinite(clusterId)) return;
       const [leaves, expansionZoom] = await Promise.all([
-        source.getClusterLeaves(feature, count, 0),
-        source.getClusterExpansionZoom(feature).catch(() => DEFAULT_MAP_ZOOM + 2),
+        source.getClusterLeaves(clusterId, count, 0),
+        source.getClusterExpansionZoom(clusterId).catch(() => DEFAULT_MAP_ZOOM + 2),
       ]);
-      const points = (leaves?.features || [])
+      const points = (leaves || [])
         .map((f: any) => f?.geometry?.coordinates as LngLat | undefined)
         .filter((c): c is LngLat => Array.isArray(c));
       const camera = cameraForPoints(points, sizeRef.current, {
@@ -123,12 +145,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
         fallbackZoom: Math.max(expansionZoom, 16),
       });
       if (!camera) return;
-      cameraRef.current?.setCamera({
-        centerCoordinate: camera.center,
-        zoomLevel: camera.zoom,
-        animationDuration: 600,
-        animationMode: 'easeTo',
-      });
+      cameraRef.current?.easeTo({ center: camera.center, zoom: camera.zoom, duration: 600 });
     } catch (err) {
       console.warn('Cluster expansion failed', err);
     }
@@ -174,165 +191,158 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
         };
       }}
     >
-      <MapLibreGL.MapView
+      <MapLibreMap
         ref={mapViewRef}
         style={styles.map}
+        mapStyle={MAP_STYLE_URL}
+        compass
+        logo={false}
+        attribution={false}
         onDidFinishLoadingMap={async () => {
           // Report the first viewport so callers know the visible area at start.
           const view = mapViewRef.current;
           if (!view || !onViewportChange) return;
           try {
-            const [[neLng, neLat], [swLng, swLat]] = await view.getVisibleBounds();
-            const [lng, lat] = await view.getCenter();
-            const zoom = await view.getZoom();
-            onViewportChange({
-              center: { latitude: lat, longitude: lng },
-              zoom,
-              bounds: {
-                ne: { latitude: neLat, longitude: neLng },
-                sw: { latitude: swLat, longitude: swLng },
-              },
-              isUserInteraction: false,
-            });
+            const [bounds, center, zoom] = await Promise.all([
+              view.getBounds(),
+              view.getCenter(),
+              view.getZoom(),
+            ]);
+            onViewportChange(viewportFrom(center, zoom, bounds, false));
           } catch (err) {
             console.warn('Initial viewport unavailable', err);
           }
         }}
-        mapStyle={MAP_STYLE_URL}
-        compassEnabled
-        logoEnabled={false}
-        attributionEnabled={false}
-        onRegionDidChange={(feature: any) => {
+        onRegionDidChange={(event) => {
           if (!onViewportChange) return;
-          const props = feature?.properties || {};
-          const [lng, lat] = feature?.geometry?.coordinates || [];
-          const [ne, sw] = props.visibleBounds || [];
-          if (lng == null || !ne || !sw) return;
-          onViewportChange({
-            center: { latitude: lat, longitude: lng },
-            zoom: props.zoomLevel,
-            bounds: {
-              ne: { latitude: ne[1], longitude: ne[0] },
-              sw: { latitude: sw[1], longitude: sw[0] },
-            },
-            isUserInteraction: !!props.isUserInteraction,
-          });
+          const { center, zoom, bounds, userInteraction } = event.nativeEvent;
+          if (!center || !bounds) return;
+          onViewportChange(viewportFrom(center, zoom, bounds, !!userInteraction));
         }}
-        onPress={(feature) => {
-          const geometry = feature.geometry;
-          if (!geometry || geometry.type !== 'Point' || !onMapPress) return;
-          onMapPress({
-            longitude: geometry.coordinates[0],
-            latitude: geometry.coordinates[1],
-          });
+        onPress={(event) => {
+          const [longitude, latitude] = event.nativeEvent.lngLat || [];
+          if (longitude == null || latitude == null || !onMapPress) return;
+          onMapPress({ longitude, latitude });
         }}
       >
-        <MapLibreGL.Camera
+        <Camera
           ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate,
-            zoomLevel: initialZoom,
-          }}
+          initialViewState={{ center: centerCoordinate, zoom: initialZoom }}
         />
 
-        <MapLibreGL.Images images={PIN_IMAGES} />
+        <Images images={PIN_IMAGES} />
 
-        {showsUserLocation && !userShape && <MapLibreGL.UserLocation visible />}
+        {showsUserLocation && !userShape && <UserLocation />}
 
         {userShape && (
-          <MapLibreGL.ShapeSource id="user-location" shape={userShape}>
-            <MapLibreGL.CircleLayer
+          <GeoJSONSource id="user-location" data={userShape}>
+            <Layer
+              type="circle"
               id="user-location-halo"
-              style={{ circleRadius: 18, circleColor: USER_PUCK.halo, circleOpacity: 0.18 }}
-            />
-            <MapLibreGL.CircleLayer
-              id="user-location-dot"
-              style={{
-                circleRadius: 7,
-                circleColor: USER_PUCK.dot,
-                circleStrokeColor: USER_PUCK.ring,
-                circleStrokeWidth: 3,
+              paint={{
+                'circle-radius': 18,
+                'circle-color': USER_PUCK.halo,
+                'circle-opacity': 0.18,
               }}
             />
-          </MapLibreGL.ShapeSource>
+            <Layer
+              type="circle"
+              id="user-location-dot"
+              paint={{
+                'circle-radius': 7,
+                'circle-color': USER_PUCK.dot,
+                'circle-stroke-color': USER_PUCK.ring,
+                'circle-stroke-width': 3,
+              }}
+            />
+          </GeoJSONSource>
         )}
 
         {pinGeoJSON.features.length > 0 && (
-          <MapLibreGL.ShapeSource
+          <GeoJSONSource
             ref={sourceRef}
             id="location-pins"
-            shape={pinGeoJSON}
+            data={pinGeoJSON}
             cluster={clusterPins}
             clusterProperties={CLUSTER_PROPERTIES as any}
             clusterRadius={50}
-            clusterMaxZoomLevel={14}
-            hitbox={{ width: 44, height: 72 }}
+            clusterMaxZoom={14}
+            // Was { width: 44, height: 72 } (centred) in v10; v11 takes padding.
+            hitbox={{ top: 36, right: 22, bottom: 36, left: 22 }}
             onPress={(event) => {
-              const feature = event.features?.[0];
-              if (feature?.properties?.cluster || feature?.properties?.point_count) {
+              // v11 bubbles source presses up to the Map's onPress: a pin tap must
+              // not also count as a tap on the map.
+              event.stopPropagation();
+              const feature = event.nativeEvent.features?.[0];
+              if (!feature) return;
+              if (feature.properties?.cluster || feature.properties?.point_count) {
                 expandCluster(feature);
                 return;
               }
-              const locationId = feature?.properties?.id;
+              const locationId = feature.properties?.id;
               if (locationId) onPinPress?.(String(locationId));
             }}
           >
-            <MapLibreGL.CircleLayer
+            <Layer
+              type="circle"
               id="cluster-circle"
               filter={['has', 'point_count']}
-              style={{
-                circleColor: '#2563eb',
-                circleRadius: 20,
-                circleOpacity: 0.9,
+              paint={{
+                'circle-color': '#2563eb',
+                'circle-radius': 20,
+                'circle-opacity': 0.9,
               }}
             />
 
-            <MapLibreGL.SymbolLayer
+            <Layer
+              type="symbol"
               id="cluster-count"
               filter={['has', 'point_count']}
-              style={{
-                textField: CLUSTER_LABEL_EXPRESSION as any,
-                textSize: 12,
-                textColor: '#ffffff',
-                textFont: MAP_LABEL_FONT,
-                textAllowOverlap: true,
+              layout={{
+                'text-field': CLUSTER_LABEL_EXPRESSION as any,
+                'text-size': 12,
+                'text-font': MAP_LABEL_FONT,
+                'text-allow-overlap': true,
               }}
+              paint={{ 'text-color': '#ffffff' }}
             />
 
             {/* Single listings: teardrop pin whose tip marks the exact entrance. */}
-            <MapLibreGL.SymbolLayer
+            <Layer
+              type="symbol"
               id="pin-marker"
               filter={['!', ['has', 'point_count']]}
-              style={{
-                iconImage: PIN_IMAGE_EXPRESSION as any,
-                iconAnchor: 'bottom',
-                iconAllowOverlap: true,
-                iconIgnorePlacement: true,
-                textField: ['get', 'pinLabel'],
-                textSize: PIN_LABEL_SIZE,
-                textColor: '#ffffff',
-                textFont: MAP_LABEL_FONT,
-                textOffset: PIN_LABEL_OFFSET,
-                textAllowOverlap: true,
-                textIgnorePlacement: true,
+              layout={{
+                'icon-image': PIN_IMAGE_EXPRESSION as any,
+                'icon-anchor': 'bottom',
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
+                'text-field': ['get', 'pinLabel'],
+                'text-size': PIN_LABEL_SIZE,
+                'text-font': MAP_LABEL_FONT,
+                'text-offset': PIN_LABEL_OFFSET,
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
               }}
+              paint={{ 'text-color': '#ffffff' }}
             />
-          </MapLibreGL.ShapeSource>
+          </GeoJSONSource>
         )}
         {focusShape && (
-          <MapLibreGL.ShapeSource id="focus-place" shape={focusShape}>
-            <MapLibreGL.SymbolLayer
+          <GeoJSONSource id="focus-place" data={focusShape}>
+            <Layer
+              type="symbol"
               id="focus-place-marker"
-              style={{
-                iconImage: 'pin-place',
-                iconAnchor: 'bottom',
-                iconAllowOverlap: true,
-                iconIgnorePlacement: true,
+              layout={{
+                'icon-image': 'pin-place',
+                'icon-anchor': 'bottom',
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
               }}
             />
-          </MapLibreGL.ShapeSource>
+          </GeoJSONSource>
         )}
-      </MapLibreGL.MapView>
+      </MapLibreMap>
     </View>
   );
 });

@@ -10,6 +10,7 @@
     "scheme": "wheretopark",
     "plugins": [
       "expo-router",
+      "@maplibre/maplibre-react-native",
       "expo-location",
       "expo-secure-store",
       [

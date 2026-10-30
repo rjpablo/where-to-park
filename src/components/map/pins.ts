@@ -56,7 +56,7 @@ export function teardropPoints(
 /**
  * Cluster aggregation: clusters carry the SUM of their listings' free slots
  * (feature property `availableSlots`) and show it instead of the listing count.
- * Works with both MapLibre RN (ShapeSource clusterProperties) and maplibre-gl.
+ * Works with both MapLibre RN (GeoJSONSource clusterProperties) and maplibre-gl.
  */
 export const CLUSTER_PROPERTIES = {
   availableSlots: ['+', ['get', 'availableSlots']],
