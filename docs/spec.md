@@ -187,6 +187,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 - New listings publish as Unverified (visible with badge); notification to every admin (push and email), listing enters verification queue
 - Admin reviews pin, photos, details and marks Verified, or unpublishes. Changing pin or listing type later sets back to Unverified
+- 🟩 **Reject from the queue**: Each queue card has Verify and Reject. Reject opens an optional reason (max 500 characters, shown to the operator) and a Confirm reject button. Rejecting unpublishes the listing, records who/when/why (`reject_location` RPC, admins only) and removes it from the queue at once. The operator's My listings shows a red 'Rejected' badge with the reason and a 'Resubmit for verification' button (owners/managers); resubmitting publishes it again, clears the rejection and puts it back in the queue. Verifying always clears an earlier rejection
 - Drivers report listing as 'actually full', 'closed', 'doesn't exist', 'unsafe', 'wrong info'; several reports in short window flag it and notify Operator
 - Notifications are rows in notifications table plus push: new listing (admins), reservation request, fee paid, scheduled end and overdue, no-show released, reports, chat messages
 

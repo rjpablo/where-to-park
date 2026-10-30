@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, TextInput } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import { normalizeRejectReason } from '../../src/lib/listingReview';
 
 export default function VerificationQueueScreen() {
   const router = useRouter();
@@ -13,6 +14,9 @@ export default function VerificationQueueScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  // Listing whose reject form is open, and its reason draft.
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   // Reload whenever the queue regains focus (e.g. back from a listing's details).
   useFocusEffect(
@@ -31,6 +35,7 @@ export default function VerificationQueueScreen() {
         .from('locations')
         .select('*, operators(display_name)')
         .eq('verification_status', 'unverified')
+        .is('rejected_at', null)
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -58,6 +63,28 @@ export default function VerificationQueueScreen() {
       // Drop the listing from the queue right away; the reload below confirms it.
       setLocations((prev) => prev.filter((loc) => loc.id !== locationId));
       Alert.alert('Success', 'Location verified');
+      loadQueue({ silent: true });
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const handleReject = async (locationId: string) => {
+    if (verifyingId) return;
+    setVerifyingId(locationId);
+    try {
+      const { data, error } = await supabase.rpc('reject_location', {
+        p_location_id: locationId,
+        p_reason: normalizeRejectReason(rejectReason),
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(String(data.error));
+      setLocations((prev) => prev.filter((loc) => loc.id !== locationId));
+      setRejectingId(null);
+      setRejectReason('');
+      Alert.alert('Rejected', 'Listing rejected and unpublished');
       loadQueue({ silent: true });
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -97,7 +124,51 @@ export default function VerificationQueueScreen() {
           disabled={!!verifyingId}
           testID={`verify-listing-${item.id}`}
         />
+        {rejectingId !== item.id ? (
+          <Button
+            title="Reject"
+            variant="outline"
+            size="small"
+            onPress={() => {
+              setRejectingId(item.id);
+              setRejectReason('');
+            }}
+            disabled={!!verifyingId}
+            testID={`reject-listing-${item.id}`}
+          />
+        ) : null}
       </View>
+      {rejectingId === item.id ? (
+        <View style={styles.rejectForm}>
+          <TextInput
+            style={styles.rejectInput}
+            value={rejectReason}
+            onChangeText={setRejectReason}
+            placeholder="Reason (optional, shown to the operator)"
+            maxLength={500}
+            multiline
+            testID={`reject-reason-${item.id}`}
+          />
+          <View style={styles.cardActions}>
+            <Button
+              title="Cancel"
+              variant="outline"
+              size="small"
+              onPress={() => setRejectingId(null)}
+              disabled={!!verifyingId}
+            />
+            <Button
+              title="Confirm reject"
+              variant="danger"
+              size="small"
+              onPress={() => handleReject(item.id)}
+              loading={verifyingId === item.id}
+              disabled={!!verifyingId}
+              testID={`reject-confirm-${item.id}`}
+            />
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 
@@ -212,7 +283,21 @@ const styles = StyleSheet.create({
   },
   cardActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.sm,
+  },
+  rejectForm: {
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  rejectInput: {
+    ...theme.typography.body,
+    minHeight: 64,
+    padding: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    textAlignVertical: 'top',
   },
   emptyState: {
     padding: theme.spacing.xxl,

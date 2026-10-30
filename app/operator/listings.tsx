@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../src/lib/supabase';
 import { Button } from '../../src/components/Button';
 import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -10,6 +11,7 @@ import {
   type ManagedLocation,
 } from '../../src/lib/operatorAccess';
 import { theme } from '../../src/lib/theme';
+import { REVIEW_LABELS, reviewState } from '../../src/lib/listingReview';
 
 export default function ListingsDashboardScreen() {
   const router = useRouter();
@@ -33,6 +35,20 @@ export default function ListingsDashboardScreen() {
       setLoading(false);
     }
   }, [user]);
+
+  const [resubmittingId, setResubmittingId] = React.useState<string | null>(null);
+
+  // Publishing a rejected listing again clears the rejection and puts it back in the queue.
+  const resubmit = async (id: string) => {
+    setResubmittingId(id);
+    const { error: updateError } = await supabase
+      .from('locations')
+      .update({ published: true })
+      .eq('id', id);
+    if (updateError) setError(updateError.message);
+    setResubmittingId(null);
+    load();
+  };
 
   React.useEffect(() => {
     initialize();
@@ -90,14 +106,34 @@ export default function ListingsDashboardScreen() {
             <View
               style={[
                 styles.badge,
-                loc.verification_status === 'verified' ? styles.badgeVerified : styles.badgePending,
+                reviewState(loc) === 'verified'
+                  ? styles.badgeVerified
+                  : reviewState(loc) === 'rejected'
+                    ? styles.badgeRejected
+                    : styles.badgePending,
               ]}
+              testID={`listing-review-${loc.id}`}
             >
-              <Text style={styles.badgeText}>
-                {loc.verification_status === 'verified' ? 'Verified' : 'Unverified'}
-              </Text>
+              <Text style={styles.badgeText}>{REVIEW_LABELS[reviewState(loc)]}</Text>
             </View>
           </View>
+          {reviewState(loc) === 'rejected' ? (
+            <Text style={styles.rejection} testID={`listing-rejection-${loc.id}`}>
+              Rejected by an admin{loc.rejection_reason ? `: ${loc.rejection_reason}` : ''}. Fix the
+              listing, then resubmit it.
+            </Text>
+          ) : null}
+          {reviewState(loc) === 'rejected' && loc.role !== 'staff' ? (
+            <Button
+              title="Resubmit for verification"
+              size="small"
+              variant="outline"
+              loading={resubmittingId === loc.id}
+              disabled={!!resubmittingId}
+              onPress={() => resubmit(loc.id)}
+              testID={`listing-resubmit-${loc.id}`}
+            />
+          ) : null}
           <Text style={styles.meta}>
             {loc.published ? 'Published' : 'Hidden'} · {availabilityLabel(loc)}
           </Text>
@@ -156,6 +192,12 @@ const styles = StyleSheet.create({
   },
   badgeVerified: { backgroundColor: theme.colors.verified },
   badgePending: { backgroundColor: theme.colors.unverified },
+  badgeRejected: { backgroundColor: theme.colors.danger },
+  rejection: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.danger,
+    marginTop: theme.spacing.xs,
+  },
   badgeText: { ...theme.typography.caption, color: '#fff', fontWeight: '700' },
   error: {
     ...theme.typography.body,

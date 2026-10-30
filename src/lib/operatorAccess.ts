@@ -20,6 +20,8 @@ export type ManagedLocation = {
   open_status: boolean | null;
   operator_id: string;
   availability_updated_at: string | null;
+  rejected_at?: string | null;
+  rejection_reason?: string | null;
   role: OperatorRole;
 };
 
@@ -64,7 +66,7 @@ export async function loadManagedLocations(userId: string): Promise<ManagedLocat
   const { data, error } = await supabase
     .from('locations')
     .select(
-      'id, name, verification_status, published, tracking_mode, available_count, capacity, open_status, operator_id, availability_updated_at'
+      'id, name, verification_status, published, tracking_mode, available_count, capacity, open_status, operator_id, availability_updated_at, rejected_at, rejection_reason'
     )
     .in('operator_id', operatorIds)
     .order('name');
