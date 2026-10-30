@@ -65,8 +65,8 @@ import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 
-// Results sheet: collapsed it fits its top part (title, summary, distance slider);
-// expanded it takes 85% of the screen and shows filters, sort and the list too.
+// Results sheet: collapsed it fits its top part (title, summary, filters, distance
+// slider); expanded it takes 85% of the screen and shows sort and the list too.
 const SHEET_EXPANDED = 0.85;
 /** Collapsed height until the top part has been measured, and its limits. */
 const SHEET_PEEK_DEFAULT = 170;
@@ -134,7 +134,7 @@ export function SearchScreen() {
     expandedHeight(screenH, SHEET_EXPANDED, SHEET_KEEP_CLEAR_TOP, SHEET_EXPANDED_MIN)
   );
   const snapPoints = useMemo(() => [peekPx, expandedPx], [peekPx, expandedPx]);
-  // Filters, sort chips and the list only render while the sheet is fully open.
+  // Sort chips and the list only render while the sheet is fully open.
   const [showAll, setShowAll] = useState(sheetPosition === 'expanded');
   // Keep cluster zooms clear of the bottom sheet (collapsed or expanded height).
   const overlayInsets = useMemo(
@@ -584,12 +584,10 @@ export function SearchScreen() {
           style={styles.sheetBody}
           testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
         >
-          {/* Top part: always shown; its height (with filters hidden) is the collapsed height. */}
+          {/* Top part: always shown; its measured height is the collapsed height. */}
           <View
             testID="sheet-top"
-            onLayout={(e) => {
-              if (!showAll) setPeekContentHeight(e.nativeEvent.layout.height);
-            }}
+            onLayout={(e) => setPeekContentHeight(e.nativeEvent.layout.height)}
           >
             <TouchableOpacity
               testID="sheet-expand-toggle"
@@ -617,35 +615,33 @@ export function SearchScreen() {
                 </View>
               </View>
 
-              {/* Vehicle, Rate, Show Full; wraps onto a second line on narrow screens. Only when expanded. */}
-              {showAll ? (
-                <View style={styles.filterRow} testID="filter-row">
-                  <FilterDropdown
-                    label="Vehicle"
-                    showLabel={false}
-                    value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
-                    options={VEHICLE_FILTER_OPTIONS}
-                    onChange={(vehicleType) => setFilters({ vehicleType })}
-                    testID="search-vehicle-filter"
-                  />
-                  <FilterDropdown
-                    label="Rate type"
-                    showLabel={false}
-                    value={isRateType(filters.rateType) ? filters.rateType : null}
-                    options={RATE_FILTER_OPTIONS}
-                    onChange={(rateType) => setFilters({ rateType })}
-                    testID="filter-rate-type"
-                  />
-                  <TouchableOpacity
-                    style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
-                    onPress={() => setFilters({ showFull: !filters.showFull })}
-                    accessibilityState={{ selected: filters.showFull }}
-                    testID="filter-show-full"
-                  >
-                    <Text style={styles.filterChipText}>Show Full</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
+              {/* Vehicle, Rate, Show Full; wraps onto a second line on narrow screens. */}
+              <View style={styles.filterRow} testID="filter-row">
+                <FilterDropdown
+                  label="Vehicle"
+                  showLabel={false}
+                  value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
+                  options={VEHICLE_FILTER_OPTIONS}
+                  onChange={(vehicleType) => setFilters({ vehicleType })}
+                  testID="search-vehicle-filter"
+                />
+                <FilterDropdown
+                  label="Rate type"
+                  showLabel={false}
+                  value={isRateType(filters.rateType) ? filters.rateType : null}
+                  options={RATE_FILTER_OPTIONS}
+                  onChange={(rateType) => setFilters({ rateType })}
+                  testID="filter-rate-type"
+                />
+                <TouchableOpacity
+                  style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
+                  onPress={() => setFilters({ showFull: !filters.showFull })}
+                  accessibilityState={{ selected: filters.showFull }}
+                  testID="filter-show-full"
+                >
+                  <Text style={styles.filterChipText}>Show Full</Text>
+                </TouchableOpacity>
+              </View>
 
               <DistanceSlider
                 valueKm={filters.distanceKm}
