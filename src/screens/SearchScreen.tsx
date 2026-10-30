@@ -237,7 +237,9 @@ export function SearchScreen() {
   const renderListItem = ({ item }: { item: (typeof results)[0] }) => (
     <TouchableOpacity style={styles.listItem} onPress={() => router.push(`/location/${item.id}`)}>
       <View style={styles.listItemHeader}>
-        <Text style={styles.listItemTitle}>{item.name}</Text>
+        <Text style={styles.listItemTitle} numberOfLines={2}>
+          {item.name}
+        </Text>
         {item.verification_status === 'unverified' && (
           <View style={styles.badge} testID={`unverified-badge-${item.name}`}>
             <Text style={styles.badgeText}>Unverified</Text>
@@ -255,7 +257,12 @@ export function SearchScreen() {
           staleThresholdMin={item.stale_after_min}
         />
 
-        <Text style={styles.listItemDetail} testID={`list-eta-${item.id}`}>
+        <Text
+          style={styles.listItemDetail}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          testID={`list-eta-${item.id}`}
+        >
           {formatDistance(item.distance_m)}
           {etas[item.id]
             ? ` · ${formatDuration(etas[item.id].duration_s)}${etas[item.id].source === 'estimate' ? ' est.' : ''}`
@@ -271,7 +278,9 @@ export function SearchScreen() {
         )}
       </View>
 
-      <Text style={styles.listItemAddress}>{item.address}</Text>
+      <Text style={styles.listItemAddress} numberOfLines={2} ellipsizeMode="tail">
+        {item.address}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -579,6 +588,7 @@ const styles = StyleSheet.create({
   listItemTitle: {
     ...theme.typography.h3,
     flex: 1,
+    flexShrink: 1,
   },
   badge: {
     paddingHorizontal: theme.spacing.sm,
@@ -592,15 +602,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
+  // Wraps onto a second line on narrow screens instead of running past the card;
+  // the details text shrinks and ellipsizes if it still does not fit.
   listItemInfo: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    columnGap: theme.spacing.md,
+    rowGap: theme.spacing.xs,
     marginBottom: theme.spacing.sm,
   },
   listItemDetail: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '100%',
   },
   listItemAddress: {
     ...theme.typography.bodySmall,
