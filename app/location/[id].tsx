@@ -21,6 +21,7 @@ import { useListingViewers } from '../../src/hooks/useListingViewers';
 import { viewersLabel } from '../../src/lib/viewerPresence';
 import { parseGeogPoint } from '../../src/lib/geog';
 import { openNavigation } from '../../src/lib/openNavigation';
+import { ImageCarousel, type CarouselImage } from '../../src/components/ImageCarousel';
 import { useSearchStore } from '../../src/stores/searchStore';
 import { formatDistance, formatDuration } from '../../src/utils/formatters';
 import {
@@ -43,6 +44,8 @@ export default function LocationDetailScreen() {
   // the listing has loaded (not for 'Listing not found').
   const viewers = useListingViewers(location?.id ?? null);
   const [loading, setLoading] = useState(true);
+  // Open photo viewer: which photos and the one tapped.
+  const [carousel, setCarousel] = useState<{ images: CarouselImage[]; start: number } | null>(null);
   // Distance + drive time, from the same origin as the results list (the search
   // centre); my current location only when no search has run. Never prompts.
   const searchOrigin = useSearchStore((s) => s.searchOrigin);
@@ -183,6 +186,14 @@ export default function LocationDetailScreen() {
     };
   }, [listingId, originLat, originLng]);
 
+  // Listing photos (operator uploads) for the gallery strip and the carousel.
+  const galleryImages: CarouselImage[] = (location?.location_photos ?? [])
+    .map((photo: any) => ({
+      key: `op-${photo.id}`,
+      uri: photo.url || locationPhotoPublicUrl(photo.storage_path) || '',
+    }))
+    .filter((img: CarouselImage) => !!img.uri);
+
   const listingPoint = parseGeogPoint(location?.geog);
   const distanceLine = distanceEtaLabel(
     origin?.kind === 'search' && Number.isFinite(rowDistanceM)
@@ -239,13 +250,19 @@ export default function LocationDetailScreen() {
   return (
     <ScrollView style={styles.container} testID="location-ready">
       {/* Photo Gallery or Placeholder */}
-      {location.location_photos?.length > 0 ? (
+      {galleryImages.length > 0 ? (
         <ScrollView horizontal style={styles.photoGallery}>
-          {location.location_photos.map((photo: any) => {
-            const uri = photo.url || locationPhotoPublicUrl(photo.storage_path);
-            if (!uri) return null;
-            return <Image key={photo.id} source={{ uri }} style={styles.photo} />;
-          })}
+          {galleryImages.map((img, i) => (
+            <TouchableOpacity
+              key={img.key}
+              onPress={() => setCarousel({ images: galleryImages, start: i })}
+              accessibilityRole="imagebutton"
+              accessibilityLabel={`Photo ${i + 1} of ${galleryImages.length}`}
+              testID={`listing-photo-${i}`}
+            >
+              <Image source={{ uri: img.uri }} style={styles.photo} />
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       ) : (
         <View style={styles.photoPlaceholder}>
@@ -457,6 +474,11 @@ export default function LocationDetailScreen() {
           <Text style={styles.contactText}>{location.contact || 'No contact provided'}</Text>
         </View>
       </View>
+      <ImageCarousel
+        images={carousel?.images ?? []}
+        startIndex={carousel ? carousel.start : null}
+        onClose={() => setCarousel(null)}
+      />
     </ScrollView>
   );
 }

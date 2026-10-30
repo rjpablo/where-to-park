@@ -49,6 +49,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 - Operators list spaces (commercial or residential) with exact map pin, address, optional rules
 - Upload photo gallery (up to 10, reorder, pick cover; Storage)
+- 🟧 **Photo viewer (ImageCarousel)**: Tapping a listing photo on the details page opens a floating full-screen viewer (modal overlay, dark backdrop) at that photo. Swipe left/right between photos (‹ › buttons too, mainly for the web), ✕ (or Android Back) closes it, and the top shows the position, e.g. '2/5'. It is one reusable component (`src/components/ImageCarousel.tsx`), also used for review photos and the Photos tab
 - Name areas inside a location (B2, Left Wing) to group slots/rates
 - Invite staff and assign them to locations
 - Update availability in one tap: +1/-1, or mark Reserved/Unavailable
