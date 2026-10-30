@@ -19,6 +19,8 @@ import { formatPeso } from '../../src/utils/formatters';
 import { locationPhotoPublicUrl } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
 import { embeddedOne } from '../../src/lib/embed';
+import { useListingViewers } from '../../src/hooks/useListingViewers';
+import { viewersLabel } from '../../src/lib/viewerPresence';
 import { parseGeogPoint } from '../../src/lib/geog';
 import {
   googleMapsUrl,
@@ -32,6 +34,9 @@ export default function LocationDetailScreen() {
   const { id } = useLocalSearchParams();
   const { user, initialize } = useAuthStore();
   const [location, setLocation] = useState<any>(null);
+  // Live count of people on this page (including me), via Realtime Presence; joins once
+  // the listing has loaded (not for 'Listing not found').
+  const viewers = useListingViewers(location?.id ?? null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
@@ -188,6 +193,14 @@ export default function LocationDetailScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>{location.name}</Text>
           <Text style={styles.address}>{location.address}</Text>
+          <Text
+            style={styles.viewers}
+            accessibilityLabel={`${viewers} ${viewers === 1 ? 'person' : 'people'} viewing now`}
+            accessibilityLiveRegion="polite"
+            testID="listing-viewers"
+          >
+            {viewersLabel(viewers)}
+          </Text>
 
           <View style={styles.availability}>
             <AvailabilityBadge
@@ -409,6 +422,11 @@ const styles = StyleSheet.create({
   },
   address: {
     ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
+  },
+  viewers: {
+    ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.md,
   },
