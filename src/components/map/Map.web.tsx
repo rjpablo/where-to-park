@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { MapProps } from './types';
+import { MapHandle, MapProps } from './types';
 import { BAGUIO, DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL } from './style';
-import { cameraForPoints, NO_INSETS, type LngLat } from './camera';
+import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
 import {
   PIN_CENTER_Y,
   PIN_COLORS,
@@ -64,16 +64,20 @@ function ensurePinImages(m: maplibregl.Map) {
   });
 }
 
-export const Map: React.FC<MapProps> = ({
-  region,
-  pins = [],
-  onPinPress,
-  onMapPress,
-  style,
-  clusterPins = true,
-  overlayInsets = NO_INSETS,
-  onViewportChange,
-}) => {
+export const Map = forwardRef<MapHandle, MapProps>(function Map(
+  {
+    region,
+    pins = [],
+    onPinPress,
+    onMapPress,
+    style,
+    clusterPins = true,
+    overlayInsets = NO_INSETS,
+    onViewportChange,
+    focusMarker,
+  },
+  ref
+) {
   const onViewportChangeRef = useRef(onViewportChange);
   onViewportChangeRef.current = onViewportChange;
   const insetsRef = useRef(overlayInsets);
@@ -325,6 +329,41 @@ export const Map: React.FC<MapProps> = ({
     }
   }, [pins, mapLoaded, clusterPins, onPinPress]);
 
+  useImperativeHandle(ref, () => ({
+    focus: (target) => {
+      const m = map.current;
+      if (!m) return;
+      const container = m.getContainer();
+      const camera = cameraForPlace(
+        target,
+        { width: container.clientWidth, height: container.clientHeight },
+        insetsRef.current
+      );
+      if (camera) m.flyTo({ center: camera.center, zoom: camera.zoom, duration: 1200 });
+    },
+  }));
+
+  // Temporary marker for a searched place.
+  const focusMarkerRef = useRef<maplibregl.Marker | null>(null);
+  useEffect(() => {
+    focusMarkerRef.current?.remove();
+    focusMarkerRef.current = null;
+    if (!map.current || !focusMarker) return;
+    const el = document.createElement('canvas');
+    const data = pinImageData('pin-place');
+    if (data) {
+      el.width = data.width;
+      el.height = data.height;
+      el.style.width = `${PIN_WIDTH}px`;
+      el.style.height = `${PIN_HEIGHT}px`;
+      el.getContext('2d')?.putImageData(data, 0, 0);
+    }
+    el.setAttribute('data-testid', 'focus-place-marker');
+    focusMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      .setLngLat([focusMarker.longitude, focusMarker.latitude])
+      .addTo(map.current);
+  }, [focusMarker, mapLoaded]);
+
   // Update region
   useEffect(() => {
     if (!map.current || !region) return;
@@ -341,7 +380,7 @@ export const Map: React.FC<MapProps> = ({
       <div ref={mapContainer} style={styles.map as any} />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

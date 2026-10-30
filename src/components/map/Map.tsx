@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
-import { MapProps } from './types';
+import { MapHandle, MapProps } from './types';
 import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './style';
-import { cameraForPoints, NO_INSETS, type LngLat } from './camera';
+import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
 import { PIN_IMAGE_EXPRESSION, PIN_LABEL_OFFSET, PIN_LABEL_SIZE } from './pins';
 
 const PIN_IMAGES = {
@@ -15,17 +15,21 @@ const PIN_IMAGES = {
 
 MapLibreGL.setAccessToken(null);
 
-export const Map: React.FC<MapProps> = ({
-  region,
-  pins = [],
-  onPinPress,
-  onMapPress,
-  style,
-  showsUserLocation = true,
-  clusterPins = true,
-  overlayInsets = NO_INSETS,
-  onViewportChange,
-}) => {
+export const Map = forwardRef<MapHandle, MapProps>(function Map(
+  {
+    region,
+    pins = [],
+    onPinPress,
+    onMapPress,
+    style,
+    showsUserLocation = true,
+    clusterPins = true,
+    overlayInsets = NO_INSETS,
+    onViewportChange,
+    focusMarker,
+  },
+  ref
+) {
   const centerCoordinate = useMemo(() => mapCenter(region), [region]);
   const cameraRef = useRef<React.ElementRef<typeof MapLibreGL.Camera>>(null);
   const sourceRef = useRef<React.ElementRef<typeof MapLibreGL.ShapeSource>>(null);
@@ -48,6 +52,34 @@ export const Map: React.FC<MapProps> = ({
       animationMode: 'flyTo',
     });
   }, [centerCoordinate]);
+
+  useImperativeHandle(ref, () => ({
+    focus: (target) => {
+      const camera = cameraForPlace(target, sizeRef.current, insetsRef.current);
+      if (!camera) return;
+      cameraRef.current?.setCamera({
+        centerCoordinate: camera.center,
+        zoomLevel: camera.zoom,
+        animationDuration: 1200,
+        animationMode: 'flyTo',
+      });
+    },
+  }));
+
+  const focusShape = useMemo(
+    () =>
+      focusMarker
+        ? {
+            type: 'Feature' as const,
+            properties: {},
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [focusMarker.longitude, focusMarker.latitude],
+            },
+          }
+        : null,
+    [focusMarker]
+  );
 
   const expandCluster = async (feature: GeoJSON.Feature) => {
     const source = sourceRef.current;
@@ -220,10 +252,23 @@ export const Map: React.FC<MapProps> = ({
             />
           </MapLibreGL.ShapeSource>
         )}
+        {focusShape && (
+          <MapLibreGL.ShapeSource id="focus-place" shape={focusShape}>
+            <MapLibreGL.SymbolLayer
+              id="focus-place-marker"
+              style={{
+                iconImage: 'pin-place',
+                iconAnchor: 'bottom',
+                iconAllowOverlap: true,
+                iconIgnorePlacement: true,
+              }}
+            />
+          </MapLibreGL.ShapeSource>
+        )}
       </MapLibreGL.MapView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   map: {

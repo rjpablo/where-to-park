@@ -81,3 +81,36 @@ export function distanceMeters(a: LngLat, b: LngLat): number {
     Math.cos(toRad(a[1])) * Math.cos(toRad(b[1])) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
+
+/** Camera for a picked place: frame its bounds, else centre it at `zoom`. */
+export function cameraForPlace(
+  target: {
+    coordinate: { latitude: number; longitude: number };
+    bounds?: {
+      ne: { latitude: number; longitude: number };
+      sw: { latitude: number; longitude: number };
+    };
+    zoom?: number;
+  },
+  size: Size,
+  insets: Insets = NO_INSETS
+): { center: LngLat; zoom: number } | null {
+  const zoom = target.zoom ?? 16;
+  if (target.bounds) {
+    const { ne, sw } = target.bounds;
+    const framed = cameraForPoints(
+      [
+        [ne.longitude, ne.latitude],
+        [sw.longitude, sw.latitude],
+      ],
+      size,
+      { insets, margin: 24, maxZoom: 17, fallbackZoom: zoom }
+    );
+    if (framed) return framed;
+  }
+  return cameraForPoints([[target.coordinate.longitude, target.coordinate.latitude]], size, {
+    insets,
+    fallbackZoom: zoom,
+    maxZoom: 18,
+  });
+}

@@ -31,6 +31,18 @@ export interface MapViewport {
   isUserInteraction: boolean;
 }
 
+export interface MapFocusTarget {
+  coordinate: Coordinate;
+  bounds?: { ne: Coordinate; sw: Coordinate };
+  zoom?: number;
+}
+
+/** Imperative map controls (via ref). */
+export interface MapHandle {
+  /** Move the camera to a place, framing its bounds when known. */
+  focus: (target: MapFocusTarget) => void;
+}
+
 export interface MapProps {
   region?: MapRegion;
   pins?: LocationPin[];
@@ -43,6 +55,8 @@ export interface MapProps {
   clusterPins?: boolean;
   /** Px of the map covered by overlays (search box, bottom sheet) to keep pins out of. */
   overlayInsets?: { top: number; right: number; bottom: number; left: number };
+  /** Temporary marker, e.g. the place picked in the search box. */
+  focusMarker?: Coordinate | null;
 }
 
 export interface MapPinPickerProps {

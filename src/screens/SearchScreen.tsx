@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,15 @@ import { useRouter } from 'expo-router';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
 import { Map } from '../components/map';
-import { LocationPin, MapRegion, MapViewport } from '../components/map/types';
+import {
+  Coordinate,
+  LocationPin,
+  MapHandle,
+  MapRegion,
+  MapViewport,
+} from '../components/map/types';
+import { PlaceSearchBox } from '../components/PlaceSearchBox';
+import type { PlaceSuggestion } from '../lib/geocoding';
 import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
@@ -38,6 +46,11 @@ export function SearchScreen() {
   const [radiusM, setRadiusM] = useState(5000);
   const [searchNonce, setSearchNonce] = useState(0);
   const [movedViewport, setMovedViewport] = useState<MapViewport | null>(null);
+  const mapRef = useRef<MapHandle>(null);
+  const [mapCenter, setMapCenter] = useState<Coordinate>({ latitude: 16.4023, longitude: 120.596 });
+  const [placeMarker, setPlaceMarker] = useState<Coordinate | null>(null);
+  // After jumping to a searched place, offer "Search this area" there too.
+  const offerSearchAfterMove = useRef(false);
   const authUser = useAuthStore((s) => s.user);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
@@ -45,7 +58,7 @@ export function SearchScreen() {
   // Keep cluster zooms clear of the bottom sheet (40% / 85% of the screen).
   const overlayInsets = useMemo(
     () => ({
-      top: 0,
+      top: 72, // place search box
       right: 0,
       left: 0,
       bottom: Math.round(windowHeight * (sheetPosition === 'expanded' ? 0.85 : 0.4)),
@@ -65,8 +78,18 @@ export function SearchScreen() {
   );
 
   const handleViewportChange = useCallback((viewport: MapViewport) => {
-    // Offer "Search this area" only after the user's own pan or zoom.
-    if (viewport.isUserInteraction) setMovedViewport(viewport);
+    setMapCenter(viewport.center);
+    // Offer "Search this area" only after the user's own pan or zoom (or a place jump).
+    if (viewport.isUserInteraction || offerSearchAfterMove.current) {
+      offerSearchAfterMove.current = false;
+      setMovedViewport(viewport);
+    }
+  }, []);
+
+  const handlePlaceSelect = useCallback((place: PlaceSuggestion) => {
+    setPlaceMarker(place.coordinate);
+    offerSearchAfterMove.current = true;
+    mapRef.current?.focus(place);
   }, []);
 
   const searchThisArea = () => {
@@ -221,7 +244,9 @@ export function SearchScreen() {
     <View style={styles.container}>
       {/* Map with location pins */}
       <Map
+        ref={mapRef}
         region={region}
+        focusMarker={placeMarker}
         pins={pins}
         onPinPress={handlePinPress}
         style={styles.map}
@@ -232,6 +257,11 @@ export function SearchScreen() {
       />
 
       <View style={styles.topOverlay} pointerEvents="box-none">
+        <PlaceSearchBox
+          near={mapCenter}
+          onSelect={handlePlaceSelect}
+          onClear={() => setPlaceMarker(null)}
+        />
         {movedViewport ? (
           <TouchableOpacity
             style={styles.searchAreaButton}
@@ -359,6 +389,8 @@ const styles = StyleSheet.create({
     left: theme.spacing.md,
     right: theme.spacing.md,
     alignItems: 'center',
+    zIndex: 10,
+    elevation: 12,
     gap: theme.spacing.sm,
   },
   searchAreaButton: {
