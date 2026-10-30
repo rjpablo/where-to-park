@@ -21,3 +21,18 @@ export function parseGeogPoint(geog: unknown): { lat: number; lng: number } | nu
   const lat = view.getFloat64(offset + 8, little);
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
+
+/**
+ * A listing's point from a search row (numeric latitude/longitude from search_nearby,
+ * which may arrive as strings) or, failing that, from its `geog` (hex EWKB / GeoJSON).
+ */
+export function listingPoint(row: {
+  latitude?: unknown;
+  longitude?: unknown;
+  geog?: unknown;
+}): { lat: number; lng: number } | null {
+  const lat = row.latitude == null || row.latitude === '' ? NaN : Number(row.latitude);
+  const lng = row.longitude == null || row.longitude === '' ? NaN : Number(row.longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  return parseGeogPoint(row.geog);
+}

@@ -7,8 +7,6 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
-  Linking,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
@@ -22,6 +20,7 @@ import { embeddedOne } from '../../src/lib/embed';
 import { useListingViewers } from '../../src/hooks/useListingViewers';
 import { viewersLabel } from '../../src/lib/viewerPresence';
 import { parseGeogPoint } from '../../src/lib/geog';
+import { openNavigation } from '../../src/lib/openNavigation';
 import { useSearchStore } from '../../src/stores/searchStore';
 import { formatDistance, formatDuration } from '../../src/utils/formatters';
 import {
@@ -33,12 +32,7 @@ import {
   type LatLng,
 } from '../../src/lib/listingEta';
 import * as ExpoLocation from 'expo-location';
-import {
-  googleMapsUrl,
-  navigateLabel,
-  navigationUrl,
-  preferredNavApp,
-} from '../../src/lib/navigation';
+import { navigateLabel, preferredNavApp } from '../../src/lib/navigation';
 
 export default function LocationDetailScreen() {
   const router = useRouter();
@@ -212,13 +206,7 @@ export default function LocationDetailScreen() {
   const navApp = preferredNavApp(user?.preferred_nav_app);
   const openNav = async () => {
     const { lat, lng } = coords();
-    const target = { lat, lng, name: location?.name };
-    try {
-      await Linking.openURL(navigationUrl(navApp, target, Platform.OS));
-    } catch {
-      // No app handles geo: (or the chosen app is missing): use Google Maps on the web.
-      Linking.openURL(googleMapsUrl(target));
-    }
+    await openNavigation(navApp, { lat, lng, name: location?.name });
   };
 
   if (loading) {

@@ -37,6 +37,9 @@ import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots, searchSummary } from '../lib/availability';
 import { etaText } from '../lib/listingEta';
+import { listingPoint } from '../lib/geog';
+import { navigateLabel, preferredNavApp } from '../lib/navigation';
+import { openNavigation } from '../lib/openNavigation';
 import {
   MAX_DISTANCE_KM,
   SEARCH_START_ZOOM,
@@ -108,6 +111,8 @@ export function SearchScreen() {
   // After jumping to a searched place, offer "Search this area" there too.
   const offerSearchAfterMove = useRef(false);
   const authUser = useAuthStore((s) => s.user);
+  // Row Navigate buttons use the same map app as the details page (phone default for guests).
+  const navApp = preferredNavApp(authUser?.preferred_nav_app);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
@@ -453,13 +458,32 @@ export function SearchScreen() {
         {item.address}
       </Text>
 
-      <Text
-        style={[styles.listItemRating, !item.review_count && styles.listItemNotRated]}
-        numberOfLines={1}
-        testID={`list-rating-${item.id}`}
-      >
-        {formatListingRating(item.avg_rating, item.review_count)}
-      </Text>
+      <View style={styles.listItemFooter}>
+        <Text
+          style={[styles.listItemRating, !item.review_count && styles.listItemNotRated]}
+          numberOfLines={1}
+          testID={`list-rating-${item.id}`}
+        >
+          {formatListingRating(item.avg_rating, item.review_count)}
+        </Text>
+        {/* Its own touchable: a tap here opens the map app, not the details page. */}
+        <TouchableOpacity
+          style={styles.listNavButton}
+          onPress={(e) => {
+            e?.stopPropagation?.();
+            const point = listingPoint(item);
+            if (point) openNavigation(navApp, { ...point, name: item.name });
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${navigateLabel(navApp)}: ${item.name}`}
+          testID={`list-navigate-${item.id}`}
+        >
+          <Text style={styles.listNavText} numberOfLines={1}>
+            ➤ Navigate
+          </Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 
@@ -909,12 +933,28 @@ const styles = StyleSheet.create({
     minWidth: 0,
     maxWidth: '100%',
   },
+  listItemFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.xs,
+    gap: theme.spacing.sm,
+  },
   listItemRating: {
     ...theme.typography.caption,
     color: theme.colors.warning,
     fontWeight: '600',
-    marginTop: theme.spacing.xs,
+    flexShrink: 1,
   },
+  listNavButton: {
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+  },
+  listNavText: { ...theme.typography.caption, color: theme.colors.primary, fontWeight: '600' },
   listItemNotRated: { color: theme.colors.text.tertiary, fontWeight: '400' },
   listItemAddress: {
     ...theme.typography.bodySmall,
