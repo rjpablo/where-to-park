@@ -3,6 +3,14 @@ import { StyleSheet } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import { MapProps } from './types';
 import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './style';
+import { PIN_IMAGE_EXPRESSION, PIN_LABEL_OFFSET, PIN_LABEL_SIZE } from './pins';
+
+const PIN_IMAGES = {
+  'pin-open': require('../../../assets/map/pin-open.png'),
+  'pin-full': require('../../../assets/map/pin-full.png'),
+  'pin-stale': require('../../../assets/map/pin-stale.png'),
+  'pin-place': require('../../../assets/map/pin-place.png'),
+};
 
 MapLibreGL.setAccessToken(null);
 
@@ -73,6 +81,8 @@ export const Map: React.FC<MapProps> = ({
         animationDuration={1000}
       />
 
+      <MapLibreGL.Images images={PIN_IMAGES} />
+
       {showsUserLocation && <MapLibreGL.UserLocation visible />}
 
       {pinGeoJSON.features.length > 0 && (
@@ -82,7 +92,7 @@ export const Map: React.FC<MapProps> = ({
           cluster={clusterPins}
           clusterRadius={50}
           clusterMaxZoomLevel={14}
-          hitbox={{ width: 44, height: 44 }}
+          hitbox={{ width: 44, height: 72 }}
           onPress={(event) => {
             const feature = event.features?.[0];
             const locationId = feature?.properties?.id;
@@ -111,33 +121,22 @@ export const Map: React.FC<MapProps> = ({
             }}
           />
 
-          <MapLibreGL.CircleLayer
-            id="pin-circle"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              circleColor: [
-                'case',
-                ['get', 'isStale'],
-                '#f59e0b',
-                ['get', 'isFull'],
-                '#ef4444',
-                '#10b981',
-              ],
-              circleRadius: 16,
-              circleStrokeColor: '#ffffff',
-              circleStrokeWidth: 2,
-            }}
-          />
-
+          {/* Single listings: teardrop pin whose tip marks the exact entrance. */}
           <MapLibreGL.SymbolLayer
-            id="pin-count"
+            id="pin-marker"
             filter={['!', ['has', 'point_count']]}
             style={{
+              iconImage: PIN_IMAGE_EXPRESSION as any,
+              iconAnchor: 'bottom',
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
               textField: ['get', 'pinLabel'],
-              textSize: 11,
+              textSize: PIN_LABEL_SIZE,
               textColor: '#ffffff',
               textFont: MAP_LABEL_FONT,
+              textOffset: PIN_LABEL_OFFSET,
               textAllowOverlap: true,
+              textIgnorePlacement: true,
             }}
           />
         </MapLibreGL.ShapeSource>

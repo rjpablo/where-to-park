@@ -4,6 +4,64 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapProps } from './types';
 import { BAGUIO, DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL } from './style';
+import {
+  PIN_CENTER_Y,
+  PIN_COLORS,
+  PIN_HEIGHT,
+  PIN_IMAGE_EXPRESSION,
+  PIN_LABEL_OFFSET,
+  PIN_LABEL_SIZE,
+  PIN_RADIUS,
+  PIN_STROKE,
+  PIN_WIDTH,
+  teardropPoints,
+  type PinImageName,
+} from './pins';
+
+const PIN_PIXEL_RATIO = 2;
+
+/** Draws the teardrop pin on a canvas (same geometry as the native PNGs). */
+function pinImageData(name: PinImageName): ImageData | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = PIN_WIDTH * PIN_PIXEL_RATIO;
+  canvas.height = PIN_HEIGHT * PIN_PIXEL_RATIO;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.scale(PIN_PIXEL_RATIO, PIN_PIXEL_RATIO);
+  const cx = PIN_WIDTH / 2;
+  const fill = (pts: [number, number][], color: string) => {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
+  fill(
+    teardropPoints(cx + 0.6, PIN_CENTER_Y + 1, PIN_RADIUS + PIN_STROKE, PIN_HEIGHT - 0.2),
+    'rgba(0,0,0,0.24)'
+  );
+  fill(teardropPoints(cx, PIN_CENTER_Y, PIN_RADIUS + PIN_STROKE, PIN_HEIGHT - 1), '#ffffff');
+  fill(
+    teardropPoints(cx, PIN_CENTER_Y, PIN_RADIUS, PIN_HEIGHT - 1 - PIN_STROKE * 1.6),
+    PIN_COLORS[name]
+  );
+  if (name === 'pin-place') {
+    ctx.beginPath();
+    ctx.arc(cx, PIN_CENTER_Y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  }
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function ensurePinImages(m: maplibregl.Map) {
+  (Object.keys(PIN_COLORS) as PinImageName[]).forEach((name) => {
+    if (m.hasImage(name)) return;
+    const data = pinImageData(name);
+    if (data) m.addImage(name, data, { pixelRatio: PIN_PIXEL_RATIO });
+  });
+}
 
 export const Map: React.FC<MapProps> = ({
   region,
@@ -156,37 +214,24 @@ export const Map: React.FC<MapProps> = ({
           },
         });
 
-        // Individual pins
+        // Individual pins: teardrop with the tip on the exact coordinate.
+        ensurePinImages(map.current);
         map.current.addLayer({
-          id: 'pin-circle',
-          type: 'circle',
-          source: sourceId,
-          filter: ['!', ['has', 'point_count']],
-          paint: {
-            'circle-color': [
-              'case',
-              ['==', ['get', 'isStale'], 1],
-              '#f59e0b',
-              ['==', ['get', 'isFull'], 1],
-              '#ef4444',
-              '#10b981',
-            ],
-            'circle-radius': 16,
-            'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 2,
-          },
-        });
-
-        // Pin count
-        map.current.addLayer({
-          id: 'pin-count',
+          id: 'pin-marker',
           type: 'symbol',
           source: sourceId,
           filter: ['!', ['has', 'point_count']],
           layout: {
+            'icon-image': PIN_IMAGE_EXPRESSION as any,
+            'icon-anchor': 'bottom',
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
             'text-field': ['get', 'pinLabel'],
             'text-font': MAP_LABEL_FONT,
-            'text-size': 11,
+            'text-size': PIN_LABEL_SIZE,
+            'text-offset': PIN_LABEL_OFFSET,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
           },
           paint: {
             'text-color': '#ffffff',
@@ -194,7 +239,7 @@ export const Map: React.FC<MapProps> = ({
         });
 
         // Click handler
-        map.current.on('click', 'pin-circle', (e) => {
+        map.current.on('click', 'pin-marker', (e) => {
           if (e.features && e.features[0] && onPinPress) {
             const feature = e.features[0];
             const locationId = feature.properties?.id;
@@ -205,13 +250,13 @@ export const Map: React.FC<MapProps> = ({
         });
 
         // Change cursor on hover
-        map.current.on('mouseenter', 'pin-circle', () => {
+        map.current.on('mouseenter', 'pin-marker', () => {
           if (map.current) {
             map.current.getCanvas().style.cursor = 'pointer';
           }
         });
 
-        map.current.on('mouseleave', 'pin-circle', () => {
+        map.current.on('mouseleave', 'pin-marker', () => {
           if (map.current) {
             map.current.getCanvas().style.cursor = '';
           }
