@@ -4,11 +4,13 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
+import { useBackToExit } from '../src/hooks/useBackToExit';
 
 export default function RootLayout() {
   const user = useAuthStore((s) => s.user);
   const initialize = useAuthStore((s) => s.initialize);
   const initialized = useAuthStore((s) => s.initialized);
+  useBackToExit();
 
   React.useEffect(() => {
     initialize();

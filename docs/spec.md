@@ -1,6 +1,8 @@
 # Where To Park: Feature Specification
 
-**Last Updated:** 29 Oct 2026
+**Last Updated:** 30 Oct 2026
+
+> **Revision colours:** 🟩 = added or changed on 30 Oct 2026 (preview 1.0.3 feedback, batch 2).
 
 ## Overview
 
@@ -240,6 +242,7 @@ Two drivers cannot reserve the last space at the same time. Every capacity chang
 - **End session**: Shows started hours × hourly rate, extra fees, balance; 'Record cash' primary button with full balance prefilled and editable for partial payments. Overdue time shown separately and only billed if staff change end time or amount. If balance remains, alert requires note before End succeeds, remainder shown as 'Waive ₱X' (Staff allowed by default)
 - **Any payment prompt**: Defaults to Cash with balance prefilled
 - **Driver side**: Search opens on map with results sheet at peek, sorted nearest first; pins show counts; last count always shows with 'updated X ago', turning amber past threshold on list and pins
+- 🟩 **Back to exit (Android)**: On a root screen (nothing to go back to), the first hardware Back shows a 'Press back again to close the app' toast; a second Back within 2 seconds closes the app. Screens with history keep normal Back navigation
 - **Chat**: Message button on every location detail for signed-in drivers; Operators see inbox of existing threads only
 - **Lost the race**: If reservation/check-in loses race for last space, screen says 'This space was just taken' and refreshes
 - **Custom rates, slots, reservations, fee presets**: Reachable but never block basic setup
