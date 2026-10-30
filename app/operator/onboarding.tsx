@@ -9,6 +9,14 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { PHOTO_UPLOAD_ERROR, uploadLocationPhoto } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
+import {
+  RATE_TYPES,
+  RATE_TYPE_LABELS,
+  defaultRateParams,
+  describeDefaultRate,
+  validateDefaultRate,
+  type RateType,
+} from '../../src/lib/rates';
 import type { Coordinate } from '../../src/components/map/types';
 import type { ProcessedImage } from '../../src/utils/processImage';
 
@@ -26,14 +34,32 @@ export default function OnboardingScreen() {
   const [listingType, setListingType] = React.useState<ListingType>('commercial');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   const [capacity, setCapacity] = React.useState('10');
+  const [rateType, setRateType] = React.useState<RateType>('hourly');
   const [rate, setRate] = React.useState('50.00');
+  const [dailyRate, setDailyRate] = React.useState('');
+  const [monthlyRate, setMonthlyRate] = React.useState('');
+  const [firstHours, setFirstHours] = React.useState('3');
+  const [firstAmount, setFirstAmount] = React.useState('');
+  const [succeedingRate, setSucceedingRate] = React.useState('');
+  const [rateSaved, setRateSaved] = React.useState(false);
   const [rules, setRules] = React.useState('');
   const [photo, setPhoto] = React.useState<ProcessedImage | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
   const [createdLocationId, setCreatedLocationId] = React.useState<string | null>(null);
+  const defaultRateIdRef = React.useRef<string | null>(null);
   const [photoError, setPhotoError] = React.useState<string | null>(null);
+
+  const rateInput = {
+    rateType,
+    hourly: rate,
+    daily: dailyRate,
+    monthly: monthlyRate,
+    firstHours,
+    firstAmount,
+    succeeding: succeedingRate,
+  };
 
   const handleNext = () => {
     setError(null);
@@ -43,13 +69,13 @@ export default function OnboardingScreen() {
     }
     if (step === 3) {
       const cap = Number(capacity);
-      const hourly = Number(rate);
       if (!Number.isFinite(cap) || cap < 1) {
         setError('Capacity must be at least 1');
         return;
       }
-      if (!Number.isFinite(hourly) || hourly < 0) {
-        setError('Hourly rate is required');
+      const rateError = validateDefaultRate(rateInput);
+      if (rateError) {
+        setError(rateError);
         return;
       }
     }
@@ -100,7 +126,8 @@ export default function OnboardingScreen() {
           p_lat: pin.latitude,
           p_lng: pin.longitude,
           p_capacity: Number(capacity),
-          p_hourly_amount: Number(rate),
+          // create_location always seeds an hourly default; it is retyped below.
+          p_hourly_amount: rateType === 'hourly' ? Number(rate) : 0,
           p_listing_type: listingType,
           p_rules: rules.trim() || null,
         });
@@ -111,6 +138,26 @@ export default function OnboardingScreen() {
         }
         locationId = data.location_id as string;
         setCreatedLocationId(locationId);
+        defaultRateIdRef.current = data.rate_id ?? null;
+      }
+
+      if (rateType !== 'hourly' && !rateSaved && locationId) {
+        const { data: rateData, error: rateError } = await supabase.rpc('upsert_rate', {
+          p_location_id: locationId,
+          p_name: 'Standard Rate',
+          p_rate_id: defaultRateIdRef.current,
+          p_is_default: true,
+          ...defaultRateParams(rateInput),
+        });
+        if (rateError || rateData?.error) {
+          setError(
+            `Listing created, but the ${RATE_TYPE_LABELS[rateType].toLowerCase()} rate was not saved: ${
+              rateError?.message || String(rateData?.error)
+            }. Tap Retry to save it.`
+          );
+          return;
+        }
+        setRateSaved(true);
       }
 
       if (user && user.account_type !== 'operator') {
@@ -218,22 +265,99 @@ export default function OnboardingScreen() {
             testID="onboarding-capacity"
           />
 
-          <Text style={styles.label}>Hourly Rate (₱) *</Text>
-          <TextInput
-            style={styles.input}
-            value={rate}
-            onChangeText={setRate}
-            placeholder="50.00"
-            keyboardType="decimal-pad"
-            testID="onboarding-rate"
-          />
+          <Text style={styles.label}>Default rate type *</Text>
+          <View style={styles.chips}>
+            {RATE_TYPES.map((type) => (
+              <Button
+                key={type}
+                title={RATE_TYPE_LABELS[type]}
+                variant={rateType === type ? 'primary' : 'outline'}
+                size="small"
+                onPress={() => setRateType(type)}
+                testID={`onboarding-rate-type-${type}`}
+              />
+            ))}
+          </View>
+
+          {rateType === 'hourly' && (
+            <>
+              <Text style={styles.label}>Hourly Rate (₱) *</Text>
+              <TextInput
+                style={styles.input}
+                value={rate}
+                onChangeText={setRate}
+                placeholder="50.00"
+                keyboardType="decimal-pad"
+                testID="onboarding-rate"
+              />
+            </>
+          )}
+          {rateType === 'daily' && (
+            <>
+              <Text style={styles.label}>Daily Rate (₱) *</Text>
+              <TextInput
+                style={styles.input}
+                value={dailyRate}
+                onChangeText={setDailyRate}
+                placeholder="300.00"
+                keyboardType="decimal-pad"
+                testID="onboarding-rate-daily"
+              />
+            </>
+          )}
+          {rateType === 'monthly' && (
+            <>
+              <Text style={styles.label}>Monthly Rate (₱) *</Text>
+              <TextInput
+                style={styles.input}
+                value={monthlyRate}
+                onChangeText={setMonthlyRate}
+                placeholder="3500.00"
+                keyboardType="decimal-pad"
+                testID="onboarding-rate-monthly"
+              />
+            </>
+          )}
+          {rateType === 'flat_then_hourly' && (
+            <>
+              <Text style={styles.label}>First N hours *</Text>
+              <TextInput
+                style={styles.input}
+                value={firstHours}
+                onChangeText={setFirstHours}
+                placeholder="3"
+                keyboardType="numeric"
+                testID="onboarding-rate-first-hours"
+              />
+              <Text style={styles.label}>Flat amount for the first N hours (₱) *</Text>
+              <TextInput
+                style={styles.input}
+                value={firstAmount}
+                onChangeText={setFirstAmount}
+                placeholder="100.00"
+                keyboardType="decimal-pad"
+                testID="onboarding-rate-first-amount"
+              />
+              <Text style={styles.label}>Succeeding hourly rate (₱) *</Text>
+              <TextInput
+                style={styles.input}
+                value={succeedingRate}
+                onChangeText={setSucceedingRate}
+                placeholder="30.00"
+                keyboardType="decimal-pad"
+                testID="onboarding-rate-succeeding"
+              />
+            </>
+          )}
 
           <View style={styles.info}>
-            <Text style={styles.infoText}>✓ Default rate type: Hourly</Text>
+            <Text style={styles.infoText}>✓ Default rate type: {RATE_TYPE_LABELS[rateType]}</Text>
             <Text style={styles.infoText}>
-              ✓ You can add daily, monthly, and custom rates later
+              ✓ You can add more rates later under Areas and Rates
             </Text>
-            <Text style={styles.infoText}>✓ Billing is per started hour</Text>
+            {rateType === 'hourly' || rateType === 'flat_then_hourly' ? (
+              <Text style={styles.infoText}>✓ Billing is per started hour</Text>
+            ) : null}
           </View>
         </View>
       )}
@@ -292,7 +416,7 @@ export default function OnboardingScreen() {
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Rate</Text>
-            <Text style={styles.reviewValue}>₱{rate}/hour</Text>
+            <Text style={styles.reviewValue}>{describeDefaultRate(rateInput)}</Text>
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Rules</Text>
@@ -357,7 +481,27 @@ export default function OnboardingScreen() {
         {step > 1 && !createdLocationId && (
           <Button title="Back" variant="outline" onPress={handleBack} disabled={submitting} />
         )}
-        {createdLocationId ? null : step < 5 ? (
+        {createdLocationId ? (
+          photoError ? null : (
+            <>
+              <Button
+                title="Retry"
+                onPress={handleFinish}
+                loading={submitting}
+                disabled={submitting}
+                testID="onboarding-retry"
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Open listing"
+                variant="outline"
+                onPress={() => openListing(createdLocationId)}
+                disabled={submitting}
+                testID="onboarding-open-listing"
+              />
+            </>
+          )
+        ) : step < 5 ? (
           <Button
             title="Next"
             onPress={handleNext}
@@ -439,6 +583,11 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.sm,
   },
   help: {
