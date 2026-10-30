@@ -186,7 +186,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 ### F9. Operator–Driver Chat
 
 - Drivers can start chat from any listing before booking (one thread per location and driver)
-- Operators and staff can open or reply only when that driver has a reservation/session at one of their locations
+- 🟧 Operators and staff (members of the listing's operator) can reply once the driver has written in the thread, or at any time when that driver has a reservation/session at one of their locations; they can't send the first message to a driver without one (was: replies needed a reservation/session too, so pre-booking questions got 'Permission denied'). Same rule for text and images (`operator_can_message_thread`)
 - Chat replaces showing contact number or Request info button
 - Text and image messages; images go to private Storage bucket, resized and EXIF-stripped, visible only to thread members
 - **In Phase 1**: History shows session system events inline (session started, extended or ended, payment recorded, fee added, balance waived)
