@@ -18,6 +18,7 @@ import { availableSlots, searchSummary } from '../lib/availability';
 import {
   DEFAULT_DISTANCE_KM,
   MAX_DISTANCE_KM,
+  SEARCH_START_ZOOM,
   fitDistanceToMax,
   sliderMaxKm,
 } from '../lib/distance';
@@ -55,7 +56,7 @@ export function SearchScreen() {
   const [mapCenter, setMapCenter] = useState<Coordinate>({ latitude: 16.4023, longitude: 120.596 });
   // Slider max = distance from the search centre to the farthest visible corner.
   const [distanceMaxKm, setDistanceMaxKm] = useState(MAX_DISTANCE_KM);
-  // The distance the user chose (or the 5 km default); clamped to the max per search.
+  // The distance the user chose (or the 3 km default); clamped to the max per search.
   const preferredKmRef = useRef(DEFAULT_DISTANCE_KM);
   const latestViewport = useRef<MapViewport | null>(null);
   const [placeMarker, setPlaceMarker] = useState<Coordinate | null>(null);
@@ -190,7 +191,7 @@ export function SearchScreen() {
 
   useEffect(() => {
     // Each search recomputes the slider max from the visible map, then clamps the
-    // distance: the preferred value (default 5 km) if it fits, otherwise the max.
+    // distance: the preferred value (default 3 km) if it fits, otherwise the max.
     const viewport = latestViewport.current;
     if (viewport) {
       const origin: [number, number] = [location.lng, location.lat];
@@ -290,6 +291,7 @@ export function SearchScreen() {
       <Map
         ref={mapRef}
         region={region}
+        initialZoom={SEARCH_START_ZOOM}
         focusMarker={placeMarker}
         pins={pins}
         onPinPress={handlePinPress}

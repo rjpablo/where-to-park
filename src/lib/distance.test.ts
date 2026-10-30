@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_DISTANCE_KM,
+  SEARCH_START_ZOOM,
+  centerToCornerMeters,
   fitDistanceToMax,
   formatDistanceKm,
   kmToPosition,
@@ -21,6 +23,7 @@ test('slider ends map to the range limits', () => {
 test('position and km round-trip on the default', () => {
   assert.equal(positionToKm(kmToPosition(DEFAULT_DISTANCE_KM)), DEFAULT_DISTANCE_KM);
   assert.ok(kmToPosition(5) > 0.4 && kmToPosition(5) < 0.6, 'log scale puts 5 km mid-track');
+  assert.equal(DEFAULT_DISTANCE_KM, 3);
 });
 
 test('rounding and steps', () => {
@@ -59,4 +62,16 @@ test('slider scale ends at the dynamic max', () => {
   assert.equal(positionToKm(1, 0.5), 0.5);
   assert.equal(kmToPosition(1.5, 1.5), 1);
   assert.ok(roundDistanceKm(14, 13) <= 13);
+});
+
+test('opening zoom makes the 3 km default selectable at launch', () => {
+  const lat = 16.4023; // Baguio
+  const typical = centerToCornerMeters(412, 800, SEARCH_START_ZOOM, lat);
+  assert.ok(typical >= 3000, `typical phone corner ${Math.round(typical)} m`);
+  assert.ok(sliderMaxKm(typical) >= DEFAULT_DISTANCE_KM);
+  const small = centerToCornerMeters(360, 580, SEARCH_START_ZOOM, lat);
+  assert.ok(sliderMaxKm(small) >= DEFAULT_DISTANCE_KM, `small phone corner ${Math.round(small)} m`);
+  assert.equal(fitDistanceToMax(DEFAULT_DISTANCE_KM, sliderMaxKm(typical)), 3);
+  // "just enough": a quarter zoom closer would no longer reach 3 km on a small phone
+  assert.ok(sliderMaxKm(centerToCornerMeters(360, 580, SEARCH_START_ZOOM + 0.25, lat)) < 3);
 });

@@ -47,6 +47,8 @@ export interface MapHandle {
 
 export interface MapProps {
   region?: MapRegion;
+  /** Zoom used for `region` (defaults to DEFAULT_MAP_ZOOM). */
+  initialZoom?: number;
   pins?: LocationPin[];
   onPinPress?: (locationId: string) => void;
   onMapPress?: (coordinate: Coordinate) => void;

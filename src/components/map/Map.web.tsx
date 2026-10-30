@@ -75,6 +75,7 @@ function ensurePinImages(m: maplibregl.Map) {
 export const Map = forwardRef<MapHandle, MapProps>(function Map(
   {
     region,
+    initialZoom = DEFAULT_MAP_ZOOM,
     pins = [],
     onPinPress,
     onMapPress,
@@ -110,7 +111,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
       container: mapContainer.current,
       style: MAP_STYLE_URL,
       center: initialCenter,
-      zoom: DEFAULT_MAP_ZOOM,
+      zoom: initialZoom,
     });
 
     if (typeof window !== 'undefined') {
@@ -389,10 +390,10 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
 
     map.current.flyTo({
       center: [region.longitude, region.latitude],
-      zoom: DEFAULT_MAP_ZOOM,
+      zoom: initialZoom,
       duration: 1000,
     });
-  }, [region]);
+  }, [region, initialZoom]);
 
   return (
     <View style={[styles.container, style]}>

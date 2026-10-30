@@ -24,6 +24,7 @@ MapLibreGL.setAccessToken(null);
 export const Map = forwardRef<MapHandle, MapProps>(function Map(
   {
     region,
+    initialZoom = DEFAULT_MAP_ZOOM,
     pins = [],
     onPinPress,
     onMapPress,
@@ -54,11 +55,11 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
     }
     cameraRef.current?.setCamera({
       centerCoordinate,
-      zoomLevel: DEFAULT_MAP_ZOOM,
+      zoomLevel: initialZoom,
       animationDuration: 1000,
       animationMode: 'flyTo',
     });
-  }, [centerCoordinate]);
+  }, [centerCoordinate, initialZoom]);
 
   useImperativeHandle(ref, () => ({
     focus: (target) => {
@@ -213,7 +214,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
           ref={cameraRef}
           defaultSettings={{
             centerCoordinate,
-            zoomLevel: DEFAULT_MAP_ZOOM,
+            zoomLevel: initialZoom,
           }}
         />
 

@@ -6,7 +6,33 @@ export const MIN_DISTANCE_KM = 0.5;
  * country-wide radius.
  */
 export const MAX_DISTANCE_KM = 50;
-export const DEFAULT_DISTANCE_KM = 5;
+export const DEFAULT_DISTANCE_KM = 3;
+
+/**
+ * Opening zoom of the search map. Low enough that the farthest visible corner is
+ * at least DEFAULT_DISTANCE_KM away on a typical phone (map area ~412×800 dp at
+ * Baguio's latitude ≈ 3.5 km), so the 3 km default is selectable at launch.
+ * Smaller screens (~360×580 dp, ≈ 2.6 km) still get a 3 km max because the max
+ * rounds up to the next 0.5 km step. See distance.test.ts.
+ */
+export const SEARCH_START_ZOOM = 13.25;
+
+const EARTH_CIRCUMFERENCE_M = 40075016.686;
+
+/** Metres per screen point at a zoom level (MapLibre, 512px tiles) and latitude. */
+export function metersPerPoint(zoom: number, latitude: number): number {
+  return (EARTH_CIRCUMFERENCE_M * Math.cos((latitude * Math.PI) / 180)) / (512 * 2 ** zoom);
+}
+
+/** Distance from the map centre to a corner for a map of the given size (points). */
+export function centerToCornerMeters(
+  width: number,
+  height: number,
+  zoom: number,
+  latitude: number
+): number {
+  return Math.hypot(width / 2, height / 2) * metersPerPoint(zoom, latitude);
+}
 
 export function clampDistanceKm(km: number, maxKm = MAX_DISTANCE_KM): number {
   const max = Math.max(MIN_DISTANCE_KM, Math.min(MAX_DISTANCE_KM, maxKm));
@@ -39,7 +65,7 @@ export function sliderMaxKm(farthestVisibleMeters: number): number {
 }
 
 /**
- * Value to use after the max changes: the user's preferred distance (5 km by
+ * Value to use after the max changes: the user's preferred distance (3 km by
  * default) if it fits, otherwise the max.
  */
 export function fitDistanceToMax(preferredKm: number, maxKm: number): number {
