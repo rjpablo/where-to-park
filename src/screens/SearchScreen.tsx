@@ -36,6 +36,7 @@ import type { PlaceSuggestion } from '../lib/geocoding';
 import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
+import { formatListingRating } from '../lib/rating';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
@@ -380,6 +381,14 @@ export function SearchScreen() {
 
       <Text style={styles.listItemAddress} numberOfLines={2} ellipsizeMode="tail">
         {item.address}
+      </Text>
+
+      <Text
+        style={[styles.listItemRating, !item.review_count && styles.listItemNotRated]}
+        numberOfLines={1}
+        testID={`list-rating-${item.id}`}
+      >
+        {formatListingRating(item.avg_rating, item.review_count)}
       </Text>
     </TouchableOpacity>
   );
@@ -801,6 +810,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
     maxWidth: '100%',
   },
+  listItemRating: {
+    ...theme.typography.caption,
+    color: theme.colors.warning,
+    fontWeight: '600',
+    marginTop: theme.spacing.xs,
+  },
+  listItemNotRated: { color: theme.colors.text.tertiary, fontWeight: '400' },
   listItemAddress: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.tertiary,
