@@ -2,7 +2,8 @@
 
 export type SearchFilters = {
   vehicleType: string | null;
-  monthlyOnly: boolean;
+  /** Only listings offering this rate type (null = All). */
+  rateType: string | null;
   /** Include full listings (off by default: full listings are hidden). */
   showFull: boolean;
   /** Only show results within this distance of the search origin. */
@@ -12,7 +13,8 @@ export type SearchFilters = {
 export function searchFilterParams(filters: SearchFilters) {
   return {
     p_vehicle_type: filters.vehicleType,
-    p_monthly_only: filters.monthlyOnly,
+    p_monthly_only: false,
+    p_rate_type: filters.rateType,
     p_hide_full: !filters.showFull,
   };
 }

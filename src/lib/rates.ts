@@ -75,3 +75,13 @@ export function describeDefaultRate(input: DefaultRateInput): string {
       return '';
   }
 }
+
+/** Search filter dropdown: 'All' (no rate-type filter) plus every rate type. */
+export const RATE_FILTER_OPTIONS: { value: RateType | null; label: string }[] = [
+  { value: null, label: 'All' },
+  ...RATE_TYPES.map((r) => ({ value: r, label: RATE_TYPE_LABELS[r] })),
+];
+
+export function isRateType(value: unknown): value is RateType {
+  return typeof value === 'string' && (RATE_TYPES as readonly string[]).includes(value);
+}

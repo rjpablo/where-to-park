@@ -4,7 +4,7 @@ import { searchFilterParams, type SearchFilters } from './searchFilters.ts';
 
 const base: SearchFilters = {
   vehicleType: null,
-  monthlyOnly: false,
+  rateType: null,
   showFull: false,
   distanceKm: 3,
 };
@@ -40,4 +40,21 @@ test("sort: 'availability' is labelled 'Most slots'; others unchanged", async ()
   assert.equal(SORT_LABELS.availability, 'Most slots');
   assert.deepEqual([...SORT_OPTIONS], ['distance', 'price', 'availability', 'rating', 'eta']);
   assert.equal(SORT_LABELS.distance, 'distance');
+});
+
+test("rate dropdown: 'All' plus every rate type; All = no rate filter", async () => {
+  const { RATE_FILTER_OPTIONS } = await import('./rates.ts');
+  assert.deepEqual(
+    RATE_FILTER_OPTIONS.map((o) => [o.value, o.label]),
+    [
+      [null, 'All'],
+      ['hourly', 'Hourly'],
+      ['daily', 'Daily'],
+      ['flat_then_hourly', 'Flat then hourly'],
+      ['monthly', 'Monthly'],
+    ]
+  );
+  assert.equal(searchFilterParams(base).p_rate_type, null);
+  assert.equal(searchFilterParams({ ...base, rateType: 'daily' }).p_rate_type, 'daily');
+  assert.equal(searchFilterParams({ ...base, rateType: 'monthly' }).p_monthly_only, false);
 });

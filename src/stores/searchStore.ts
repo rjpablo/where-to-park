@@ -25,7 +25,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   error: null,
   filters: {
     vehicleType: null,
-    monthlyOnly: false,
+    rateType: null,
     showFull: false,
     distanceKm: DEFAULT_DISTANCE_KM,
   },

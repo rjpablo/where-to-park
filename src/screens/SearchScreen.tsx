@@ -37,6 +37,7 @@ import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
 import { FilterDropdown } from '../components/FilterDropdown';
+import { isRateType, RATE_FILTER_OPTIONS } from '../lib/rates';
 import {
   defaultVehicleFilter,
   isVehicleType,
@@ -521,13 +522,13 @@ export function SearchScreen() {
             </View>
 
             <View style={styles.filterRow}>
-              <TouchableOpacity
-                style={[styles.filterChip, filters.monthlyOnly && styles.filterChipActive]}
-                onPress={() => setFilters({ monthlyOnly: !filters.monthlyOnly })}
-                testID="filter-monthly"
-              >
-                <Text style={styles.filterChipText}>Monthly</Text>
-              </TouchableOpacity>
+              <FilterDropdown
+                label="Rate"
+                value={isRateType(filters.rateType) ? filters.rateType : null}
+                options={RATE_FILTER_OPTIONS}
+                onChange={(rateType) => setFilters({ rateType })}
+                testID="filter-rate-type"
+              />
 
               <TouchableOpacity
                 style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
