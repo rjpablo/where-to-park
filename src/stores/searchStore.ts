@@ -11,6 +11,8 @@ interface SearchState {
   sortBy: 'distance' | 'price' | 'availability' | 'rating' | 'eta';
   sheetPosition: 'peek' | 'expanded';
   cameraPosition: { lat: number; lng: number; zoom: number } | null;
+  /** Centre of the last search: the origin of the list's distances and ETAs (and the details page's). */
+  searchOrigin: { lat: number; lng: number } | null;
 
   search: (lat: number, lng: number, radius?: number) => Promise<void>;
   setFilters: (filters: Partial<SearchState['filters']>) => void;
@@ -32,9 +34,10 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   sortBy: 'distance',
   sheetPosition: 'peek',
   cameraPosition: null,
+  searchOrigin: null,
 
   search: async (lat: number, lng: number, radius = 2000) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, searchOrigin: { lat, lng } });
 
     try {
       const { filters, sortBy } = get();

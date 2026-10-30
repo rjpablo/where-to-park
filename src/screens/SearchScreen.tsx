@@ -36,6 +36,7 @@ import {
 import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots, searchSummary } from '../lib/availability';
+import { etaText } from '../lib/listingEta';
 import {
   MAX_DISTANCE_KM,
   SEARCH_START_ZOOM,
@@ -436,9 +437,7 @@ export function SearchScreen() {
           testID={`list-eta-${item.id}`}
         >
           {formatDistance(item.distance_m)}
-          {etas[item.id]
-            ? ` · ${formatDuration(etas[item.id].duration_s)}${etas[item.id].source === 'estimate' ? ' est.' : ''}`
-            : ''}
+          {etas[item.id] ? ` · ${etaText(etas[item.id], formatDuration)}` : ''}
           {' · '}
           {item.starting_rate ? formatPeso(item.starting_rate) + '/h' : 'See rates'}
         </Text>

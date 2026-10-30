@@ -22,6 +22,17 @@ import { embeddedOne } from '../../src/lib/embed';
 import { useListingViewers } from '../../src/hooks/useListingViewers';
 import { viewersLabel } from '../../src/lib/viewerPresence';
 import { parseGeogPoint } from '../../src/lib/geog';
+import { useSearchStore } from '../../src/stores/searchStore';
+import { formatDistance, formatDuration } from '../../src/utils/formatters';
+import {
+  distanceEtaLabel,
+  etaFor,
+  pickEtaOrigin,
+  straightLineMeters,
+  type Eta,
+  type LatLng,
+} from '../../src/lib/listingEta';
+import * as ExpoLocation from 'expo-location';
 import {
   googleMapsUrl,
   navigateLabel,
@@ -38,6 +49,17 @@ export default function LocationDetailScreen() {
   // the listing has loaded (not for 'Listing not found').
   const viewers = useListingViewers(location?.id ?? null);
   const [loading, setLoading] = useState(true);
+  // Distance + drive time, from the same origin as the results list (the search
+  // centre); my current location only when no search has run. Never prompts.
+  const searchOrigin = useSearchStore((s) => s.searchOrigin);
+  // The row's own distance (search_nearby, from the search centre) when this listing
+  // is in the current results, so details show exactly what the row showed.
+  const rowDistanceM = useSearchStore((s) =>
+    Number(s.results.find((r) => r.id === id)?.distance_m ?? NaN)
+  );
+  const [userLocation, setUserLocation] = useState<LatLng | null>(null);
+  const [eta, setEta] = useState<Eta | null>(null);
+  const origin = pickEtaOrigin(searchOrigin, userLocation);
   const [error, setError] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -125,6 +147,60 @@ export default function LocationDetailScreen() {
     }
   };
 
+  useEffect(() => {
+    if (searchOrigin) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const perm = await ExpoLocation.getForegroundPermissionsAsync();
+        if (perm.status !== 'granted') return; // denied / not asked: no origin, nothing shown
+        const pos =
+          (await ExpoLocation.getLastKnownPositionAsync().catch(() => null)) ??
+          (await ExpoLocation.getCurrentPositionAsync({
+            accuracy: ExpoLocation.Accuracy.Balanced,
+          }));
+        if (!cancelled && pos)
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      } catch {
+        // Location unavailable: leave the line out.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchOrigin]);
+
+  const listingId: string | undefined = location?.id;
+  const originLat = origin?.lat;
+  const originLng = origin?.lng;
+  useEffect(() => {
+    setEta(null);
+    if (!listingId || originLat == null || originLng == null) return;
+    let cancelled = false;
+    // Same RPC as the results list; on failure the line keeps the straight-line distance.
+    supabase
+      .rpc('get_etas', { p_lat: originLat, p_lng: originLng, p_location_ids: [listingId] })
+      .then(({ data, error: etaError }) => {
+        if (!cancelled && !etaError) setEta(etaFor(data?.etas, listingId));
+      })
+      .then(undefined, () => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [listingId, originLat, originLng]);
+
+  const listingPoint = parseGeogPoint(location?.geog);
+  const distanceLine = distanceEtaLabel(
+    origin?.kind === 'search' && Number.isFinite(rowDistanceM)
+      ? rowDistanceM
+      : origin && listingPoint
+        ? straightLineMeters(origin, listingPoint)
+        : null,
+    eta,
+    origin?.kind,
+    { distance: formatDistance, duration: formatDuration }
+  );
+
   const coords = () => {
     // geog arrives as hex EWKB from PostgREST; the old GeoJSON-only read always
     // fell back to the default point.
@@ -193,6 +269,11 @@ export default function LocationDetailScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>{location.name}</Text>
           <Text style={styles.address}>{location.address}</Text>
+          {distanceLine ? (
+            <Text style={styles.distance} numberOfLines={2} testID="listing-distance">
+              {distanceLine}
+            </Text>
+          ) : null}
           <Text
             style={styles.viewers}
             accessibilityLabel={`${viewers} ${viewers === 1 ? 'person' : 'people'} viewing now`}
@@ -422,6 +503,11 @@ const styles = StyleSheet.create({
   },
   address: {
     ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
+  },
+  distance: {
+    ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
   },
