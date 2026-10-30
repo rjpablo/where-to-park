@@ -58,11 +58,11 @@ export function optionLabel<T extends string>(options: DropdownOption<T>[], valu
 export const SORT_OPTIONS = ['distance', 'price', 'rating', 'eta', 'availability'] as const;
 export type SortOption = (typeof SORT_OPTIONS)[number];
 
-/** Chip labels; 'availability' ('Open spots', last) sorts by most available spots first. */
+/** Chip labels; 'availability' ('open spots', last) sorts by most available spots first. */
 export const SORT_LABELS: Record<SortOption, string> = {
   distance: 'distance',
   price: 'price',
-  availability: 'Open spots',
+  availability: 'open spots',
   rating: 'rating',
   eta: 'eta',
 };

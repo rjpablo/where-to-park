@@ -4,7 +4,7 @@
 
 > **Revision colours:** 🟩 = added or changed on 30 Oct 2026 (preview 1.0.3–1.0.5 feedback). 🟦 = changed for preview 1.0.6 (30 Oct 2026, afternoon batch). 🟪 = changed for previews 1.0.7–1.0.8. 🟧 = changed after 1.0.8 (31 Oct 2026, not in a build yet).
 >
-> 🟧 **Wording: "slot" is now "spot"**: Everywhere users see it, the app says spot/spots (Spot/Spots) instead of slot/slots, e.g. the 'Open spots' sort and '12 listings · 48 spots available'. Older lines below that quote "slot" wording describe what it was at the time. Field, enum and code names (slots mode, `slot_id`, tracking mode `slots`) keep their names; "slot" in this spec's technical sections means the same thing.
+> 🟧 **Wording: "slot" is now "spot"**: Everywhere users see it, the app says spot/spots (Spot/Spots) instead of slot/slots, e.g. the 'open spots' sort and '12 listings · 48 spots available'. Older lines below that quote "slot" wording describe what it was at the time. Field, enum and code names (slots mode, `slot_id`, tracking mode `slots`) keep their names; "slot" in this spec's technical sections means the same thing.
 
 ## Overview
 
@@ -111,7 +111,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 - 🟧 **Navigate on result rows**: Each result row has a small '➤ Navigate' pill at the right of its rating line. It opens directions to that listing in the same map app as the details page's Navigate button (Profile → `preferred_nav_app`: Google Maps, Waze, or the phone default; guests get the phone default), using the row's coordinates (or the listing's `geog` EWKB if a row has none). Tapping it does not open the listing details; tapping anywhere else on the row still does. The pill never wraps and stays inside the card at 320 px wide (the rating text shrinks/ellipsizes instead)
 - 🟩 **Stale indicator**: There is no 'Stale' text label anywhere (results list, listing details). A listing past its stale threshold shows only the warning style: the 'updated X ago' time turns amber (and the count badge and map pin turn amber)
 - 🟩 **List row layout**: Nothing may run past the card on narrow screens. The status/details line wraps onto a second line when needed and ellipsizes (…) if it is still too long; the name and address are limited to 2 lines with an ellipsis
-- **Sort**: distance (nearest first, default), price (starting rate for selected vehicle), rating, ETA, 🟪 'Open slots' (🟧 now 'Open spots'; last; was 'Most slots' / 'availability'; most free first, behaviour unchanged)
+- **Sort**: distance (nearest first, default), price (starting rate for selected vehicle), rating, ETA, 🟪 'Open slots' (🟧 now 'open spots', all lowercase like the other sort labels; last; was 'Most slots' / 'availability'; most free first, behaviour unchanged)
 - **Filters**: vehicle type, saved vehicle, 🟦 rate type (was the Monthly chip), Show Full
 - 🟪 **Filter row layout**: left to right Vehicle, Rate, Show Full. The row wraps onto a second (or third) line on narrow screens so no chip is pushed offscreen; dropdown menus open normally from wrapped chips. Filtering behaviour unchanged
 - 🟦 **Rate type dropdown**: The old 'Monthly' chip is now a 'Rate: All ▾' dropdown with 'All' plus every rate type in the `rate_type` enum: Hourly, Daily, Flat then hourly, Monthly. 'All' (default) means no rate-type filter; choosing a type shows only listings with an active rate of that type (search_nearby `p_rate_type`; the old `p_monthly_only` stays for older app builds). Choosing Monthly gives the same results as the old Monthly chip
