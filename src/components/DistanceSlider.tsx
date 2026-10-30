@@ -26,6 +26,10 @@ export function DistanceSlider({ valueKm, maxKm, onChangeKm, testID }: Props) {
   const [width, setWidth] = useState(0);
   const [draftKm, setDraftKm] = useState(valueKm);
   const dragging = useRef(false);
+  // Declared before the gestures that read it (gesture-handler 2.28 reads the
+  // callbacks while building them, so a later const hit the temporal dead zone).
+  const draftKmRef = useRef(draftKm);
+  draftKmRef.current = draftKm;
 
   useEffect(() => {
     if (!dragging.current) setDraftKm(valueKm);
@@ -57,9 +61,6 @@ export function DistanceSlider({ valueKm, maxKm, onChangeKm, testID }: Props) {
   const tap = Gesture.Tap()
     .runOnJS(true)
     .onEnd((e) => commit(kmAt(e.x)));
-
-  const draftKmRef = useRef(draftKm);
-  draftKmRef.current = draftKm;
 
   const left = kmToPosition(draftKm, maxKm) * usable;
 
