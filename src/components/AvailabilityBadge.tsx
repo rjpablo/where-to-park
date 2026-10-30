@@ -49,7 +49,7 @@ export function AvailabilityBadge({
         style={[styles.timestamp, stale && styles.staleTimestamp]}
         testID={stale ? 'availability-stale' : 'availability-fresh'}
       >
-        {stale ? `Stale · ${formatRelativeTime(updatedAt)}` : formatRelativeTime(updatedAt)}
+        {formatRelativeTime(updatedAt)}
       </Text>
     </View>
   );
