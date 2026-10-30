@@ -59,6 +59,8 @@ export interface MapProps {
   clusterPins?: boolean;
   /** Px of the map covered by overlays (search box, bottom sheet) to keep pins out of. */
   overlayInsets?: { top: number; right: number; bottom: number; left: number };
+  /** The user's current location, drawn as a blue puck (null/undefined hides it). */
+  userLocation?: { coordinate: Coordinate; accuracyM?: number } | null;
   /** Temporary marker, e.g. the place picked in the search box. */
   focusMarker?: Coordinate | null;
 }

@@ -10,6 +10,7 @@ import {
   PIN_IMAGE_EXPRESSION,
   PIN_LABEL_OFFSET,
   PIN_LABEL_SIZE,
+  USER_PUCK,
 } from './pins';
 
 const PIN_IMAGES = {
@@ -34,6 +35,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
     overlayInsets = NO_INSETS,
     onViewportChange,
     focusMarker,
+    userLocation,
   },
   ref
 ) {
@@ -87,6 +89,21 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
           }
         : null,
     [focusMarker]
+  );
+
+  const userShape = useMemo(
+    () =>
+      userLocation
+        ? {
+            type: 'Feature' as const,
+            properties: {},
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [userLocation.coordinate.longitude, userLocation.coordinate.latitude],
+            },
+          }
+        : null,
+    [userLocation]
   );
 
   const expandCluster = async (feature: GeoJSON.Feature) => {
@@ -220,7 +237,25 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
 
         <MapLibreGL.Images images={PIN_IMAGES} />
 
-        {showsUserLocation && <MapLibreGL.UserLocation visible />}
+        {showsUserLocation && !userShape && <MapLibreGL.UserLocation visible />}
+
+        {userShape && (
+          <MapLibreGL.ShapeSource id="user-location" shape={userShape}>
+            <MapLibreGL.CircleLayer
+              id="user-location-halo"
+              style={{ circleRadius: 18, circleColor: USER_PUCK.halo, circleOpacity: 0.18 }}
+            />
+            <MapLibreGL.CircleLayer
+              id="user-location-dot"
+              style={{
+                circleRadius: 7,
+                circleColor: USER_PUCK.dot,
+                circleStrokeColor: USER_PUCK.ring,
+                circleStrokeWidth: 3,
+              }}
+            />
+          </MapLibreGL.ShapeSource>
+        )}
 
         {pinGeoJSON.features.length > 0 && (
           <MapLibreGL.ShapeSource

@@ -19,6 +19,7 @@ import {
   PIN_WIDTH,
   teardropPoints,
   type PinImageName,
+  USER_PUCK,
 } from './pins';
 
 const PIN_PIXEL_RATIO = 2;
@@ -84,6 +85,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
     overlayInsets = NO_INSETS,
     onViewportChange,
     focusMarker,
+    userLocation,
   },
   ref
 ) {
@@ -377,6 +379,33 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
       .setLngLat([focusMarker.longitude, focusMarker.latitude])
       .addTo(map.current);
   }, [focusMarker, mapLoaded]);
+
+  // Current-location puck: a DOM marker so it needs no style images.
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  useEffect(() => {
+    if (!map.current || !userLocation) {
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
+      return;
+    }
+    const lngLat: [number, number] = [
+      userLocation.coordinate.longitude,
+      userLocation.coordinate.latitude,
+    ];
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLngLat(lngLat);
+      return;
+    }
+    const el = document.createElement('div');
+    el.setAttribute('data-testid', 'user-location-puck');
+    el.style.cssText = `width:36px;height:36px;border-radius:18px;background:${USER_PUCK.halo}2e;display:flex;align-items:center;justify-content:center;pointer-events:none`;
+    const dot = document.createElement('div');
+    dot.style.cssText = `width:14px;height:14px;border-radius:10px;background:${USER_PUCK.dot};border:3px solid ${USER_PUCK.ring};box-shadow:0 1px 3px rgba(0,0,0,.3)`;
+    el.appendChild(dot);
+    userMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+      .setLngLat(lngLat)
+      .addTo(map.current);
+  }, [userLocation, mapLoaded]);
 
   // Keep the zoom/compass buttons below overlays such as the place search box.
   useEffect(() => {

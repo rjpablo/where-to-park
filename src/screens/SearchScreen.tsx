@@ -14,6 +14,8 @@ import {
 } from '../components/map/types';
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
 import { Sidebar, SidebarToggle } from '../components/Sidebar';
+import { useUserLocation } from '../hooks/useUserLocation';
+import { locationMessage, RECENTER_ZOOM, recenterAction } from '../lib/userLocation';
 import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
 import { availableSlots, searchSummary } from '../lib/availability';
@@ -103,6 +105,52 @@ export function SearchScreen() {
       setMovedViewport(viewport);
     }
   }, []);
+
+  // Current-location puck + recenter button.
+  const { permission, location: userLocation, request: requestLocation } = useUserLocation();
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
+  const pendingRecenter = useRef(false);
+  const recenter = useCallback((coordinate: { latitude: number; longitude: number }) => {
+    offerSearchAfterMove.current = true;
+    mapRef.current?.focus({ coordinate, zoom: RECENTER_ZOOM });
+  }, []);
+  const handleRecenter = async () => {
+    const action = recenterAction(permission, !!userLocation);
+    if (action === 'center' && userLocation) return recenter(userLocation.coordinate);
+    if (action === 'wait') {
+      pendingRecenter.current = true;
+      setLocationNotice('Finding your location…');
+      return;
+    }
+    if (action === 'request') {
+      const next = await requestLocation();
+      if (next === 'granted') {
+        pendingRecenter.current = true;
+        return;
+      }
+      setLocationNotice(locationMessage(next));
+      return;
+    }
+    setLocationNotice(locationMessage(permission));
+  };
+  // Center as soon as the first fix arrives after a recenter tap.
+  useEffect(() => {
+    if (pendingRecenter.current && userLocation) {
+      pendingRecenter.current = false;
+      setLocationNotice(null);
+      recenter(userLocation.coordinate);
+    }
+  }, [userLocation, recenter]);
+  // A denial at launch gets one short message; it fades after a few seconds.
+  useEffect(() => {
+    const msg = locationMessage(permission);
+    if (msg) setLocationNotice(msg);
+  }, [permission]);
+  useEffect(() => {
+    if (!locationNotice) return;
+    const timer = setTimeout(() => setLocationNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [locationNotice]);
 
   const handlePlaceSelect = useCallback((place: PlaceSuggestion) => {
     setPlaceMarker(place.coordinate);
@@ -319,6 +367,7 @@ export function SearchScreen() {
         onPinPress={handlePinPress}
         style={styles.map}
         showsUserLocation={false}
+        userLocation={userLocation}
         clusterPins
         overlayInsets={overlayInsets}
         onViewportChange={handleViewportChange}
@@ -345,6 +394,30 @@ export function SearchScreen() {
             <Text style={styles.searchAreaText}>Search this area</Text>
           </TouchableOpacity>
         ) : null}
+      </View>
+
+      <View style={styles.recenterWrap} pointerEvents="box-none">
+        {locationNotice ? (
+          <View style={styles.locationNotice} testID="location-notice">
+            <Text style={styles.locationNoticeText}>{locationNotice}</Text>
+          </View>
+        ) : null}
+        <TouchableOpacity
+          style={styles.recenterButton}
+          onPress={handleRecenter}
+          accessibilityRole="button"
+          accessibilityLabel="Center the map on my location"
+          testID="recenter-button"
+        >
+          <View
+            style={[
+              styles.recenterIcon,
+              permission === 'granted' && userLocation ? styles.recenterIconActive : null,
+            ]}
+          >
+            <View style={styles.recenterDot} />
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
@@ -475,6 +548,49 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  recenterWrap: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    left: theme.spacing.md,
+    bottom: '40%',
+    marginBottom: theme.spacing.md,
+    alignItems: 'flex-end',
+    gap: theme.spacing.sm,
+    zIndex: 5,
+  },
+  recenterButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.md,
+  },
+  recenterIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: theme.colors.text.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recenterIconActive: { borderColor: theme.colors.primary },
+  recenterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+  },
+  locationNotice: {
+    alignSelf: 'stretch',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: 'rgba(17,24,39,0.88)',
+  },
+  locationNoticeText: { ...theme.typography.bodySmall, color: '#fff' },
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

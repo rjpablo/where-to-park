@@ -63,3 +63,6 @@ export const CLUSTER_PROPERTIES = {
 };
 
 export const CLUSTER_LABEL_EXPRESSION = ['to-string', ['get', 'availableSlots']];
+
+/** Current-location puck colours (shared by native and web maps). */
+export const USER_PUCK = { dot: '#2563eb', ring: '#ffffff', halo: '#2563eb' };
