@@ -196,3 +196,32 @@ Expo Go is not needed; this is a standalone APK.
 | Version | versionCode | EAS build | Notes |
 |---|---|---|---|
 | 1.0.3 | 4 | [0f4441a0-abd3-43c4-b380-1f694510c367](https://expo.dev/accounts/the-bad-company/projects/where-to-park/builds/0f4441a0-abd3-43c4-b380-1f694510c367) | First EAS build, from commit `0748102`. Signed with `wheretopark-preview`. The universal APK is about 119 MB because it includes all ABIs. |
+
+## Web deploy
+
+The web version is hosted on EAS Hosting (free `*.expo.app` domain) for testing:
+
+- Production URL: https://where-to-park.expo.app (dev domain `where-to-park`, set on the first deploy)
+- Dashboard: https://expo.dev/projects/811e8d6d-6c98-4307-9cca-f82f0c767a1a/hosting/deployments
+
+To redeploy, export with the same Supabase env as the preview profile, then promote the
+deployment to production. `EXPO_TOKEN` must be set in the shell; never commit it.
+
+```sh
+# EXPO_PUBLIC_* values are the ones in eas.json → build.preview.env (public, safe to embed)
+export EXPO_PUBLIC_SUPABASE_URL=...        # see eas.json
+export EXPO_PUBLIC_SUPABASE_ANON_KEY=...   # see eas.json
+rm -rf dist && npx expo export -p web      # writes dist/ (includes public/maplibre-gl-csp-worker.js)
+npx eas-cli@latest deploy --prod --non-interactive   # first deploy also passed --dev-domain where-to-park
+```
+
+Notes:
+
+- `expo export` bakes the `EXPO_PUBLIC_*` values into the bundle, so re-export whenever they change.
+- The new production URL can take up to a minute to resolve after the first deploy
+  (it returns "No worker deployment was found" until then); the per-deployment URL works at once.
+- Sign-in is phone OTP only, so no Supabase Auth redirect URL is needed for the web domain.
+  If email or magic-link sign-in is ever added, add `https://where-to-park.expo.app/**`
+  to the project's Auth redirect URLs.
+- Known web-only issue: the results sheet can't be collapsed back after expanding it
+  (reanimated `setAttribute` error on web). Android is not affected.
