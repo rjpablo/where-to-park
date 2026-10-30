@@ -8,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   Linking,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
@@ -17,6 +18,12 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
 import { locationPhotoPublicUrl } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
+import {
+  googleMapsUrl,
+  navigateLabel,
+  navigationUrl,
+  preferredNavApp,
+} from '../../src/lib/navigation';
 
 export default function LocationDetailScreen() {
   const router = useRouter();
@@ -118,16 +125,18 @@ export default function LocationDetailScreen() {
     return { lat, lng };
   };
 
-  const openNav = async (app: 'google_maps' | 'waze') => {
+  // One Navigate button: the map app chosen on the Profile screen (the only
+  // place it's set), or the phone's default map app for guests / no choice.
+  const navApp = preferredNavApp(user?.preferred_nav_app);
+  const openNav = async () => {
     const { lat, lng } = coords();
-    const url =
-      app === 'waze'
-        ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-        : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    if (user) {
-      await supabase.from('profiles').update({ preferred_nav_app: app }).eq('id', user.id);
+    const target = { lat, lng, name: location?.name };
+    try {
+      await Linking.openURL(navigationUrl(navApp, target, Platform.OS));
+    } catch {
+      // No app handles geo: (or the chosen app is missing): use Google Maps on the web.
+      Linking.openURL(googleMapsUrl(target));
     }
-    Linking.openURL(url);
   };
 
   if (loading) {
@@ -191,21 +200,12 @@ export default function LocationDetailScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.spacing.sm }}>
-          <Button
-            title="Google Maps"
-            onPress={() => openNav('google_maps')}
-            testID="navigate-google"
-            style={{ flex: 1 }}
-          />
-          <Button
-            title="Waze"
-            variant="outline"
-            onPress={() => openNav('waze')}
-            testID="navigate-waze"
-            style={{ flex: 1 }}
-          />
-        </View>
+        <Button
+          title={navigateLabel(navApp)}
+          onPress={openNav}
+          testID="navigate"
+          style={{ marginBottom: theme.spacing.sm }}
+        />
         <Button
           title="Message"
           variant="outline"
