@@ -105,12 +105,12 @@ export default function LocationDetailScreen() {
         `
         )
         .eq('id', id)
-        .single();
+        .is('deleted_at', null)
+        .maybeSingle();
 
       if (fetchError) throw fetchError;
-      if (!data) throw new Error('Location not found');
-
-      setLocation(data);
+      // Deleted (or never existing) listings: show 'Listing not found', not an error.
+      setLocation(data || null);
     } catch (err: any) {
       console.error('Load location error:', err);
       setError(err.message || 'Failed to load location');
@@ -160,8 +160,8 @@ export default function LocationDetailScreen() {
 
   if (!location) {
     return (
-      <View style={styles.loading}>
-        <Text style={styles.errorText}>Location not found</Text>
+      <View style={styles.loading} testID="location-not-found">
+        <Text style={styles.errorText}>Listing not found</Text>
       </View>
     );
   }

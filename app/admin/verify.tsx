@@ -36,6 +36,7 @@ export default function VerificationQueueScreen() {
         .select('*, operators(display_name)')
         .eq('verification_status', 'unverified')
         .is('rejected_at', null)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;

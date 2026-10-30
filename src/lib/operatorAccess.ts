@@ -69,6 +69,7 @@ export async function loadManagedLocations(userId: string): Promise<ManagedLocat
       'id, name, verification_status, published, tracking_mode, available_count, capacity, open_status, operator_id, availability_updated_at, rejected_at, rejection_reason'
     )
     .in('operator_id', operatorIds)
+    .is('deleted_at', null)
     .order('name');
   if (error) throw error;
   return ((data || []) as Omit<ManagedLocation, 'role'>[])

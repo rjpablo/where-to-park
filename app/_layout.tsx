@@ -6,6 +6,7 @@ import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
 import { useBackToExit } from '../src/hooks/useBackToExit';
 import { SidebarToggle } from '../src/components/Sidebar';
+import { Toast } from '../src/components/Toast';
 
 export default function RootLayout() {
   const user = useAuthStore((s) => s.user);
@@ -61,6 +62,7 @@ export default function RootLayout() {
         <Stack.Screen name="admin/verify" options={{ title: 'Verification Queue' }} />
         <Stack.Screen name="admin/reports" options={{ title: 'Moderation' }} />
       </Stack>
+      <Toast />
     </GestureHandlerRootView>
   );
 }
