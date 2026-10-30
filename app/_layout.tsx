@@ -1,4 +1,5 @@
 import React from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
@@ -6,6 +7,7 @@ import { registerPushToken } from '../src/lib/push';
 export default function RootLayout() {
   const user = useAuthStore((s) => s.user);
   const initialize = useAuthStore((s) => s.initialize);
+  const initialized = useAuthStore((s) => s.initialized);
 
   React.useEffect(() => {
     initialize();
@@ -14,6 +16,18 @@ export default function RootLayout() {
   React.useEffect(() => {
     if (user) registerPushToken();
   }, [user]);
+
+  // Restore the saved session before any screen decides the user is signed out.
+  if (!initialized) {
+    return (
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+        testID="auth-restoring"
+      >
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
 
   return (
     <Stack>

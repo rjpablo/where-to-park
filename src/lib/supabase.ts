@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { AppState, Platform } from 'react-native';
 
 const supabaseUrl =
   Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -17,6 +19,10 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-anon-key',
   {
     auth: {
+      // React Native has no localStorage: without an explicit storage adapter the
+      // session only lived in memory and was lost when Android killed the app.
+      // Web keeps supabase-js's default (window.localStorage).
+      ...(Platform.OS === 'web' ? {} : { storage: AsyncStorage }),
       storageKey: 'sb-wtp-auth-token',
       autoRefreshToken: true,
       persistSession: true,
@@ -24,6 +30,15 @@ export const supabase = createClient(
     },
   }
 );
+
+// Refresh tokens only while the app is in the foreground (Supabase's RN guidance);
+// on resume the client refreshes an expired access token before it is used.
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') supabase.auth.startAutoRefresh();
+    else supabase.auth.stopAutoRefresh();
+  });
+}
 
 // Types for database tables (subset for demonstration)
 export type Profile = {

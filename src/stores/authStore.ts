@@ -5,6 +5,8 @@ import type { Profile } from '../lib/supabase';
 interface AuthState {
   user: Profile | null;
   loading: boolean;
+  /** True once the persisted session has been restored (or found missing). */
+  initialized: boolean;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, code: string) => Promise<{ isNew: boolean }>;
   completeProfile: (displayName: string, accountType: 'driver' | 'operator') => Promise<void>;
@@ -37,23 +39,49 @@ async function loadProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+let authListenerAttached = false;
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: false,
+  initialized: false,
 
   initialize: async () => {
+    if (!authListenerAttached) {
+      authListenerAttached = true;
+      // Keep the store in sync with token refreshes and sign-outs (including a
+      // refresh token that was revoked or expired while the app was closed).
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || !session?.user) {
+          set({ user: null });
+          return;
+        }
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          const current = get().user;
+          if (current?.id === session.user.id && event === 'SIGNED_IN') return;
+          // Defer the query: supabase-js warns against awaiting inside this callback.
+          setTimeout(() => {
+            loadProfile(session.user.id).then((profile) => {
+              if (profile) set({ user: profile });
+            });
+          }, 0);
+        }
+      });
+    }
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (session?.user) {
-        set({ user: await loadProfile(session.user.id), loading: false });
+        const profile = await loadProfile(session.user.id);
+        // Keep a previously loaded profile if the network is briefly unavailable.
+        set({ user: profile ?? get().user, loading: false, initialized: true });
       } else {
-        set({ user: null, loading: false });
+        set({ user: null, loading: false, initialized: true });
       }
     } catch (error) {
       console.error('Initialize error:', error);
-      set({ loading: false });
+      set({ loading: false, initialized: true });
     }
   },
 
