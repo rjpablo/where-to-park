@@ -1,7 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { Stack, usePathname } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
@@ -15,7 +14,6 @@ export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const initialized = useAuthStore((s) => s.initialized);
   useBackToExit();
-  const insets = useSafeAreaInsets();
   const pathname = usePathname();
   // Android is always edge-to-edge (SDK 54): the window no longer resizes for the
   // keyboard, so lift screen content ourselves. The search screen manages its own
@@ -47,18 +45,12 @@ export default function RootLayout() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" enabled={avoidKeyboard}>
         <Stack
           screenOptions={{
-            // Edge-to-edge: keep bottom-pinned content (chat composer, form buttons)
-            // clear of the system navigation bar. Headers already pad the top.
-            contentStyle: {
-              paddingBottom: insets.bottom,
-              backgroundColor: theme.colors.background,
-            },
+            // The bottom (navigation bar) inset is applied once, by each screen's content
+            // (useBottomInset); headers already pad the top.
+            contentStyle: { backgroundColor: theme.colors.background },
           }}
         >
-          <Stack.Screen
-            name="index"
-            options={{ headerShown: false, contentStyle: { paddingBottom: 0 } }}
-          />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="auth" options={{ title: 'Sign in' }} />
           <Stack.Screen name="profile" options={{ title: 'Profile' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
@@ -69,8 +61,6 @@ export default function RootLayout() {
             options={{
               title: 'Find Parking',
               headerLeft: () => <SidebarToggle />,
-              // The bottom sheet already accounts for insets.bottom.
-              contentStyle: { paddingBottom: 0 },
             }}
           />
           <Stack.Screen name="location/[id]" options={{ title: 'Location Details' }} />

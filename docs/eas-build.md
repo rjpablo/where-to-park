@@ -18,7 +18,8 @@ agent; EAS uses the same signing key, so new builds install over them.
   `@maplibre/maplibre-react-native` v11, which is New-Architecture-only and needs its
   config plugin (`"@maplibre/maplibre-react-native"` in `app.json` `plugins`).
 - 🟧 Android is always **edge-to-edge** (`edgeToEdgeEnabled=true`); `expo-system-ui`
-  is installed so `userInterfaceStyle` applies. Check a prebuild with
+  is installed so `userInterfaceStyle` applies. Screens add the bottom inset themselves with `useBottomInset` (scroll
+  content / bottom row), never on the navigation stack's `contentStyle`. Check a prebuild with
   `npx expo prebuild --platform android --clean` in a scratch copy (never commit
   `android/`) and `npx expo-doctor` (18/18 checks).
 - `eas-cli` via `npx -y eas-cli@latest` (27.2.0 was used for 1.0.3). No global install is needed.

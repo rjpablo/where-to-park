@@ -7,6 +7,7 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso, fromDatetimeLocalValue } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 const RATE_TYPES = ['hourly', 'daily', 'flat_then_hourly', 'monthly'] as const;
 type RateType = (typeof RATE_TYPES)[number];
 
@@ -26,6 +27,8 @@ function rateSummary(rate: any): string {
 }
 
 export default function RatesScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const locationId = firstParam(
     useLocalSearchParams<{ locationId?: string | string[] }>().locationId
   );
@@ -191,7 +194,7 @@ export default function RatesScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="rates-ready">
+    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="rates-ready">
       <WorkspaceNav listingId={locationId} />
       <Text style={styles.subtitle}>{locationName}</Text>
 
@@ -390,7 +393,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
   },
   centered: { justifyContent: 'center', alignItems: 'center' },
   subtitle: {

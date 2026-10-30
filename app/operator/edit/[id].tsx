@@ -15,8 +15,11 @@ import {
 import { theme } from '../../../src/lib/theme';
 import type { Coordinate } from '../../../src/components/map/types';
 import type { ProcessedImage } from '../../../src/utils/processImage';
+import { useBottomInset } from '../../../src/hooks/useBottomInset';
 
 export default function EditLocationScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const id = firstParam(useLocalSearchParams<{ id: string | string[] }>().id);
   const [name, setName] = React.useState('');
   const [address, setAddress] = React.useState('');
@@ -136,7 +139,7 @@ export default function EditLocationScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="edit-ready">
+    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="edit-ready">
       <WorkspaceNav listingId={id} />
       <Text style={styles.label}>Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} testID="edit-name" />
@@ -220,7 +223,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
   },
   centered: {
     justifyContent: 'center',

@@ -6,8 +6,11 @@ import { theme } from '../../src/lib/theme';
 import { formatLocalDateTime } from '../../src/utils/formatters';
 import { firstParam } from '../../src/lib/params';
 import { WorkspaceNav } from '../../src/components/WorkspaceNav';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function AvailabilityScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(0);
   const locationId = firstParam(
     useLocalSearchParams<{ locationId?: string | string[] }>().locationId
   );
@@ -171,7 +174,11 @@ export default function AvailabilityScreen() {
   const unavailable = Number(location.unavailable_count || 0);
 
   return (
-    <ScrollView style={styles.container} testID="availability-ready">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={bottomInset}
+      testID="availability-ready"
+    >
       <WorkspaceNav listingId={location.id} />
       <View style={styles.header}>
         <Text style={styles.subtitle}>{location.name}</Text>

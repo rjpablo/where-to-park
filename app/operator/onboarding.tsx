@@ -19,10 +19,13 @@ import {
 } from '../../src/lib/rates';
 import type { Coordinate } from '../../src/components/map/types';
 import type { ProcessedImage } from '../../src/utils/processImage';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 type ListingType = 'commercial' | 'residential';
 
 export default function OnboardingScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(0);
   const router = useRouter();
   const { user, initialize } = useAuthStore();
   // Synchronous guard: state updates are async, so a fast double tap could
@@ -191,7 +194,11 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} testID="onboarding-ready">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={bottomInset}
+      testID="onboarding-ready"
+    >
       <WorkspaceNav />
       <View style={styles.progress}>
         {[1, 2, 3, 4, 5].map((i) => (

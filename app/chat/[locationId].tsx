@@ -21,6 +21,7 @@ import { pickProcessedImage } from '../../src/utils/processImage';
 import { theme } from '../../src/lib/theme';
 import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
 import { pathsNeedingUrl, sameMessages, type SignedUrlEntry } from '../../src/lib/signedUrls';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 /** Signed chat-image URLs last an hour and are renewed 5 minutes before they expire. */
 const SIGNED_URL_TTL_S = 3600;
@@ -37,6 +38,8 @@ type ChatMessage = {
 };
 
 export default function ChatScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
   const { locationId, driverId } = useLocalSearchParams<{
     locationId: string;
@@ -278,7 +281,7 @@ export default function ChatScreen() {
 
   if (!user) {
     return (
-      <View style={styles.container} testID="chat-guest">
+      <View style={[styles.container, bottomInset]} testID="chat-guest">
         <Text style={styles.title}>Sign in to message</Text>
         <Button title="Sign in" onPress={() => router.push('/auth')} />
       </View>
@@ -287,14 +290,14 @@ export default function ChatScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container} testID="chat-loading">
+      <View style={[styles.container, bottomInset]} testID="chat-loading">
         <Text>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container} testID="chat-ready">
+    <View style={[styles.container, bottomInset]} testID="chat-ready">
       <Text style={styles.title}>{locationName}</Text>
       <ScrollView style={styles.thread} testID="chat-thread">
         {messages.map((m) => (

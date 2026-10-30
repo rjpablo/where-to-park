@@ -13,8 +13,11 @@ import {
   threadHasUnread,
   type InboxMessage,
 } from '../../src/lib/inbox';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function OperatorInboxScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
   const locationId = firstParam(
     useLocalSearchParams<{ locationId?: string | string[] }>().locationId
@@ -72,7 +75,7 @@ export default function OperatorInboxScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="inbox-ready">
+    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="inbox-ready">
       {!user ? <Text style={styles.meta}>Sign in to see your messages</Text> : null}
       {threads.map((t) => {
         const unread = threadHasUnread(t, messages, user?.id);
@@ -120,7 +123,12 @@ export default function OperatorInboxScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+  },
   meta: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,

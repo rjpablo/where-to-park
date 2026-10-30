@@ -6,8 +6,11 @@ import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function CheckInScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(0);
   const locationId = firstParam(
     useLocalSearchParams<{ locationId?: string | string[] }>().locationId
   );
@@ -76,7 +79,7 @@ export default function CheckInScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} testID="checkin-ready">
+    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="checkin-ready">
       <WorkspaceNav listingId={locationId} />
       <View style={styles.header}>
         <Text style={styles.subtitle}>{locationName}</Text>

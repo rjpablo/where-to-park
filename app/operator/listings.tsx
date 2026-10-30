@@ -13,8 +13,11 @@ import {
 } from '../../src/lib/operatorAccess';
 import { theme } from '../../src/lib/theme';
 import { REVIEW_LABELS, reviewState } from '../../src/lib/listingReview';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function ListingsDashboardScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(0);
   const router = useRouter();
   const { user, initialize } = useAuthStore();
   const [locations, setLocations] = React.useState<ManagedLocation[]>([]);
@@ -74,7 +77,11 @@ export default function ListingsDashboardScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="listings-ready">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={bottomInset}
+      testID="listings-ready"
+    >
       <WorkspaceNav />
       <View style={styles.header}>
         <Text style={styles.meta}>

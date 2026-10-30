@@ -15,8 +15,11 @@ import { formatLocalDateTime, formatPeso, formatRelativeTime } from '../../src/u
 import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { deliverReturnedPush } from '../../src/lib/push';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function SessionsScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const locationId = firstParam(
     useLocalSearchParams<{ locationId?: string | string[] }>().locationId
   );
@@ -572,7 +575,7 @@ export default function SessionsScreen() {
         data={sessions}
         renderItem={renderSession}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, bottomInset]}
         refreshing={loading}
         onRefresh={loadSessions}
         ListEmptyComponent={

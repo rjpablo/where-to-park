@@ -7,8 +7,11 @@ import { supabase } from '../../src/lib/supabase';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { normalizeRejectReason } from '../../src/lib/listingReview';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function VerificationQueueScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,7 +206,7 @@ export default function VerificationQueueScreen() {
         data={locations}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, bottomInset]}
         refreshing={loading}
         onRefresh={() => loadQueue()}
         ListEmptyComponent={

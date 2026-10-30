@@ -4,10 +4,13 @@ import { Button } from '../src/components/Button';
 import { supabase } from '../src/lib/supabase';
 import { useAuthStore } from '../src/stores/authStore';
 import { theme } from '../src/lib/theme';
+import { useBottomInset } from '../src/hooks/useBottomInset';
 
 const TYPES = ['car', 'suv', 'van', 'motorcycle', 'truck'] as const;
 
 export default function VehiclesScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const { user, initialize } = useAuthStore();
   const [vehicles, setVehicles] = React.useState<any[]>([]);
   const [nickname, setNickname] = React.useState('My car');
@@ -59,7 +62,11 @@ export default function VehiclesScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="vehicles-ready">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={bottomInset}
+      testID="vehicles-ready"
+    >
       {!user ? <Text style={styles.meta}>Sign in to save vehicles</Text> : null}
 
       {vehicles.map((v) => (
@@ -109,7 +116,12 @@ export default function VehiclesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+  },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   meta: {
     ...theme.typography.bodySmall,

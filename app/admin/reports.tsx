@@ -5,8 +5,11 @@ import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function AdminReportsScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const [reports, setReports] = React.useState<any[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -52,7 +55,7 @@ export default function AdminReportsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="reports-ready">
+    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="reports-ready">
       <WorkspaceNav />
       <Text style={styles.meta}>{reports.length} pending</Text>
       {notice ? (
@@ -93,7 +96,12 @@ export default function AdminReportsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+  },
   meta: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,

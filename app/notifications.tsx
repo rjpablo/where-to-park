@@ -7,8 +7,11 @@ import { useAuthStore } from '../src/stores/authStore';
 import { formatLocalDateTime, formatRelativeTime } from '../src/utils/formatters';
 import { theme } from '../src/lib/theme';
 import { refreshSidebarCounts } from '../src/stores/sidebarStore';
+import { useBottomInset } from '../src/hooks/useBottomInset';
 
 export default function NotificationsScreen() {
+  // Edge-to-edge: the list ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
   const { user, initialize } = useAuthStore();
   const [items, setItems] = React.useState<any[]>([]);
@@ -46,6 +49,7 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container} testID="notifications-ready">
       <FlatList
+        contentContainerStyle={bottomInset}
         data={items}
         keyExtractor={(item) => item.id}
         refreshing={loading}
@@ -83,7 +87,12 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.background },
+  container: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    backgroundColor: theme.colors.background,
+  },
   title: { ...theme.typography.h2, marginBottom: theme.spacing.md },
   empty: { ...theme.typography.body, color: theme.colors.text.secondary },
   row: {

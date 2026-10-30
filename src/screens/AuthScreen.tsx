@@ -5,8 +5,11 @@ import { Button } from '../components/Button';
 import { useAuthStore } from '../stores/authStore';
 import { isLocalSupabaseUrl } from '../lib/env';
 import { theme } from '../lib/theme';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 export function AuthScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
   const { requestOtp, verifyOtp, completeProfile, loading } = useAuthStore();
   const [step, setStep] = React.useState<'phone' | 'code' | 'profile'>('phone');
@@ -51,7 +54,7 @@ export function AuthScreen() {
   };
 
   return (
-    <View style={styles.container} testID="auth-ready">
+    <View style={[styles.container, bottomInset]} testID="auth-ready">
       <Text style={styles.title}>Where To Park</Text>
       <Text style={styles.subtitle}>Sign in with your phone</Text>
 

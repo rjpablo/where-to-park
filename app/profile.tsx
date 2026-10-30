@@ -8,10 +8,13 @@ import { theme } from '../src/lib/theme';
 import { FilterDropdown } from '../src/components/FilterDropdown';
 import { NAV_APP_OPTIONS } from '../src/lib/navigation';
 import { refreshSidebarCounts, useSidebarStore } from '../src/stores/sidebarStore';
+import { useBottomInset } from '../src/hooks/useBottomInset';
 
 type NavApp = 'google_maps' | 'waze' | 'default';
 
 export default function ProfileScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
   const { user, initialize } = useAuthStore();
   const [navApp, setNavApp] = React.useState<NavApp>('default');
@@ -68,7 +71,7 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <View style={styles.container} testID="profile-guest">
+      <View style={[styles.container, bottomInset]} testID="profile-guest">
         <Text style={styles.title}>Not signed in</Text>
         <Button title="Sign in with phone" onPress={() => router.push('/auth')} />
         <Button title="Keep browsing" variant="outline" onPress={() => router.replace('/search')} />
@@ -77,7 +80,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={styles.container} testID="profile-ready">
+    <View style={[styles.container, bottomInset]} testID="profile-ready">
       <Text style={styles.title}>{user.display_name}</Text>
       <Text style={styles.meta} testID="profile-account-type">
         Account type: {user.account_type || 'driver'}

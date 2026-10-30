@@ -56,6 +56,7 @@ import {
 } from '../../src/lib/listingEta';
 import * as ExpoLocation from 'expo-location';
 import { navigateLabel, preferredNavApp } from '../../src/lib/navigation';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 const GRID_GAP = 4;
 
@@ -63,6 +64,8 @@ const collectionUrl = (source: string, path: string) =>
   source === 'review' ? reviewPhotoPublicUrl(path) : locationPhotoPublicUrl(path);
 
 export default function LocationDetailScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(0);
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { user, initialize } = useAuthStore();
@@ -369,7 +372,11 @@ export default function LocationDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="location-ready">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={bottomInset}
+      testID="location-ready"
+    >
       {/* Photo Gallery or Placeholder */}
       {galleryImages.length > 0 ? (
         <ScrollView horizontal style={styles.photoGallery}>

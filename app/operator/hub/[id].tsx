@@ -18,8 +18,11 @@ import { SlideToConfirm } from '../../../src/components/SlideToConfirm';
 import { canDeleteListing, deleteOutcome } from '../../../src/lib/deleteListing';
 import { showToast } from '../../../src/stores/toastStore';
 import { refreshSidebarCounts } from '../../../src/stores/sidebarStore';
+import { useBottomInset } from '../../../src/hooks/useBottomInset';
 
 export default function ListingHubScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(0);
   const router = useRouter();
   const id = firstParam(useLocalSearchParams<{ id: string | string[] }>().id);
   const { user, initialize } = useAuthStore();
@@ -149,7 +152,7 @@ export default function ListingHubScreen() {
   };
 
   return (
-    <ScrollView style={styles.scroll} testID="hub-ready">
+    <ScrollView style={styles.scroll} contentContainerStyle={bottomInset} testID="hub-ready">
       <WorkspaceNav listingId={location.id} />
       <View style={styles.header}>
         <Text style={styles.title} testID="hub-name">

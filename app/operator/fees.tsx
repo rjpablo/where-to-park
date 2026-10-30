@@ -7,8 +7,11 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function FeePresetsScreen() {
+  // Edge-to-edge: the content ends just above the navigation bar (one inset).
+  const bottomInset = useBottomInset(theme.spacing.lg);
   const params = useLocalSearchParams<{
     locationId?: string | string[];
     operatorId?: string | string[];
@@ -126,7 +129,7 @@ export default function FeePresetsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} testID="fees-ready">
+    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="fees-ready">
       <WorkspaceNav listingId={locationId} />
       <Text style={styles.subtitle}>{locationName}</Text>
 
@@ -212,7 +215,12 @@ export default function FeePresetsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+  },
   centered: { justifyContent: 'center', alignItems: 'center' },
   subtitle: {
     ...theme.typography.body,
