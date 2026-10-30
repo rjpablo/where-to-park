@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
@@ -12,13 +12,19 @@ export default function VerificationQueueScreen() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    loadQueue();
-  }, []);
+  // Reload whenever the queue regains focus (e.g. back from a listing's details).
+  useFocusEffect(
+    React.useCallback(() => {
+      loadQueue({ silent: true });
+      // loadQueue only touches state setters.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
-  const loadQueue = async () => {
-    setLoading(true);
+  const loadQueue = async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const { data, error: fetchError } = await supabase
@@ -31,24 +37,32 @@ export default function VerificationQueueScreen() {
       setLocations(data || []);
     } catch (err: any) {
       console.error('Load queue error:', err);
-      setError(err.message || 'Failed to load verification queue');
+      if (!silent) setError(err.message || 'Failed to load verification queue');
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerify = async (locationId: string) => {
+    if (verifyingId) return;
+    setVerifyingId(locationId);
     try {
-      const { error } = await supabase.rpc('verify_location', {
+      const { data, error } = await supabase.rpc('verify_location', {
         p_location_id: locationId,
       });
 
       if (error) throw error;
+      // The RPC reports permission problems in its JSON body instead of as an error.
+      if (data?.error) throw new Error(String(data.error));
 
+      // Drop the listing from the queue right away; the reload below confirms it.
+      setLocations((prev) => prev.filter((loc) => loc.id !== locationId));
       Alert.alert('Success', 'Location verified');
-      loadQueue();
+      loadQueue({ silent: true });
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    } finally {
+      setVerifyingId(null);
     }
   };
 
@@ -79,6 +93,8 @@ export default function VerificationQueueScreen() {
           title="Verify"
           size="small"
           onPress={() => handleVerify(item.id)}
+          loading={verifyingId === item.id}
+          disabled={!!verifyingId}
           testID={`verify-listing-${item.id}`}
         />
       </View>
@@ -99,7 +115,7 @@ export default function VerificationQueueScreen() {
       <View style={[styles.container, styles.emptyState]} testID="admin-error">
         <WorkspaceNav />
         <Text style={styles.cardAddress}>Error: {error}</Text>
-        <Button title="Retry" onPress={loadQueue} />
+        <Button title="Retry" onPress={() => loadQueue()} />
       </View>
     );
   }
@@ -118,7 +134,7 @@ export default function VerificationQueueScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         refreshing={loading}
-        onRefresh={loadQueue}
+        onRefresh={() => loadQueue()}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No locations pending verification</Text>
