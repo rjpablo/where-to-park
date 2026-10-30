@@ -18,6 +18,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
 import { locationPhotoPublicUrl } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
+import { parseGeogPoint } from '../../src/lib/geog';
 import {
   googleMapsUrl,
   navigateLabel,
@@ -119,10 +120,9 @@ export default function LocationDetailScreen() {
   };
 
   const coords = () => {
-    const geog = location?.geog;
-    const lat = geog?.coordinates ? parseFloat(geog.coordinates[1]) : 16.412;
-    const lng = geog?.coordinates ? parseFloat(geog.coordinates[0]) : 120.596;
-    return { lat, lng };
+    // geog arrives as hex EWKB from PostgREST; the old GeoJSON-only read always
+    // fell back to the default point.
+    return parseGeogPoint(location?.geog) ?? { lat: 16.412, lng: 120.596 };
   };
 
   // One Navigate button: the map app chosen on the Profile screen (the only
