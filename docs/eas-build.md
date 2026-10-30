@@ -10,6 +10,17 @@ agent; EAS uses the same signing key, so new builds install over them.
 ## Prerequisites
 
 - Node.js (built on Node 24 with npm 11) and the repo dependencies installed (`npm ci`).
+- 🟧 **Expo SDK 54** (React Native 0.81, React 19.1) since the SDK 54 upgrade. It needs
+  Node **20.19.4 or newer** (Node 24 / npm 11 work). The EAS image picked for SDK 54
+  already meets this, so `eas.json` needs no `node` pin.
+- 🟧 The **New Architecture** is on (SDK 54 default, `newArchEnabled=true` after prebuild).
+  Every native dependency must support it; MapLibre is on
+  `@maplibre/maplibre-react-native` v11, which is New-Architecture-only and needs its
+  config plugin (`"@maplibre/maplibre-react-native"` in `app.json` `plugins`).
+- 🟧 Android is always **edge-to-edge** (`edgeToEdgeEnabled=true`); `expo-system-ui`
+  is installed so `userInterfaceStyle` applies. Check a prebuild with
+  `npx expo prebuild --platform android --clean` in a scratch copy (never commit
+  `android/`) and `npx expo-doctor` (18/18 checks).
 - `eas-cli` via `npx -y eas-cli@latest` (27.2.0 was used for 1.0.3). No global install is needed.
 - An Expo account with access to the **the-bad-company** account. Builds are made
   non-interactively with an Expo access token in the `EXPO_TOKEN` environment

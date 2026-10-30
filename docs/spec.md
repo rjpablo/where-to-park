@@ -22,9 +22,9 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 ## Architecture
 
-- **App**: Expo (React Native + TypeScript), Expo Router
+- **App**: Expo (React Native + TypeScript), Expo Router; 🟧 Expo SDK 54 (React Native 0.81, React 19.1, New Architecture; Android edge-to-edge)
 - **Backend**: Supabase (Postgres + PostGIS, Auth, Realtime, Storage, RPCs/Edge Functions)
-- **Maps**: MapLibre (native: @rnmapbox/maps, web: maplibre-gl) on OpenFreeMap OSM tiles
+- **Maps**: MapLibre (native: 🟧 @maplibre/maplibre-react-native v11, web: maplibre-gl) on OpenFreeMap OSM tiles
 - **Geocoding**: Photon (search-as-you-type), Nominatim (≤1 req/s, cached, with User-Agent)
 - **Routing**: OpenRouteService Matrix API for drive-time ETAs (via Edge Function, cached, rate-limit aware, with straight-line fallback)
 - **Payments (Phase 4)**: PayMongo (GCash), generic PaymentGateway interface
