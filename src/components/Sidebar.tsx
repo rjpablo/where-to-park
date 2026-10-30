@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Animated,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,7 +22,7 @@ import { useSidebarStore } from '../stores/sidebarStore';
 const MAX_WIDTH = 320;
 const ANIM_MS = 200;
 
-/** Round button at the map's top-left; red dot when anything needs attention. */
+/** ☰ button left of the 'Find Parking' header title; red dot when anything needs attention. */
 export function SidebarToggle() {
   const counts = useSidebarStore((s) => s.counts);
   const setOpen = useSidebarStore((s) => s.setOpen);
@@ -237,19 +238,19 @@ function Row({
 
 const styles = StyleSheet.create({
   toggle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: theme.colors.background,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: Platform.select({ web: 8, default: 0 }),
+    marginRight: theme.spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.md,
   },
   burger: { gap: 4 },
   burgerLine: { width: 18, height: 2, borderRadius: 1, backgroundColor: theme.colors.text.primary },
   toggleBadge: {
     position: 'absolute',
-    top: 6,
+    top: 7,
     right: 6,
     width: 12,
     height: 12,

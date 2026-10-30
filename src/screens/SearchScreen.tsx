@@ -13,7 +13,7 @@ import {
   MapViewport,
 } from '../components/map/types';
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
-import { Sidebar, SidebarToggle } from '../components/Sidebar';
+import { Sidebar } from '../components/Sidebar';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { locationMessage, RECENTER_ZOOM, recenterAction } from '../lib/userLocation';
 import { useSidebarStore } from '../stores/sidebarStore';
@@ -374,16 +374,11 @@ export function SearchScreen() {
       />
 
       <View style={styles.topOverlay} pointerEvents="box-none">
-        <View style={styles.topRow} pointerEvents="box-none">
-          <SidebarToggle />
-          <View style={styles.topSearch}>
-            <PlaceSearchBox
-              near={mapCenter}
-              onSelect={handlePlaceSelect}
-              onClear={() => setPlaceMarker(null)}
-            />
-          </View>
-        </View>
+        <PlaceSearchBox
+          near={mapCenter}
+          onSelect={handlePlaceSelect}
+          onClear={() => setPlaceMarker(null)}
+        />
         {movedViewport ? (
           <TouchableOpacity
             style={styles.searchAreaButton}
@@ -591,13 +586,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17,24,39,0.88)',
   },
   locationNoticeText: { ...theme.typography.bodySmall, color: '#fff' },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: theme.spacing.sm,
-    width: '100%',
-  },
-  topSearch: { flex: 1, minWidth: 0 },
   topOverlay: {
     position: 'absolute',
     top: theme.spacing.md,

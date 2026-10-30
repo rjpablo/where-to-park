@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
 import { useBackToExit } from '../src/hooks/useBackToExit';
+import { SidebarToggle } from '../src/components/Sidebar';
 
 export default function RootLayout() {
   const user = useAuthStore((s) => s.user);
@@ -41,7 +42,10 @@ export default function RootLayout() {
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="vehicles" options={{ title: 'Vehicles' }} />
         <Stack.Screen name="chat/[locationId]" options={{ title: 'Messages' }} />
-        <Stack.Screen name="search" options={{ title: 'Find Parking' }} />
+        <Stack.Screen
+          name="search"
+          options={{ title: 'Find Parking', headerLeft: () => <SidebarToggle /> }}
+        />
         <Stack.Screen name="location/[id]" options={{ title: 'Location Details' }} />
         <Stack.Screen name="operator/listings" options={{ title: 'My listings' }} />
         <Stack.Screen name="operator/hub/[id]" options={{ title: 'Listing' }} />
