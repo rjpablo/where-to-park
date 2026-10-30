@@ -36,6 +36,8 @@ import type { PlaceSuggestion } from '../lib/geocoding';
 import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
+import { FilterDropdown } from '../components/FilterDropdown';
+import { defaultVehicleFilter, isVehicleType, VEHICLE_FILTER_OPTIONS } from '../lib/searchFilters';
 import { formatListingRating } from '../lib/rating';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
@@ -267,23 +269,27 @@ export function SearchScreen() {
     refreshSidebar();
   }, [authUserId, refreshSidebar]);
 
+  // Vehicle filter starts at the signed-in user's default vehicle type (All for
+  // guests or without a default vehicle); re-applied when the account changes.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session?.user) {
+      let type: string | null = null;
+      if (authUserId) {
         const { data: vehicle } = await supabase
           .from('vehicles')
           .select('vehicle_type')
+          .eq('driver_id', authUserId)
           .eq('is_default', true)
           .maybeSingle();
-        if (vehicle?.vehicle_type) {
-          setFilters({ vehicleType: vehicle.vehicle_type });
-        }
+        type = vehicle?.vehicle_type ?? null;
       }
+      if (!cancelled) setFilters({ vehicleType: defaultVehicleFilter(!!authUserId, type) });
     })();
-    // Default vehicle filter is applied once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [authUserId, setFilters]);
 
   useEffect(() => {
     // Each search recomputes the slider max from the visible map. A new search
@@ -525,14 +531,13 @@ export function SearchScreen() {
               >
                 <Text style={styles.filterChipText}>Show Full</Text>
               </TouchableOpacity>
-              {filters.vehicleType ? (
-                <View
-                  style={[styles.filterChip, styles.filterChipActive]}
-                  testID="search-vehicle-filter"
-                >
-                  <Text style={styles.filterChipText}>{filters.vehicleType}</Text>
-                </View>
-              ) : null}
+              <FilterDropdown
+                label="Vehicle"
+                value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
+                options={VEHICLE_FILTER_OPTIONS}
+                onChange={(vehicleType) => setFilters({ vehicleType })}
+                testID="search-vehicle-filter"
+              />
             </View>
 
             <DistanceSlider
