@@ -1,13 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  useWindowDimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
+import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
 import { Map } from '../components/map';
@@ -26,6 +20,9 @@ import { theme } from '../lib/theme';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
+
+// Peek and expanded heights of the results sheet.
+const SHEET_SNAP_POINTS = ['40%', '85%'];
 
 export function SearchScreen() {
   const router = useRouter();
@@ -47,6 +44,7 @@ export function SearchScreen() {
   const [searchNonce, setSearchNonce] = useState(0);
   const [movedViewport, setMovedViewport] = useState<MapViewport | null>(null);
   const mapRef = useRef<MapHandle>(null);
+  const sheetRef = useRef<BottomSheet>(null);
   const [mapCenter, setMapCenter] = useState<Coordinate>({ latitude: 16.4023, longitude: 120.596 });
   const [placeMarker, setPlaceMarker] = useState<Coordinate | null>(null);
   // After jumping to a searched place, offer "Search this area" there too.
@@ -274,103 +272,114 @@ export function SearchScreen() {
         ) : null}
       </View>
 
-      {/* Bottom Sheet */}
-      <View
-        style={[styles.sheet, sheetPosition === 'expanded' && styles.sheetExpanded]}
-        testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
+      {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
+      <BottomSheet
+        ref={sheetRef}
+        index={sheetPosition === 'expanded' ? 1 : 0}
+        snapPoints={SHEET_SNAP_POINTS}
+        onChange={(index) => setSheetPosition(index >= 1 ? 'expanded' : 'peek')}
+        handleComponent={null}
+        enablePanDownToClose={false}
+        backgroundStyle={styles.sheetBackground}
+        style={styles.sheet}
       >
-        <TouchableOpacity
-          testID="sheet-expand-toggle"
-          accessibilityLabel="Toggle search sheet"
-          onPress={() => setSheetPosition(sheetPosition === 'expanded' ? 'peek' : 'expanded')}
-          style={styles.sheetHandleHit}
+        <View
+          style={styles.sheetBody}
+          testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
         >
-          <View style={styles.sheetHandle} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            testID="sheet-expand-toggle"
+            accessibilityLabel="Toggle search sheet"
+            onPress={() => sheetRef.current?.snapToIndex(sheetPosition === 'expanded' ? 0 : 1)}
+            style={styles.sheetHandleHit}
+          >
+            <View style={styles.sheetHandle} />
+          </TouchableOpacity>
 
-        <View style={styles.sheetHeader}>
-          <View style={styles.sheetTitleRow}>
-            <Text style={styles.sheetTitle}>Parking Locations</Text>
-            <View style={styles.headerLinks}>
-              {hasWorkspace ? (
+          <View style={styles.sheetHeader}>
+            <View style={styles.sheetTitleRow}>
+              <Text style={styles.sheetTitle}>Parking Locations</Text>
+              <View style={styles.headerLinks}>
+                {hasWorkspace ? (
+                  <TouchableOpacity
+                    onPress={() => router.push('/operator/listings')}
+                    testID="search-listings-link"
+                  >
+                    <Text style={styles.authLink}>My listings</Text>
+                  </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity
-                  onPress={() => router.push('/operator/listings')}
-                  testID="search-listings-link"
+                  onPress={() => router.push(authUser ? '/profile' : '/auth')}
+                  testID="search-auth-link"
                 >
-                  <Text style={styles.authLink}>My listings</Text>
+                  <Text style={styles.authLink}>{authUser ? 'Profile' : 'Sign in'}</Text>
                 </TouchableOpacity>
-              ) : null}
-              <TouchableOpacity
-                onPress={() => router.push(authUser ? '/profile' : '/auth')}
-                testID="search-auth-link"
-              >
-                <Text style={styles.authLink}>{authUser ? 'Profile' : 'Sign in'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.filterRow}>
-            <TouchableOpacity
-              style={[styles.filterChip, filters.monthlyOnly && styles.filterChipActive]}
-              onPress={() => setFilters({ monthlyOnly: !filters.monthlyOnly })}
-              testID="filter-monthly"
-            >
-              <Text style={styles.filterChipText}>Monthly</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.filterChip, filters.hideFull && styles.filterChipActive]}
-              onPress={() => setFilters({ hideFull: !filters.hideFull })}
-            >
-              <Text style={styles.filterChipText}>Hide Full</Text>
-            </TouchableOpacity>
-            {filters.vehicleType ? (
-              <View
-                style={[styles.filterChip, styles.filterChipActive]}
-                testID="search-vehicle-filter"
-              >
-                <Text style={styles.filterChipText}>{filters.vehicleType}</Text>
               </View>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={styles.sortRow}>
-          <Text style={styles.sortLabel}>Sort by:</Text>
-          {['distance', 'price', 'availability', 'rating', 'eta'].map((sort) => (
-            <TouchableOpacity
-              key={sort}
-              style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
-              onPress={() => setSortBy(sort as any)}
-            >
-              <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
-                {sort}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <FlatList
-          data={
-            sortBy === 'eta'
-              ? [...results].sort(
-                  (a, b) => (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
-                )
-              : results
-          }
-          renderItem={renderListItem}
-          keyExtractor={(item) => item.id}
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
-              </Text>
             </View>
-          }
-        />
-      </View>
+
+            <View style={styles.filterRow}>
+              <TouchableOpacity
+                style={[styles.filterChip, filters.monthlyOnly && styles.filterChipActive]}
+                onPress={() => setFilters({ monthlyOnly: !filters.monthlyOnly })}
+                testID="filter-monthly"
+              >
+                <Text style={styles.filterChipText}>Monthly</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterChip, filters.hideFull && styles.filterChipActive]}
+                onPress={() => setFilters({ hideFull: !filters.hideFull })}
+              >
+                <Text style={styles.filterChipText}>Hide Full</Text>
+              </TouchableOpacity>
+              {filters.vehicleType ? (
+                <View
+                  style={[styles.filterChip, styles.filterChipActive]}
+                  testID="search-vehicle-filter"
+                >
+                  <Text style={styles.filterChipText}>{filters.vehicleType}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.sortRow}>
+            <Text style={styles.sortLabel}>Sort by:</Text>
+            {['distance', 'price', 'availability', 'rating', 'eta'].map((sort) => (
+              <TouchableOpacity
+                key={sort}
+                style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
+                onPress={() => setSortBy(sort as any)}
+              >
+                <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
+                  {sort}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <BottomSheetFlatList
+            data={
+              sortBy === 'eta'
+                ? [...results].sort(
+                    (a, b) => (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
+                  )
+                : results
+            }
+            renderItem={renderListItem}
+            keyExtractor={(item) => item.id}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>
+                  {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
+                </Text>
+              </View>
+            }
+          />
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -408,18 +417,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    ...theme.shadows.lg,
+  },
+  sheetBackground: {
     backgroundColor: theme.colors.background,
     borderTopLeftRadius: theme.borderRadius.xl,
     borderTopRightRadius: theme.borderRadius.xl,
-    height: '40%',
-    ...theme.shadows.lg,
   },
-  sheetExpanded: {
-    height: '85%',
+  sheetBody: {
+    flex: 1,
   },
   sheetHandleHit: {
     alignItems: 'center',
