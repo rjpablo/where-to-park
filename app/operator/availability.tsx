@@ -174,7 +174,6 @@ export default function AvailabilityScreen() {
     <ScrollView style={styles.container} testID="availability-ready">
       <WorkspaceNav listingId={location.id} />
       <View style={styles.header}>
-        <Text style={styles.title}>Current Availability</Text>
         <Text style={styles.subtitle}>{location.name}</Text>
       </View>
 
@@ -357,10 +356,6 @@ const styles = StyleSheet.create({
   header: {
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.primary,
-  },
-  title: {
-    ...theme.typography.h2,
-    color: '#fff',
   },
   subtitle: {
     ...theme.typography.body,

@@ -48,8 +48,7 @@ export default function OperatorInboxScreen() {
 
   return (
     <ScrollView style={styles.container} testID="inbox-ready">
-      <Text style={styles.title}>Messages</Text>
-      <Text style={styles.meta}>{user ? `Signed in as ${user.display_name}` : 'Sign in'}</Text>
+      {!user ? <Text style={styles.meta}>Sign in to see your messages</Text> : null}
       {threads.map((t) => (
         <TouchableOpacity
           key={t.id}
@@ -82,7 +81,6 @@ export default function OperatorInboxScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
-  title: { ...theme.typography.h2 },
   meta: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,

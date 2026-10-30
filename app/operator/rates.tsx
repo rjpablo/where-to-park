@@ -193,7 +193,6 @@ export default function RatesScreen() {
   return (
     <ScrollView style={styles.container} testID="rates-ready">
       <WorkspaceNav listingId={locationId} />
-      <Text style={styles.title}>Areas and rates</Text>
       <Text style={styles.subtitle}>{locationName}</Text>
 
       <View style={styles.preview} testID="quote-preview">
@@ -394,7 +393,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  title: { ...theme.typography.h2 },
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,

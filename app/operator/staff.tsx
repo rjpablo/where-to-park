@@ -118,7 +118,6 @@ export default function StaffScreen() {
   return (
     <ScrollView style={styles.container} testID="staff-ready">
       <WorkspaceNav listingId={locationId} />
-      <Text style={styles.title}>Staff</Text>
       <Text style={styles.subtitle}>{operatorName}</Text>
 
       <View style={styles.toggleRow} testID="staff-can-waive-row">
@@ -189,7 +188,6 @@ export default function StaffScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  title: { ...theme.typography.h2 },
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,

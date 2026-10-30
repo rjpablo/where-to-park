@@ -255,6 +255,7 @@ Two drivers cannot reserve the last space at the same time. Every capacity chang
 
 **UI Defaults:**
 
+- 🟧 **No repeated screen titles**: The header bar (title next to Back) is the only title. Screens no longer repeat it as a big heading in the body: Messages (also drops the 'Signed in as …' line), Saved vehicles (also drops 'Signed in as …'), Notifications, My listings, List your space, Edit location, Areas and rates, Fee presets, Staff, Availability, Check in, Active sessions, Verification queue and Moderation. Useful lines under the old heading stay (listing or operator name, 'N pending', 'N active', 'Step N of 5', 'Spaces you own or staff', sign-in prompts). Body headings that name something else (a listing's name on its details and hub screens, the listing name in a chat, your name on Profile) stay
 - 🟪 **Slide to confirm**: A reusable `SlideToConfirm` control for destructive actions: a rounded track with a label ('Slide to delete ››') and a round knob the user drags all the way to the right. Releasing at 90% or more of the track confirms (the knob snaps to the end and shows ✓, or a spinner while the request runs); releasing earlier springs it back. A parent ScrollView can't steal the drag. Screen readers get an 'activate' action instead of dragging. The screen that uses it always offers Cancel next to it
 - **Availability console**: Big +1/-1 buttons and count front and center; staff home screen
 - **Reserved/Unavailable**: Two small steppers under count in count mode, or long-press on slot in slots mode

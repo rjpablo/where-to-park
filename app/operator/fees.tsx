@@ -128,7 +128,6 @@ export default function FeePresetsScreen() {
   return (
     <ScrollView style={styles.container} testID="fees-ready">
       <WorkspaceNav listingId={locationId} />
-      <Text style={styles.title}>Extra-fee presets</Text>
       <Text style={styles.subtitle}>{locationName}</Text>
 
       {presets.map((preset) => (
@@ -215,7 +214,6 @@ export default function FeePresetsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  title: { ...theme.typography.h2 },
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,

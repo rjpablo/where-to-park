@@ -60,10 +60,7 @@ export default function VehiclesScreen() {
 
   return (
     <ScrollView style={styles.container} testID="vehicles-ready">
-      <Text style={styles.title}>Saved vehicles</Text>
-      <Text style={styles.meta}>
-        {user ? `Signed in as ${user.display_name}` : 'Sign in to save vehicles'}
-      </Text>
+      {!user ? <Text style={styles.meta}>Sign in to save vehicles</Text> : null}
 
       {vehicles.map((v) => (
         <View key={v.id} style={styles.card} testID={`vehicle-row-${v.nickname}`}>
@@ -113,7 +110,6 @@ export default function VehiclesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
-  title: { ...theme.typography.h2 },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   meta: {
     ...theme.typography.bodySmall,

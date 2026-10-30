@@ -45,7 +45,6 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container} testID="notifications-ready">
-      <Text style={styles.title}>Notifications</Text>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}

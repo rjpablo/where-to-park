@@ -199,7 +199,6 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
-      <Text style={styles.title}>List Your Parking Space</Text>
       <Text style={styles.stepTitle} testID="onboarding-step">
         Step {step} of 5
       </Text>
@@ -543,12 +542,6 @@ const styles = StyleSheet.create({
   },
   progressDotActive: {
     backgroundColor: theme.colors.primary,
-  },
-  title: {
-    ...theme.typography.h2,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.lg,
   },
   stepTitle: {
     ...theme.typography.body,

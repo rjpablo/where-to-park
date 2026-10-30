@@ -79,7 +79,6 @@ export default function CheckInScreen() {
     <ScrollView style={styles.container} testID="checkin-ready">
       <WorkspaceNav listingId={locationId} />
       <View style={styles.header}>
-        <Text style={styles.title}>Walk-In Check-In</Text>
         <Text style={styles.subtitle}>{locationName}</Text>
       </View>
 
@@ -152,10 +151,6 @@ const styles = StyleSheet.create({
   header: {
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.primary,
-  },
-  title: {
-    ...theme.typography.h2,
-    color: '#fff',
   },
   subtitle: {
     ...theme.typography.body,

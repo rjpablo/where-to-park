@@ -542,7 +542,6 @@ export default function SessionsScreen() {
     <View style={styles.container} testID="sessions-ready">
       <WorkspaceNav listingId={locationId} />
       <View style={styles.header}>
-        <Text style={styles.title}>Active Sessions</Text>
         <Text style={styles.subtitle}>
           {locationName} · {sessions.length} active
         </Text>
@@ -600,10 +599,6 @@ const styles = StyleSheet.create({
   header: {
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.primary,
-  },
-  title: {
-    ...theme.typography.h2,
-    color: '#fff',
   },
   subtitle: {
     ...theme.typography.body,

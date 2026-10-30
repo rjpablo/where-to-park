@@ -54,7 +54,6 @@ export default function AdminReportsScreen() {
   return (
     <ScrollView style={styles.container} testID="reports-ready">
       <WorkspaceNav />
-      <Text style={styles.title}>Moderation queue</Text>
       <Text style={styles.meta}>{reports.length} pending</Text>
       {notice ? (
         <Text style={styles.notice} testID="reports-notice">
@@ -95,7 +94,6 @@ export default function AdminReportsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
-  title: { ...theme.typography.h2 },
   meta: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,

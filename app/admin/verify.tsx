@@ -196,7 +196,6 @@ export default function VerificationQueueScreen() {
     <View style={styles.container} testID="admin-ready">
       <WorkspaceNav />
       <View style={styles.header}>
-        <Text style={styles.title}>Verification Queue</Text>
         <Text style={styles.subtitle}>{locations.length} pending</Text>
       </View>
 
@@ -225,10 +224,6 @@ const styles = StyleSheet.create({
   header: {
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.primary,
-  },
-  title: {
-    ...theme.typography.h2,
-    color: '#fff',
   },
   subtitle: {
     ...theme.typography.body,

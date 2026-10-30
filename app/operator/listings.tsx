@@ -66,7 +66,6 @@ export default function ListingsDashboardScreen() {
       <View style={styles.container} testID="listings-guest">
         <WorkspaceNav />
         <View style={styles.header}>
-          <Text style={styles.title}>My listings</Text>
           <Text style={styles.meta}>Sign in to manage your parking spaces.</Text>
           <Button title="Sign in" onPress={() => router.push('/auth')} />
         </View>
@@ -78,7 +77,6 @@ export default function ListingsDashboardScreen() {
     <ScrollView style={styles.container} testID="listings-ready">
       <WorkspaceNav />
       <View style={styles.header}>
-        <Text style={styles.title}>My listings</Text>
         <Text style={styles.meta}>
           Spaces you own or staff
           {user.display_name ? ` · ${user.display_name}` : ''}
@@ -161,7 +159,6 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   padded: { paddingHorizontal: theme.spacing.lg },
-  title: { ...theme.typography.h2 },
   meta: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,

@@ -138,8 +138,6 @@ export default function EditLocationScreen() {
   return (
     <ScrollView style={styles.container} testID="edit-ready">
       <WorkspaceNav listingId={id} />
-      <Text style={styles.title}>Edit location</Text>
-
       <Text style={styles.label}>Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} testID="edit-name" />
 
@@ -227,10 +225,6 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  title: {
-    ...theme.typography.h2,
-    marginBottom: theme.spacing.lg,
   },
   label: {
     ...theme.typography.body,
