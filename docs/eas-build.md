@@ -71,17 +71,39 @@ agent; EAS uses the same signing key, so new builds install over them.
 `app.config.js` reads `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 and the optional `EXPO_PUBLIC_MAP_STYLE_URL` into `expo.extra`. `src/lib/supabase.ts`
 reads them from there or from `process.env`. For EAS builds they come from the
-`env` block of the `preview` profile in `eas.json`:
+`env` block of the build profile in `eas.json`. No EAS dashboard environment variables are used.
 
-- `EXPO_PUBLIC_SUPABASE_URL` is the hosted project, `https://pvxtdvyrqviuhhclbije.supabase.co`.
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY` is the hosted project's public anon key (JWT role `anon`). It is
-  public by design and is embedded in every APK; row-level security protects the data.
-  Do not put the service-role key, the Supabase access token or any other secret here,
-  because `EXPO_PUBLIC_*` values are compiled into the app.
-- `EXPO_PUBLIC_MAP_STYLE_URL` is unset, so the map uses OpenFreeMap liberty.
+The anon key is public by design (JWT role `anon`) and is compiled into every APK and web
+bundle; row-level security protects the data. Never put the service-role key, a Supabase
+access token or any other secret in an `EXPO_PUBLIC_*` value. `EXPO_PUBLIC_MAP_STYLE_URL`
+is unset, so the map uses OpenFreeMap liberty.
 
-No EAS dashboard environment variables are used. The build log shows
-"No environment variables … found for the preview environment on EAS".
+## Environments
+
+| | Staging | Production |
+|---|---|---|
+| Supabase project | Where To Park Staging | Where To Park |
+| Ref | `ckspplijrygjlencrduw` | `pvxtdvyrqviuhhclbije` |
+| URL | https://ckspplijrygjlencrduw.supabase.co | https://pvxtdvyrqviuhhclbije.supabase.co |
+| Region | ap-southeast-2 | ap-northeast-1 |
+| EAS profile | `preview` (internal APK) | `production` (app bundle; not built yet) |
+| Web | https://where-to-park.expo.app | — |
+| Management API token (env) | `SUPABASE_STAGING_ACCESS_TOKEN` | `SUPABASE_ACCESS_TOKEN` |
+
+The anon keys are in `eas.json` (`build.preview.env` = staging, `build.production.env` = prod).
+
+- **All testing and test writes go to staging** (preview APKs, the web deploy, local web runs).
+  Prod is only touched for releases.
+- Staging has the same schema as prod: every migration in `supabase/migrations` in order,
+  **except `20241029000007_auth_uid.sql`, which must never be applied to a hosted project**.
+  Apply new migrations to staging first, then prod.
+- Edge functions: `get-etas` (the same set prod has; `notify` isn't deployed on either).
+- Auth: phone OTP on, with the same test numbers as prod (+639170000001 to +639170000004,
+  code 123456, valid until 30 Apr 2027). Site URL and redirect URLs are the defaults; sign-in
+  is phone only, so no redirect URL is needed.
+- Demo data: a copy of prod's demo data (the same 4 test users with the same ids, operators,
+  9 listings, rates, areas, policies, reviews, chat threads, notifications and the 2 listing
+  photos), without agent test rows. The one chat image wasn't copied.
 
 ## Signing credentials
 
@@ -204,11 +226,12 @@ The web version is hosted on EAS Hosting (free `*.expo.app` domain) for testing:
 - Production URL: https://where-to-park.expo.app (dev domain `where-to-park`, set on the first deploy)
 - Dashboard: https://expo.dev/projects/811e8d6d-6c98-4307-9cca-f82f0c767a1a/hosting/deployments
 
-To redeploy, export with the same Supabase env as the preview profile, then promote the
-deployment to production. `EXPO_TOKEN` must be set in the shell; never commit it.
+The web app uses **staging** (since 1.0.8). To redeploy, export with the preview (staging)
+env, then promote the deployment to production (EAS Hosting's "production" alias, i.e. the
+where-to-park.expo.app URL; it still talks to staging Supabase). `EXPO_TOKEN` must be set in the shell; never commit it.
 
 ```sh
-# EXPO_PUBLIC_* values are the ones in eas.json → build.preview.env (public, safe to embed)
+# EXPO_PUBLIC_* values are the ones in eas.json → build.preview.env (staging; public, safe to embed)
 export EXPO_PUBLIC_SUPABASE_URL=...        # see eas.json
 export EXPO_PUBLIC_SUPABASE_ANON_KEY=...   # see eas.json
 rm -rf dist && npx expo export -p web      # writes dist/ (includes public/maplibre-gl-csp-worker.js)
