@@ -2,7 +2,7 @@
 
 **Last Updated:** 30 Oct 2026
 
-> **Revision colours:** 🟩 = added or changed on 30 Oct 2026 (preview 1.0.3–1.0.5 feedback). 🟦 = changed for preview 1.0.6 (30 Oct 2026, afternoon batch).
+> **Revision colours:** 🟩 = added or changed on 30 Oct 2026 (preview 1.0.3–1.0.5 feedback). 🟦 = changed for preview 1.0.6 (30 Oct 2026, afternoon batch). 🟪 = changed for preview 1.0.7.
 
 ## Overview
 
@@ -102,7 +102,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 - 🟦 **Rating on cards**: Every result card shows the listing's rating as '★ 4.5 (12)' (average to one decimal, number of reviews); a listing with no reviews shows 'Not rated' in grey
 - 🟩 **Stale indicator**: There is no 'Stale' text label anywhere (results list, listing details). A listing past its stale threshold shows only the warning style: the 'updated X ago' time turns amber (and the count badge and map pin turn amber)
 - 🟩 **List row layout**: Nothing may run past the card on narrow screens. The status/details line wraps onto a second line when needed and ellipsizes (…) if it is still too long; the name and address are limited to 2 lines with an ellipsis
-- **Sort**: distance (nearest first, default), price (starting rate for selected vehicle), 🟦 'Most slots' (was labelled 'availability'; most free first, behaviour unchanged), rating, ETA
+- **Sort**: distance (nearest first, default), price (starting rate for selected vehicle), rating, ETA, 🟪 'Open slots' (last; was 'Most slots' / 'availability'; most free first, behaviour unchanged)
 - **Filters**: vehicle type, saved vehicle, 🟦 rate type (was the Monthly chip), Show Full
 - 🟦 **Rate type dropdown**: The old 'Monthly' chip is now a 'Rate: All ▾' dropdown with 'All' plus every rate type in the `rate_type` enum: Hourly, Daily, Flat then hourly, Monthly. 'All' (default) means no rate-type filter; choosing a type shows only listings with an active rate of that type (search_nearby `p_rate_type`; the old `p_monthly_only` stays for older app builds). Choosing Monthly gives the same results as the old Monthly chip
 - 🟦 **Vehicle dropdown**: The vehicle chip ('Vehicle: Car ▾') opens a list with 'All' plus each vehicle type (Car, SUV, Van, Motorcycle, Truck). It starts at the signed-in user's default vehicle's type, and at 'All' for guests or users without a default vehicle (re-applied on sign-in/out). 'All' means no vehicle filter. The chosen type is passed to search as the vehicle type (today that picks the rate used for the starting price)
