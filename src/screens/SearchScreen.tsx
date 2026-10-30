@@ -518,10 +518,12 @@ export function SearchScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.filterChip, filters.hideFull && styles.filterChipActive]}
-                onPress={() => setFilters({ hideFull: !filters.hideFull })}
+                style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
+                onPress={() => setFilters({ showFull: !filters.showFull })}
+                accessibilityState={{ selected: filters.showFull }}
+                testID="filter-show-full"
               >
-                <Text style={styles.filterChipText}>Hide Full</Text>
+                <Text style={styles.filterChipText}>Show Full</Text>
               </TouchableOpacity>
               {filters.vehicleType ? (
                 <View

@@ -1,18 +1,13 @@
 import { create } from 'zustand';
 import { supabase, type SearchResult } from '../lib/supabase';
 import { DEFAULT_DISTANCE_KM } from '../lib/distance';
+import { searchFilterParams, type SearchFilters } from '../lib/searchFilters';
 
 interface SearchState {
   results: SearchResult[];
   loading: boolean;
   error: string | null;
-  filters: {
-    vehicleType: string | null;
-    monthlyOnly: boolean;
-    hideFull: boolean;
-    /** Only show results within this distance of the search origin. */
-    distanceKm: number;
-  };
+  filters: SearchFilters;
   sortBy: 'distance' | 'price' | 'availability' | 'rating' | 'eta';
   sheetPosition: 'peek' | 'expanded';
   cameraPosition: { lat: number; lng: number; zoom: number } | null;
@@ -31,7 +26,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   filters: {
     vehicleType: null,
     monthlyOnly: false,
-    hideFull: false,
+    showFull: false,
     distanceKm: DEFAULT_DISTANCE_KM,
   },
   sortBy: 'distance',
@@ -48,9 +43,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         p_lat: lat,
         p_lng: lng,
         p_radius_m: radius,
-        p_vehicle_type: filters.vehicleType as any,
-        p_monthly_only: filters.monthlyOnly,
-        p_hide_full: filters.hideFull,
+        ...(searchFilterParams(filters) as any),
         p_sort_by: sortBy,
         p_limit: 50,
       });
