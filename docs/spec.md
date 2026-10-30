@@ -253,6 +253,7 @@ Two drivers cannot reserve the last space at the same time. Every capacity chang
 
 **UI Defaults:**
 
+- 🟪 **Slide to confirm**: A reusable `SlideToConfirm` control for destructive actions: a rounded track with a label ('Slide to delete ››') and a round knob the user drags all the way to the right. Releasing at 90% or more of the track confirms (the knob snaps to the end and shows ✓, or a spinner while the request runs); releasing earlier springs it back. A parent ScrollView can't steal the drag. Screen readers get an 'activate' action instead of dragging. The screen that uses it always offers Cancel next to it
 - **Availability console**: Big +1/-1 buttons and count front and center; staff home screen
 - **Reserved/Unavailable**: Two small steppers under count in count mode, or long-press on slot in slots mode
 - **Check in walk-in**: Vehicle type and plate required, note optional; starts now; rate follows vehicle type
