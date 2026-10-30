@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Image } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { FacilityPhotoField } from '../../src/components/FacilityPhotoField';
 import { WorkspaceNav } from '../../src/components/WorkspaceNav';
@@ -14,7 +15,11 @@ import type { ProcessedImage } from '../../src/utils/processImage';
 type ListingType = 'commercial' | 'residential';
 
 export default function OnboardingScreen() {
+  const router = useRouter();
   const { user, initialize } = useAuthStore();
+  // Synchronous guard: state updates are async, so a fast double tap could
+  // otherwise start two create_location calls before `submitting` re-renders.
+  const submitLock = React.useRef(false);
   const [step, setStep] = React.useState(1);
   const [locationName, setLocationName] = React.useState('');
   const [address, setAddress] = React.useState('');
@@ -73,11 +78,19 @@ export default function OnboardingScreen() {
     return true;
   };
 
+  const openListing = (locationId: string) => {
+    // Replace the form in history so Back cannot return to a submitted form.
+    router.replace(`/location/${locationId}`);
+  };
+
   const handleFinish = async () => {
+    if (submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
     setError(null);
     setSuccess(null);
     setPhotoError(null);
+    let navigated = false;
     try {
       let locationId = createdLocationId;
       if (!locationId) {
@@ -96,7 +109,7 @@ export default function OnboardingScreen() {
           setError(String(data.error));
           return;
         }
-        locationId = data.location_id;
+        locationId = data.location_id as string;
         setCreatedLocationId(locationId);
       }
 
@@ -112,16 +125,21 @@ export default function OnboardingScreen() {
       if (photo && locationId) {
         const uploaded = await uploadCover(locationId);
         if (!uploaded) {
+          // Listing exists; let the operator retry the photo or continue without it.
           setSuccess(`Submitted ${locationName.trim()} for verification`);
           return;
         }
       }
 
-      setSuccess(`Submitted ${locationName.trim()} for verification`);
+      navigated = true;
+      openListing(locationId!);
     } catch (err: any) {
       setError(err.message || 'Could not create location');
     } finally {
-      setSubmitting(false);
+      if (!navigated) {
+        submitLock.current = false;
+        setSubmitting(false);
+      }
     }
   };
 
@@ -315,7 +333,7 @@ export default function OnboardingScreen() {
           {success}
         </Text>
       ) : null}
-      {photoError ? (
+      {photoError && createdLocationId ? (
         <View style={styles.photoRetry} testID="onboarding-photo-failed">
           <Text style={styles.error}>{photoError}</Text>
           <Button
@@ -325,12 +343,21 @@ export default function OnboardingScreen() {
             loading={submitting}
             testID="onboarding-photo-retry"
           />
+          <Button
+            title="Continue without photo"
+            variant="outline"
+            onPress={() => openListing(createdLocationId)}
+            disabled={submitting}
+            testID="onboarding-skip-photo"
+          />
         </View>
       ) : null}
 
       <View style={styles.navigation}>
-        {step > 1 && <Button title="Back" variant="outline" onPress={handleBack} />}
-        {step < 5 ? (
+        {step > 1 && !createdLocationId && (
+          <Button title="Back" variant="outline" onPress={handleBack} disabled={submitting} />
+        )}
+        {createdLocationId ? null : step < 5 ? (
           <Button
             title="Next"
             onPress={handleNext}
@@ -342,6 +369,7 @@ export default function OnboardingScreen() {
             title="Submit for Verification"
             onPress={handleFinish}
             loading={submitting}
+            disabled={submitting}
             testID="onboarding-submit"
             style={{ flex: 1, marginLeft: theme.spacing.md }}
           />
