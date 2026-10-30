@@ -8,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
@@ -36,6 +37,8 @@ import { viewersLabel } from '../../src/lib/viewerPresence';
 import { parseGeogPoint } from '../../src/lib/geog';
 import { openNavigation } from '../../src/lib/openNavigation';
 import { ImageCarousel, type CarouselImage } from '../../src/components/ImageCarousel';
+import { DETAIL_TABS, gridCellSize, tabLabel, type DetailTab } from '../../src/lib/detailTabs';
+import { formatListingRating } from '../../src/lib/rating';
 import {
   collectionImages,
   FROM_REVIEW_LABEL,
@@ -54,6 +57,8 @@ import {
 import * as ExpoLocation from 'expo-location';
 import { navigateLabel, preferredNavApp } from '../../src/lib/navigation';
 
+const GRID_GAP = 4;
+
 const collectionUrl = (source: string, path: string) =>
   source === 'review' ? reviewPhotoPublicUrl(path) : locationPhotoPublicUrl(path);
 
@@ -66,6 +71,8 @@ export default function LocationDetailScreen() {
   // the listing has loaded (not for 'Listing not found').
   const viewers = useListingViewers(location?.id ?? null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<DetailTab>('overview');
+  const { width: windowWidth } = useWindowDimensions();
   const [collection, setCollection] = useState<CollectionImage[] | null>(null);
   // Open photo viewer: which photos and the one tapped.
   const [carousel, setCarousel] = useState<{ images: CarouselImage[]; start: number } | null>(null);
@@ -98,6 +105,7 @@ export default function LocationDetailScreen() {
 
   useEffect(() => {
     initialize();
+    setTab('overview');
     loadLocation();
     // Reload when the route id changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -299,6 +307,14 @@ export default function LocationDetailScreen() {
       collectionUrl
     );
 
+  const ratingStats = Array.isArray(location?.location_rating_stats)
+    ? location.location_rating_stats[0]
+    : location?.location_rating_stats;
+  const reviewCount = Number(ratingStats?.review_count ?? location?.reviews?.length ?? 0);
+  const ratingText = formatListingRating(ratingStats?.avg_rating, reviewCount);
+  // Photos tab grid: 3 square cells across the content width (screen minus padding).
+  const gridSize = gridCellSize(Math.min(windowWidth, 900) - theme.spacing.lg * 2, 3, GRID_GAP);
+
   const listingPoint = parseGeogPoint(location?.geog);
   const distanceLine = distanceEtaLabel(
     origin?.kind === 'search' && Number.isFinite(rowDistanceM)
@@ -383,6 +399,17 @@ export default function LocationDetailScreen() {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>{location.name}</Text>
+          <TouchableOpacity
+            onPress={() => setTab('reviews')}
+            accessibilityRole="button"
+            accessibilityLabel={`${ratingText}. Show reviews`}
+            style={styles.headerRating}
+            testID="header-rating"
+          >
+            <Text style={[styles.headerRatingText, !reviewCount && styles.headerNotRated]}>
+              {ratingText}
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.address}>{location.address}</Text>
           {distanceLine ? (
             <Text style={styles.distance} numberOfLines={2} testID="listing-distance">
@@ -410,279 +437,345 @@ export default function LocationDetailScreen() {
           </View>
         </View>
 
-        <Button
-          title={navigateLabel(navApp)}
-          onPress={openNav}
-          testID="navigate"
-          style={{ marginBottom: theme.spacing.sm }}
-        />
-        <Button
-          title="Message"
-          variant="outline"
-          onPress={() => router.push(`/chat/${id}`)}
-          testID="location-message"
-          style={{ marginBottom: theme.spacing.sm }}
-        />
-        {user ? (
-          <Button
-            title="Report listing"
-            variant="outline"
-            onPress={() => {
-              setReportTarget({ type: 'location', id: String(id) });
-              setReportReason('Inaccurate rates');
-            }}
-            testID="report-listing"
-            style={{ marginBottom: theme.spacing.lg }}
-          />
-        ) : null}
-        {reportNotice ? (
-          <Text style={styles.reviewNotice} testID="report-sent">
-            {reportNotice}
-          </Text>
-        ) : null}
-        {reportTarget ? (
-          <View style={styles.reviewForm} testID="report-form">
-            <Text style={styles.sectionTitle}>
-              Report {reportTarget.type === 'location' ? 'listing' : 'review'}
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={reportReason}
-              onChangeText={setReportReason}
-              testID="report-reason"
-            />
-            <Button title="Send report" onPress={submitReport} testID="report-submit" />
-          </View>
-        ) : null}
-
-        {/* Rates */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rates</Text>
-          {location.rates?.filter((r: any) => r.active).length > 0 ? (
-            location.rates
-              .filter((r: any) => r.active)
-              .map((rate: any) => (
-                <View key={rate.id} style={styles.rateItem}>
-                  <Text style={styles.rateType}>
-                    {rate.name || rate.rate_type} {rate.vehicle_type && `(${rate.vehicle_type})`}
-                  </Text>
-                  <Text style={styles.ratePrice}>
-                    {rate.rate_type === 'hourly' && rate.hourly_amount
-                      ? `${formatPeso(rate.hourly_amount)}/h`
-                      : rate.rate_type === 'daily' && rate.daily_amount
-                        ? `${formatPeso(rate.daily_amount)}/day`
-                        : rate.rate_type === 'monthly' && rate.monthly_amount
-                          ? `${formatPeso(rate.monthly_amount)}/mo`
-                          : 'Contact for rates'}
-                  </Text>
-                </View>
-              ))
-          ) : (
-            <Text style={styles.placeholderText}>Contact location for rates</Text>
-          )}
+        <View style={styles.tabs} accessibilityRole="tablist" testID="details-tabs">
+          {DETAIL_TABS.map((t) => (
+            <TouchableOpacity
+              key={t.key}
+              style={[styles.tab, tab === t.key && styles.tabActive]}
+              onPress={() => setTab(t.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === t.key }}
+              testID={`tab-${t.key}`}
+            >
+              <Text
+                style={[styles.tabText, tab === t.key && styles.tabTextActive]}
+                numberOfLines={1}
+              >
+                {tabLabel(t.key, reviewCount, galleryImages.length)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Rules & Policies */}
-        {location.location_policies?.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Rules & Policies</Text>
-            {location.location_policies.map((policy: any) => (
-              <Text key={policy.id} style={styles.policyText}>
-                • {policy.label}: {policy.value_text}
+        {tab === 'overview' ? (
+          <View testID="tab-panel-overview">
+            <Button
+              title={navigateLabel(navApp)}
+              onPress={openNav}
+              testID="navigate"
+              style={{ marginBottom: theme.spacing.sm }}
+            />
+            <Button
+              title="Message"
+              variant="outline"
+              onPress={() => router.push(`/chat/${id}`)}
+              testID="location-message"
+              style={{ marginBottom: theme.spacing.sm }}
+            />
+            {user ? (
+              <Button
+                title="Report listing"
+                variant="outline"
+                onPress={() => {
+                  setReportTarget({ type: 'location', id: String(id) });
+                  setReportReason('Inaccurate rates');
+                }}
+                testID="report-listing"
+                style={{ marginBottom: theme.spacing.lg }}
+              />
+            ) : null}
+            {reportNotice ? (
+              <Text style={styles.reviewNotice} testID="report-sent">
+                {reportNotice}
               </Text>
-            ))}
-          </View>
-        )}
-
-        {/* Reviews */}
-        <View style={styles.section}>
-          {(() => {
-            const stats = Array.isArray(location.location_rating_stats)
-              ? location.location_rating_stats[0]
-              : location.location_rating_stats;
-            const count = Number(stats?.review_count ?? location.reviews?.length ?? 0);
-            const avg = Number(stats?.avg_rating ?? 0);
-            return (
-              <>
-                <Text style={styles.sectionTitle} testID="reviews-heading">
-                  Reviews ({count})
+            ) : null}
+            {reportTarget ? (
+              <View style={styles.reviewForm} testID="report-form">
+                <Text style={styles.sectionTitle}>
+                  Report {reportTarget.type === 'location' ? 'listing' : 'review'}
                 </Text>
-                {count > 0 && avg > 0 ? (
-                  <View style={styles.ratingDisplay} testID="reviews-average">
-                    <Text style={styles.ratingNumber}>{avg.toFixed(1)}</Text>
-                    <Text style={styles.ratingStars}>⭐</Text>
-                  </View>
-                ) : null}
-              </>
-            );
-          })()}
-
-          {location.reviews?.map((review: any) => (
-            <View key={review.id} style={styles.reviewItem} testID={`review-${review.author_id}`}>
-              <Text style={styles.reviewAuthor}>
-                {embeddedOne<any>(review.public_profiles)?.display_name || 'Anonymous'}
-              </Text>
-              {review.session_id || review.reservation_id ? (
-                <Text style={styles.bookedLabel} testID="booked-via-app">
-                  Booked via app
-                </Text>
-              ) : null}
-              <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
-              {(() => {
-                const images = reviewImages(review);
-                if (!images.length) return null;
-                return (
-                  <View style={styles.thumbRow} testID={`review-photos-${review.id}`}>
-                    {images.map((img, i) => (
-                      <TouchableOpacity
-                        key={img.key}
-                        onPress={() => setCarousel({ images, start: i })}
-                        accessibilityRole="imagebutton"
-                        accessibilityLabel={`Review photo ${i + 1} of ${images.length}`}
-                        testID={`review-photo-${review.id}-${i}`}
-                      >
-                        <Image source={{ uri: img.uri }} style={styles.thumb} resizeMode="cover" />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                );
-              })()}
-              {review.comment ? <Text style={styles.reviewText}>{review.comment}</Text> : null}
-              {user ? (
-                <Button
-                  title="Report review"
-                  size="small"
-                  variant="outline"
-                  onPress={() => {
-                    setReportTarget({ type: 'review', id: review.id });
-                    setReportReason('Inappropriate');
-                  }}
-                  testID={`report-review-${review.id}`}
+                <TextInput
+                  style={styles.input}
+                  value={reportReason}
+                  onChangeText={setReportReason}
+                  testID="report-reason"
                 />
-              ) : null}
-            </View>
-          ))}
+                <Button title="Send report" onPress={submitReport} testID="report-submit" />
+              </View>
+            ) : null}
 
-          {user ? (
-            <View style={styles.reviewForm} testID="review-form">
-              <Text style={styles.sectionTitle}>Write a review</Text>
-              <View style={styles.ratingRow}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <Button
-                    key={n}
-                    title={`${n}`}
-                    size="small"
-                    variant={rating === n ? 'primary' : 'outline'}
-                    onPress={() => setRating(n)}
-                    testID={`review-rating-${n}`}
-                  />
+            {/* Rates */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Rates</Text>
+              {location.rates?.filter((r: any) => r.active).length > 0 ? (
+                location.rates
+                  .filter((r: any) => r.active)
+                  .map((rate: any) => (
+                    <View key={rate.id} style={styles.rateItem}>
+                      <Text style={styles.rateType}>
+                        {rate.name || rate.rate_type}{' '}
+                        {rate.vehicle_type && `(${rate.vehicle_type})`}
+                      </Text>
+                      <Text style={styles.ratePrice}>
+                        {rate.rate_type === 'hourly' && rate.hourly_amount
+                          ? `${formatPeso(rate.hourly_amount)}/h`
+                          : rate.rate_type === 'daily' && rate.daily_amount
+                            ? `${formatPeso(rate.daily_amount)}/day`
+                            : rate.rate_type === 'monthly' && rate.monthly_amount
+                              ? `${formatPeso(rate.monthly_amount)}/mo`
+                              : 'Contact for rates'}
+                      </Text>
+                    </View>
+                  ))
+              ) : (
+                <Text style={styles.placeholderText}>Contact location for rates</Text>
+              )}
+            </View>
+
+            {/* Rules & Policies */}
+            {location.location_policies?.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Rules & Policies</Text>
+                {location.location_policies.map((policy: any) => (
+                  <Text key={policy.id} style={styles.policyText}>
+                    • {policy.label}: {policy.value_text}
+                  </Text>
                 ))}
               </View>
-              <TextInput
-                style={styles.input}
-                value={comment}
-                onChangeText={setComment}
-                placeholder="How was parking here?"
-                testID="review-comment"
-              />
+            )}
+
+            {/* Contact */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Contact</Text>
+              <Text style={styles.contactText}>{location.contact || 'No contact provided'}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {tab === 'reviews' ? (
+          <View testID="tab-panel-reviews">
+            {/* Reviews */}
+            <View style={styles.section}>
               {(() => {
-                const mine = location.reviews?.find((r: any) => r.author_id === user.id);
-                const saved = sortReviewPhotos<any>(mine?.review_photos);
-                const room = photosLeft(saved.length, stagedPhotos.length);
+                const stats = Array.isArray(location.location_rating_stats)
+                  ? location.location_rating_stats[0]
+                  : location.location_rating_stats;
+                const count = Number(stats?.review_count ?? location.reviews?.length ?? 0);
+                const avg = Number(stats?.avg_rating ?? 0);
                 return (
-                  <View style={styles.formPhotos} testID="review-form-photos">
-                    {saved.length + stagedPhotos.length > 0 ? (
-                      <View style={styles.thumbRow}>
-                        {saved.map((p: any) => (
-                          <View key={p.id}>
+                  <>
+                    <Text style={styles.sectionTitle} testID="reviews-heading">
+                      Reviews ({count})
+                    </Text>
+                    {count > 0 && avg > 0 ? (
+                      <View style={styles.ratingDisplay} testID="reviews-average">
+                        <Text style={styles.ratingNumber}>{avg.toFixed(1)}</Text>
+                        <Text style={styles.ratingStars}>⭐</Text>
+                      </View>
+                    ) : null}
+                  </>
+                );
+              })()}
+
+              {location.reviews?.map((review: any) => (
+                <View
+                  key={review.id}
+                  style={styles.reviewItem}
+                  testID={`review-${review.author_id}`}
+                >
+                  <Text style={styles.reviewAuthor}>
+                    {embeddedOne<any>(review.public_profiles)?.display_name || 'Anonymous'}
+                  </Text>
+                  {review.session_id || review.reservation_id ? (
+                    <Text style={styles.bookedLabel} testID="booked-via-app">
+                      Booked via app
+                    </Text>
+                  ) : null}
+                  <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
+                  {(() => {
+                    const images = reviewImages(review);
+                    if (!images.length) return null;
+                    return (
+                      <View style={styles.thumbRow} testID={`review-photos-${review.id}`}>
+                        {images.map((img, i) => (
+                          <TouchableOpacity
+                            key={img.key}
+                            onPress={() => setCarousel({ images, start: i })}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel={`Review photo ${i + 1} of ${images.length}`}
+                            testID={`review-photo-${review.id}-${i}`}
+                          >
                             <Image
-                              source={{ uri: reviewPhotoPublicUrl(p.storage_path) || '' }}
+                              source={{ uri: img.uri }}
                               style={styles.thumb}
                               resizeMode="cover"
                             />
-                            <TouchableOpacity
-                              style={styles.thumbRemove}
-                              onPress={() => removeSavedPhoto(p)}
-                              accessibilityLabel="Remove photo"
-                              testID={`review-photo-remove-${p.id}`}
-                            >
-                              <Text style={styles.thumbRemoveText}>✕</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                        {stagedPhotos.map((p) => (
-                          <View key={p.key}>
-                            <Image
-                              source={{ uri: p.uri }}
-                              style={[styles.thumb, styles.thumbStaged]}
-                              resizeMode="cover"
-                            />
-                            <TouchableOpacity
-                              style={styles.thumbRemove}
-                              onPress={() =>
-                                setStagedPhotos((prev) => prev.filter((x) => x.key !== p.key))
-                              }
-                              accessibilityLabel="Remove photo"
-                              testID="review-photo-unstage"
-                            >
-                              <Text style={styles.thumbRemoveText}>✕</Text>
-                            </TouchableOpacity>
-                          </View>
+                          </TouchableOpacity>
                         ))}
                       </View>
-                    ) : null}
-                    {Platform.OS === 'web' ? (
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        data-testid="review-photo-file"
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          e.target.value = '';
-                          onReviewFiles(files, room);
-                        }}
-                      />
-                    ) : null}
+                    );
+                  })()}
+                  {review.comment ? <Text style={styles.reviewText}>{review.comment}</Text> : null}
+                  {user ? (
                     <Button
-                      title={`Add photos (${saved.length + stagedPhotos.length}/${REVIEW_PHOTO_MAX})`}
+                      title="Report review"
                       size="small"
                       variant="outline"
-                      onPress={addReviewPhoto}
-                      disabled={room === 0 || reviewBusy}
-                      testID="review-add-photo"
+                      onPress={() => {
+                        setReportTarget({ type: 'review', id: review.id });
+                        setReportReason('Inappropriate');
+                      }}
+                      testID={`report-review-${review.id}`}
                     />
-                    {stagedPhotos.length > 0 ? (
-                      <Text style={styles.formPhotosHint}>
-                        Photos are added when you submit the review
-                      </Text>
-                    ) : null}
-                  </View>
-                );
-              })()}
-              <Button
-                title={reviewBusy ? 'Saving…' : 'Submit review'}
-                onPress={submitReview}
-                disabled={reviewBusy}
-                testID="review-submit"
-              />
-              {reviewNotice ? <Text style={styles.reviewNotice}>{reviewNotice}</Text> : null}
-            </View>
-          ) : (
-            <Button
-              title="Sign in to review"
-              variant="outline"
-              onPress={() => router.push('/auth')}
-            />
-          )}
-        </View>
+                  ) : null}
+                </View>
+              ))}
 
-        {/* Contact */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact</Text>
-          <Text style={styles.contactText}>{location.contact || 'No contact provided'}</Text>
-        </View>
+              {user ? (
+                <View style={styles.reviewForm} testID="review-form">
+                  <Text style={styles.sectionTitle}>Write a review</Text>
+                  <View style={styles.ratingRow}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Button
+                        key={n}
+                        title={`${n}`}
+                        size="small"
+                        variant={rating === n ? 'primary' : 'outline'}
+                        onPress={() => setRating(n)}
+                        testID={`review-rating-${n}`}
+                      />
+                    ))}
+                  </View>
+                  <TextInput
+                    style={styles.input}
+                    value={comment}
+                    onChangeText={setComment}
+                    placeholder="How was parking here?"
+                    testID="review-comment"
+                  />
+                  {(() => {
+                    const mine = location.reviews?.find((r: any) => r.author_id === user.id);
+                    const saved = sortReviewPhotos<any>(mine?.review_photos);
+                    const room = photosLeft(saved.length, stagedPhotos.length);
+                    return (
+                      <View style={styles.formPhotos} testID="review-form-photos">
+                        {saved.length + stagedPhotos.length > 0 ? (
+                          <View style={styles.thumbRow}>
+                            {saved.map((p: any) => (
+                              <View key={p.id}>
+                                <Image
+                                  source={{ uri: reviewPhotoPublicUrl(p.storage_path) || '' }}
+                                  style={styles.thumb}
+                                  resizeMode="cover"
+                                />
+                                <TouchableOpacity
+                                  style={styles.thumbRemove}
+                                  onPress={() => removeSavedPhoto(p)}
+                                  accessibilityLabel="Remove photo"
+                                  testID={`review-photo-remove-${p.id}`}
+                                >
+                                  <Text style={styles.thumbRemoveText}>✕</Text>
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                            {stagedPhotos.map((p) => (
+                              <View key={p.key}>
+                                <Image
+                                  source={{ uri: p.uri }}
+                                  style={[styles.thumb, styles.thumbStaged]}
+                                  resizeMode="cover"
+                                />
+                                <TouchableOpacity
+                                  style={styles.thumbRemove}
+                                  onPress={() =>
+                                    setStagedPhotos((prev) => prev.filter((x) => x.key !== p.key))
+                                  }
+                                  accessibilityLabel="Remove photo"
+                                  testID="review-photo-unstage"
+                                >
+                                  <Text style={styles.thumbRemoveText}>✕</Text>
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+                        {Platform.OS === 'web' ? (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            data-testid="review-photo-file"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              e.target.value = '';
+                              onReviewFiles(files, room);
+                            }}
+                          />
+                        ) : null}
+                        <Button
+                          title={`Add photos (${saved.length + stagedPhotos.length}/${REVIEW_PHOTO_MAX})`}
+                          size="small"
+                          variant="outline"
+                          onPress={addReviewPhoto}
+                          disabled={room === 0 || reviewBusy}
+                          testID="review-add-photo"
+                        />
+                        {stagedPhotos.length > 0 ? (
+                          <Text style={styles.formPhotosHint}>
+                            Photos are added when you submit the review
+                          </Text>
+                        ) : null}
+                      </View>
+                    );
+                  })()}
+                  <Button
+                    title={reviewBusy ? 'Saving…' : 'Submit review'}
+                    onPress={submitReview}
+                    disabled={reviewBusy}
+                    testID="review-submit"
+                  />
+                  {reviewNotice ? <Text style={styles.reviewNotice}>{reviewNotice}</Text> : null}
+                </View>
+              ) : (
+                <Button
+                  title="Sign in to review"
+                  variant="outline"
+                  onPress={() => router.push('/auth')}
+                />
+              )}
+            </View>
+          </View>
+        ) : null}
+
+        {tab === 'photos' ? (
+          <View testID="tab-panel-photos">
+            {galleryImages.length ? (
+              <View style={styles.grid}>
+                {galleryImages.map((img, i) => (
+                  <TouchableOpacity
+                    key={img.key}
+                    onPress={() => setCarousel({ images: galleryImages, start: i })}
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel={`Photo ${i + 1} of ${galleryImages.length}${img.fromReview ? ', from a review' : ''}`}
+                    testID={`grid-photo-${i}`}
+                  >
+                    <Image
+                      source={{ uri: img.uri }}
+                      style={[styles.gridImage, { width: gridSize, height: gridSize }]}
+                      resizeMode="cover"
+                    />
+                    {img.fromReview ? <Text style={styles.gridFromReview}>Review</Text> : null}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.placeholderText} testID="photos-empty">
+                No photos yet
+              </Text>
+            )}
+          </View>
+        ) : null}
       </View>
       <ImageCarousel
         images={carousel?.images ?? []}
@@ -710,6 +803,42 @@ const styles = StyleSheet.create({
     width: 300,
     height: 240,
     marginRight: theme.spacing.sm,
+  },
+  headerRating: { alignSelf: 'flex-start', marginBottom: theme.spacing.xs },
+  headerRatingText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.warning,
+    fontWeight: '600',
+  },
+  headerNotRated: { color: theme.colors.text.tertiary, fontWeight: '400' },
+  tabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    marginBottom: theme.spacing.lg,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: { borderBottomColor: theme.colors.primary },
+  tabText: { ...theme.typography.bodySmall, color: theme.colors.text.secondary },
+  tabTextActive: { color: theme.colors.primary, fontWeight: '700' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
+  gridImage: { backgroundColor: theme.colors.surfaceDark },
+  gridFromReview: {
+    position: 'absolute',
+    left: 4,
+    bottom: 4,
+    color: '#fff',
+    fontSize: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 4,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   fromReview: {
     position: 'absolute',
