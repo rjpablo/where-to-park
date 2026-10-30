@@ -66,7 +66,9 @@ import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 
 // Results sheet: collapsed it fits its top part (title, summary, filters, distance
-// slider); expanded it takes 85% of the screen and shows sort and the list too.
+// slider); expanded it takes 85% of the screen. The sort chips and the list are always
+// rendered below the top part, so collapsed they sit clipped below the visible area and
+// expanding needs no re-render.
 const SHEET_EXPANDED = 0.85;
 /** Collapsed height until the top part has been measured, and its limits. */
 const SHEET_PEEK_DEFAULT = 170;
@@ -134,8 +136,6 @@ export function SearchScreen() {
     expandedHeight(screenH, SHEET_EXPANDED, SHEET_KEEP_CLEAR_TOP, SHEET_EXPANDED_MIN)
   );
   const snapPoints = useMemo(() => [peekPx, expandedPx], [peekPx, expandedPx]);
-  // Sort chips and the list only render while the sheet is fully open.
-  const [showAll, setShowAll] = useState(sheetPosition === 'expanded');
   // Keep cluster zooms clear of the bottom sheet (collapsed or expanded height).
   const overlayInsets = useMemo(
     () => ({
@@ -412,79 +412,93 @@ export function SearchScreen() {
       });
   }, [results, location.lat, location.lng]);
 
-  const renderListItem = ({ item }: { item: (typeof results)[0] }) => (
-    <TouchableOpacity style={styles.listItem} onPress={() => router.push(`/location/${item.id}`)}>
-      <View style={styles.listItemHeader}>
-        <Text style={styles.listItemTitle} numberOfLines={2}>
-          {item.name}
-        </Text>
-        {item.verification_status === 'unverified' && (
-          <View style={styles.badge} testID={`unverified-badge-${item.name}`}>
-            <Text style={styles.badgeText}>Unverified</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.listItemInfo}>
-        <AvailabilityBadge
-          trackingMode={item.tracking_mode}
-          availableCount={item.available_count}
-          capacity={item.capacity}
-          openStatus={item.open_status}
-          updatedAt={item.availability_updated_at}
-          staleThresholdMin={item.stale_after_min}
-        />
-
-        <Text
-          style={styles.listItemDetail}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          testID={`list-eta-${item.id}`}
-        >
-          {formatDistance(item.distance_m)}
-          {etas[item.id] ? ` · ${etaText(etas[item.id], formatDuration)}` : ''}
-          {' · '}
-          {item.starting_rate ? formatPeso(item.starting_rate) + '/h' : 'See rates'}
-        </Text>
-
-        {item.has_monthly && (
-          <View style={[styles.badge, { backgroundColor: theme.colors.secondary }]}>
-            <Text style={styles.badgeText}>Monthly</Text>
-          </View>
-        )}
-      </View>
-
-      <Text style={styles.listItemAddress} numberOfLines={2} ellipsizeMode="tail">
-        {item.address}
-      </Text>
-
-      <View style={styles.listItemFooter}>
-        <Text
-          style={[styles.listItemRating, !item.review_count && styles.listItemNotRated]}
-          numberOfLines={1}
-          testID={`list-rating-${item.id}`}
-        >
-          {formatListingRating(item.avg_rating, item.review_count)}
-        </Text>
-        {/* Its own touchable: a tap here opens the map app, not the details page. */}
-        <TouchableOpacity
-          style={styles.listNavButton}
-          onPress={(e) => {
-            e?.stopPropagation?.();
-            const point = listingPoint(item);
-            if (point) openNavigation(navApp, { ...point, name: item.name });
-          }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel={`${navigateLabel(navApp)}: ${item.name}`}
-          testID={`list-navigate-${item.id}`}
-        >
-          <Text style={styles.listNavText} numberOfLines={1}>
-            ➤ Navigate
+  // Stable list props: expanding or collapsing the sheet re-renders this screen, but
+  // the rows only re-render when the results, ETAs or nav app change.
+  const listData = useMemo(
+    () =>
+      sortBy === 'eta'
+        ? [...results].sort(
+            (a, b) => (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
+          )
+        : results,
+    [sortBy, results, etas]
+  );
+  const renderListItem = useCallback(
+    ({ item }: { item: (typeof results)[0] }) => (
+      <TouchableOpacity style={styles.listItem} onPress={() => router.push(`/location/${item.id}`)}>
+        <View style={styles.listItemHeader}>
+          <Text style={styles.listItemTitle} numberOfLines={2}>
+            {item.name}
           </Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+          {item.verification_status === 'unverified' && (
+            <View style={styles.badge} testID={`unverified-badge-${item.name}`}>
+              <Text style={styles.badgeText}>Unverified</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.listItemInfo}>
+          <AvailabilityBadge
+            trackingMode={item.tracking_mode}
+            availableCount={item.available_count}
+            capacity={item.capacity}
+            openStatus={item.open_status}
+            updatedAt={item.availability_updated_at}
+            staleThresholdMin={item.stale_after_min}
+          />
+
+          <Text
+            style={styles.listItemDetail}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            testID={`list-eta-${item.id}`}
+          >
+            {formatDistance(item.distance_m)}
+            {etas[item.id] ? ` · ${etaText(etas[item.id], formatDuration)}` : ''}
+            {' · '}
+            {item.starting_rate ? formatPeso(item.starting_rate) + '/h' : 'See rates'}
+          </Text>
+
+          {item.has_monthly && (
+            <View style={[styles.badge, { backgroundColor: theme.colors.secondary }]}>
+              <Text style={styles.badgeText}>Monthly</Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.listItemAddress} numberOfLines={2} ellipsizeMode="tail">
+          {item.address}
+        </Text>
+
+        <View style={styles.listItemFooter}>
+          <Text
+            style={[styles.listItemRating, !item.review_count && styles.listItemNotRated]}
+            numberOfLines={1}
+            testID={`list-rating-${item.id}`}
+          >
+            {formatListingRating(item.avg_rating, item.review_count)}
+          </Text>
+          {/* Its own touchable: a tap here opens the map app, not the details page. */}
+          <TouchableOpacity
+            style={styles.listNavButton}
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              const point = listingPoint(item);
+              if (point) openNavigation(navApp, { ...point, name: item.name });
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`${navigateLabel(navApp)}: ${item.name}`}
+            testID={`list-navigate-${item.id}`}
+          >
+            <Text style={styles.listNavText} numberOfLines={1}>
+              ➤ Navigate
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    ),
+    [etas, navApp, router]
   );
 
   return (
@@ -567,7 +581,6 @@ export function SearchScreen() {
         index={sheetPosition === 'expanded' ? 1 : 0}
         snapPoints={snapPoints}
         onChange={(index) => {
-          setShowAll(index >= 1);
           setSheetPosition(index >= 1 ? 'expanded' : 'peek');
         }}
         handleComponent={null}
@@ -654,49 +667,37 @@ export function SearchScreen() {
             </View>
           </View>
 
-          {showAll ? (
-            <>
-              <View style={styles.sortRow}>
-                <Text style={styles.sortLabel}>Sort by:</Text>
-                {SORT_OPTIONS.map((sort) => (
-                  <TouchableOpacity
-                    key={sort}
-                    style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
-                    onPress={() => setSortBy(sort)}
-                    testID={`sort-${sort}`}
-                  >
-                    <Text
-                      style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}
-                    >
-                      {SORT_LABELS[sort]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          {/* Always mounted: collapsed, this sits below the visible part of the sheet. */}
+          <View style={styles.sortRow}>
+            <Text style={styles.sortLabel}>Sort by:</Text>
+            {SORT_OPTIONS.map((sort) => (
+              <TouchableOpacity
+                key={sort}
+                style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
+                onPress={() => setSortBy(sort)}
+                testID={`sort-${sort}`}
+              >
+                <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
+                  {SORT_LABELS[sort]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-              <BottomSheetFlatList
-                data={
-                  sortBy === 'eta'
-                    ? [...results].sort(
-                        (a, b) =>
-                          (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
-                      )
-                    : results
-                }
-                renderItem={renderListItem}
-                keyExtractor={(item) => item.id}
-                style={styles.list}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyText}>
-                      {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
-                    </Text>
-                  </View>
-                }
-              />
-            </>
-          ) : null}
+          <BottomSheetFlatList
+            data={listData}
+            renderItem={renderListItem}
+            keyExtractor={(item) => item.id}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>
+                  {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
+                </Text>
+              </View>
+            }
+          />
         </View>
       </BottomSheet>
 
