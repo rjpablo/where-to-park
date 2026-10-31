@@ -68,5 +68,7 @@ export interface MapProps {
 export interface MapPinPickerProps {
   initialCoordinate?: Coordinate;
   onCoordinateSelect: (coordinate: Coordinate) => void;
+  /** The listing's saved pin (edit listing only): shows 'Restore saved pin' after a move. */
+  savedCoordinate?: Coordinate | null;
   style?: ViewStyle;
 }

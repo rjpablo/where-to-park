@@ -66,7 +66,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 **Key Points:**
 
-- Map pin picker with address search; stored as PostGIS geography(Point)
+- Map pin picker with address search; stored as PostGIS geography(Point). 🟧 Tapping the map moves the pin and the form saves it (no 'Use this pin' button, no coordinates text; the hint 'Tap the map to drop the pin' stays). On **Edit listing** only, once the pin is moved away from the listing's saved position, a small round ↺ button (accessibility label 'Restore saved pin') shows in the map's top-left corner; tapping it puts the pin back on the saved position and recentres the map, and it hides again while the pin is on the saved position. After **Save**, the new position becomes the saved one. Onboarding (new listing) has no saved position, so no restore button
 - Last status/count and 'updated X ago' always show; past Operator threshold (default 2h) styled as warning (e.g. amber)
 - New listings publish as 'Unverified'; admins notified and verify after review
 - Manual Reserved/Unavailable changes go through `claim_capacity` (same locked path as check-ins/reservations)

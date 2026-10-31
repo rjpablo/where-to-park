@@ -25,6 +25,8 @@ export default function EditLocationScreen() {
   const [rules, setRules] = React.useState('');
   const [capacity, setCapacity] = React.useState('');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
+  // The pin as last saved (null until loaded); 'Restore saved pin' goes back here.
+  const [savedPin, setSavedPin] = React.useState<Coordinate | null>(null);
   const [photo, setPhoto] = React.useState<ProcessedImage | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -68,7 +70,9 @@ export default function EditLocationScreen() {
         });
         const match = (geo || []).find((row: any) => row.id === id);
         if (match) {
-          setPin({ latitude: Number(match.lat), longitude: Number(match.lng) });
+          const loaded = { latitude: Number(match.lat), longitude: Number(match.lng) };
+          setPin(loaded);
+          setSavedPin(loaded);
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load location');
@@ -117,6 +121,7 @@ export default function EditLocationScreen() {
         return;
       }
       setSuccess('Location updated');
+      setSavedPin(pin);
       if (photo?.base64 && photoDirty) {
         const uploaded = await uploadCover();
         if (!uploaded) return;
@@ -180,7 +185,11 @@ export default function EditLocationScreen() {
       />
 
       <Text style={styles.label}>Map pin</Text>
-      <MapPinPicker initialCoordinate={pin} onCoordinateSelect={setPin} />
+      <MapPinPicker
+        initialCoordinate={pin}
+        onCoordinateSelect={setPin}
+        savedCoordinate={savedPin}
+      />
 
       {error ? (
         <Text style={styles.error} testID="edit-error">
