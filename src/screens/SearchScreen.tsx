@@ -77,6 +77,8 @@ const SHEET_PEEK_MAX_FRACTION = 0.5;
 /** Above the map overlay layer (search box, 'Search this area', ◎: zIndex 10 / elevation 12). */
 const SHEET_LAYER = 30;
 const RECENTER_SIZE = 46;
+// Gap between the ◎ button and the top of the Minimized sheet.
+const RECENTER_GAP = 16;
 
 export function SearchScreen() {
   const router = useRouter();
@@ -495,48 +497,51 @@ export function SearchScreen() {
           onSelect={handlePlaceSelect}
           onClear={() => setPlaceMarker(null)}
         />
-        {/* One overlay layer under the sheet: 'Search this area' (centred) and the ◎
-            button (right), just below the search box. The sheet covers them when it
-            reaches this high (Maximized), so they never sit over the list. */}
-        <View style={styles.overlayRow} pointerEvents="box-none">
-          {movedViewport ? (
-            <TouchableOpacity
-              style={styles.searchAreaButton}
-              onPress={searchThisArea}
-              accessibilityRole="button"
-              testID="search-this-area"
-            >
-              <Text style={styles.searchAreaText}>Search this area</Text>
-            </TouchableOpacity>
-          ) : null}
-          {/* Hidden while place suggestions are open (that layer is then lifted above the sheet). */}
-          {!suggestionsOpen ? (
-            <View style={styles.recenterWrap} pointerEvents="box-none">
-              <TouchableOpacity
-                style={styles.recenterButton}
-                onPress={handleRecenter}
-                accessibilityRole="button"
-                accessibilityLabel="Center the map on my location"
-                testID="recenter-button"
-              >
-                <View
-                  style={[
-                    styles.recenterIcon,
-                    permission === 'granted' && userLocation ? styles.recenterIconActive : null,
-                  ]}
-                >
-                  <View style={styles.recenterDot} />
-                </View>
-              </TouchableOpacity>
-              {locationNotice ? (
-                <View style={styles.locationNotice} testID="location-notice">
-                  <Text style={styles.locationNoticeText}>{locationNotice}</Text>
-                </View>
-              ) : null}
+        {movedViewport ? (
+          <TouchableOpacity
+            style={styles.searchAreaButton}
+            onPress={searchThisArea}
+            accessibilityRole="button"
+            testID="search-this-area"
+          >
+            <Text style={styles.searchAreaText}>Search this area</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {/* ◎ button: fixed on the map overlay layer (under the sheet), at the right, RECENTER_GAP
+          above the Minimized sheet. It follows the measured Minimized height, not the live
+          sheet position, so Normal and Maximized simply cover it. Hidden while place
+          suggestions are open (that layer is then lifted above the sheet). */}
+      {!suggestionsOpen ? (
+        <View
+          style={[styles.recenterWrap, { bottom: peekPx + RECENTER_GAP }]}
+          pointerEvents="box-none"
+          testID="recenter-layer"
+        >
+          {locationNotice ? (
+            <View style={styles.locationNotice} testID="location-notice">
+              <Text style={styles.locationNoticeText}>{locationNotice}</Text>
             </View>
           ) : null}
+          <TouchableOpacity
+            style={styles.recenterButton}
+            onPress={handleRecenter}
+            accessibilityRole="button"
+            accessibilityLabel="Center the map on my location"
+            testID="recenter-button"
+          >
+            <View
+              style={[
+                styles.recenterIcon,
+                permission === 'granted' && userLocation ? styles.recenterIconActive : null,
+              ]}
+            >
+              <View style={styles.recenterDot} />
+            </View>
+          </TouchableOpacity>
         </View>
-      </View>
+      ) : null}
 
       {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
       <BottomSheet
@@ -691,18 +696,13 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  // Row under the search box: 'Search this area' centred, ◎ pinned to the right.
-  overlayRow: {
-    width: '100%',
-    minHeight: RECENTER_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  // Right side, RECENTER_GAP above the Minimized sheet; below the sheet's layer.
   recenterWrap: {
     position: 'absolute',
-    top: 0,
-    right: 0,
+    right: theme.spacing.md,
     alignItems: 'flex-end',
+    zIndex: 10,
+    elevation: 12,
   },
   recenterButton: {
     width: RECENTER_SIZE,
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   locationNotice: {
-    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
     maxWidth: 260,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
