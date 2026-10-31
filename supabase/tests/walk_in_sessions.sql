@@ -101,7 +101,13 @@ END $$;
 -- (the default must stay active and unlimited, 0047, so the monthly rate becomes the default)
 UPDATE rates SET is_default = false WHERE location_id = '30000000-0000-0000-0000-000000000002' AND is_default;
 UPDATE rates SET is_default = true WHERE location_id = '30000000-0000-0000-0000-000000000002' AND rate_type = 'monthly';
+-- Fixture only (rolled back): skip the 0048/0050 in-use guard for open sessions.
+SET CONSTRAINTS ALL IMMEDIATE;
+ALTER TABLE rates DISABLE TRIGGER rates_guard_deactivate;
 UPDATE rates SET active = false WHERE location_id = '30000000-0000-0000-0000-000000000002' AND rate_type <> 'monthly';
+SET CONSTRAINTS ALL IMMEDIATE;
+ALTER TABLE rates ENABLE TRIGGER rates_guard_deactivate;
+SET CONSTRAINTS ALL DEFERRED;
 DO $$
 DECLARE
   SR uuid := '30000000-0000-0000-0000-000000000002';

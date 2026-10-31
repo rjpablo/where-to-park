@@ -125,3 +125,12 @@ test('reservations: future start, labels (0049)', async () => {
   assert.equal(startsIn('2026-10-31T00:00:00Z', now), 'now');
   assert.match(walkInErrorMessage('not_started'), /Cancel the reservation/);
 });
+
+test('refund amounts (0052)', async () => {
+  const { refundAmountError, walkInErrorMessage } = await import('./walkIn.ts');
+  assert.equal(refundAmountError('20', 30), null);
+  assert.equal(refundAmountError('30', 30), null);
+  assert.match(refundAmountError('30.01', 30) || '', /up to ₱30.00/);
+  assert.match(refundAmountError('0', 30) || '', /more than ₱0/);
+  assert.match(walkInErrorMessage('refund_needs_ended'), /after the session ends/);
+});

@@ -21,6 +21,7 @@ import {
   PAYMENT_METHOD_LABELS,
   balanceToSettle,
   paymentAmountError,
+  refundAmountError,
   startsIn,
   walkInErrorMessage,
   type PaymentMethod,
@@ -129,6 +130,32 @@ export default function SessionScreen() {
       setPayAmount('');
       setPayNote('');
       setEndError(null);
+      await load();
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // Refund on an ended session (0052): a cancelled reservation's deposits or an overpaid credit.
+  const refund = async () => {
+    setPayError(null);
+    const bad = refundAmountError(payAmount, Number(d.refundable));
+    if (bad) return setPayError(bad);
+    setPaying(true);
+    try {
+      const { data, error: e } = await supabase.rpc('record_session_refund', {
+        p_session_id: id,
+        p_amount: Number(payAmount),
+        p_method: payMethod,
+        p_note: payNote.trim() || null,
+      });
+      if (e || data?.error) {
+        setPayError(e?.message || walkInErrorMessage(data?.error, data?.refundable));
+        return;
+      }
+      setNotice(`Refund of ${formatPeso(Number(payAmount))} recorded`);
+      setPayAmount('');
+      setPayNote('');
       await load();
     } finally {
       setPaying(false);
@@ -255,8 +282,13 @@ export default function SessionScreen() {
           </Text>
         ) : null}
         <Text style={styles.row} testID="session-paid">
-          Paid: {formatPeso(d.paid)}
+          {Number(d.refunded) > 0 ? 'Paid (net)' : 'Paid'}: {formatPeso(d.paid)}
         </Text>
+        {Number(d.refunded) > 0 ? (
+          <Text style={styles.meta} testID="session-refunded">
+            Refunded: {formatPeso(d.refunded)}
+          </Text>
+        ) : null}
         {Number(d.waived) > 0 ? (
           <Text style={styles.waived} testID="session-waived">
             Waived: {formatPeso(d.waived)}
@@ -321,8 +353,12 @@ export default function SessionScreen() {
         <Text style={styles.heading}>Payments</Text>
         {d.payments.length ? (
           d.payments.map((p: any, i: number) => (
-            <Text key={p.id} style={styles.row} testID={`payment-row-${i}`}>
-              {p.direction === 'refund' ? '−' : ''}
+            <Text
+              key={p.id}
+              style={[styles.row, p.direction === 'refund' && styles.refundRow]}
+              testID={`payment-row-${i}`}
+            >
+              {p.direction === 'refund' ? 'Refund −' : ''}
               {formatPeso(p.amount)} ·{' '}
               {PAYMENT_METHOD_LABELS[p.method as PaymentMethod] || p.method} ·{' '}
               {formatLocalDateTime(p.received_at)} · {p.recorded_by}
@@ -379,6 +415,58 @@ export default function SessionScreen() {
               style={{ marginTop: theme.spacing.sm }}
             />
           </>
+        ) : null}
+        {ended && Number(d.refundable) > 0 ? (
+          <View testID="refund-box">
+            <Text style={styles.label}>
+              Refund (up to {formatPeso(d.refundable)}
+              {s.cancelled_at ? ' paid on this cancelled reservation' : ' overpaid'})
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={payAmount}
+              onChangeText={setPayAmount}
+              keyboardType="decimal-pad"
+              placeholder={Number(d.refundable).toFixed(2)}
+              testID="refund-amount"
+            />
+            <View style={styles.chips}>
+              {PAYMENT_METHODS.map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  onPress={() => setPayMethod(m)}
+                  style={[styles.chip, payMethod === m && styles.chipOn]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: payMethod === m }}
+                  testID={`refund-method-${m}`}
+                >
+                  <Text style={[styles.chipText, payMethod === m && styles.chipTextOn]}>
+                    {PAYMENT_METHOD_LABELS[m]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={[styles.input, { marginTop: theme.spacing.sm }]}
+              value={payNote}
+              onChangeText={setPayNote}
+              placeholder="Note (optional), e.g. GCash ref"
+              testID="refund-note"
+            />
+            {payError ? (
+              <Text style={styles.error} testID="refund-error">
+                {payError}
+              </Text>
+            ) : null}
+            <Button
+              title="Record refund"
+              variant="outline"
+              onPress={refund}
+              loading={paying}
+              testID="refund-submit"
+              style={{ marginTop: theme.spacing.sm }}
+            />
+          </View>
         ) : null}
       </View>
 
@@ -491,6 +579,7 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  refundRow: { color: theme.colors.danger },
   confirmRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

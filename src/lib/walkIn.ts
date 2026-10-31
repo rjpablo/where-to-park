@@ -110,6 +110,15 @@ export function paymentAmountError(text: string, balance: number): string | null
   return null;
 }
 
+/** Refund amount check (0052): more than ₱0 and at most what can be refunded. */
+export function refundAmountError(text: string, refundable: number): string | null {
+  const n = Number(text);
+  if (!text.trim() || !Number.isFinite(n) || n <= 0) return 'Enter an amount more than ₱0';
+  if (Math.round(n * 100) > Math.round(refundable * 100))
+    return `You can refund up to ${peso(refundable)}`;
+  return null;
+}
+
 /** Balance still to settle before the session can end (0 when settled). */
 export function balanceToSettle(balance: unknown): number {
   const n = Number(balance);
@@ -121,6 +130,9 @@ const ERRORS: Record<string, string> = {
   vehicle_required: 'Select the vehicle type',
   start_required: 'Start date and time are required',
   start_in_future: "The start can't be in the future",
+  refund_needs_ended:
+    'Refunds are recorded after the session ends or the reservation is cancelled.',
+  refund_exceeds_refundable: 'That is more than can be refunded.',
   not_started:
     "This reservation hasn't started yet. Cancel the reservation instead, or edit its start.",
   already_started: 'This session has already started, so it is no longer a reservation.',
@@ -143,6 +155,8 @@ const ERRORS: Record<string, string> = {
 export function walkInErrorMessage(code: unknown, balance?: unknown): string {
   const c = String(code ?? '');
   if (c === 'balance_due') return `Settle the ${peso(balance)} balance before ending the session.`;
+  if (c === 'refund_exceeds_refundable' && balance != null)
+    return `You can refund up to ${peso(balance)}.`;
   return ERRORS[c] || c || 'Something went wrong';
 }
 
