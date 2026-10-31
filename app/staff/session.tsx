@@ -270,10 +270,10 @@ export default function SessionScreen() {
           {reservation ? 'Planned stay' : 'Parking'}: {formatPeso(d.parking)}
           {d.price?.rate_name ? ` · ${d.price.rate_name}` : ''}
         </Text>
-        {!ended && s.rate_active === false ? (
-          <Text style={styles.rateInactive} testID="session-rate-inactive">
-            Rate inactive: '{d.price?.rate_name}' was deactivated. This session is still priced at
-            it; edit the session below to pick another rate (Automatic picks the current one).
+        {s.rate_changed_from?.name ? (
+          <Text style={styles.rateChanged} testID="session-rate-changed">
+            Rate changed from {s.rate_changed_from.name} (deactivated). The whole session is now
+            priced at {d.price?.rate_name ?? 'the new rate'}.
           </Text>
         ) : null}
         <Text style={styles.meta} testID="session-price-detail">
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   },
   balance: { ...theme.typography.h3, color: theme.colors.primary, marginTop: theme.spacing.sm },
   negative: { color: theme.colors.danger },
-  rateInactive: {
+  rateChanged: {
     ...theme.typography.bodySmall,
     color: '#92400e',
     backgroundColor: '#fef3c7',

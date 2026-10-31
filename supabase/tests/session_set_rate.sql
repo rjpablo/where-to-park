@@ -50,7 +50,8 @@ BEGIN
   PERFORM pg_temp.act('+639170000003');
   r := update_walk_in_session(sid, '2026-11-07 10:00+08', '2026-11-07 13:00+08', 'suv', 'ZZS 0001', sat);
   ASSERT (SELECT rate_id FROM parking_sessions WHERE id = sid) = sat, 'kept';
-  -- 0055: an open-ended session on the Sat rate doesn't block; it keeps pricing at it
+  -- 0055/0056: an open-ended session on the Sat rate doesn't block; on deactivation it
+  -- moves to what Automatic resolves to now and remembers the old rate
   r := start_walk_in(SR, 'suv', 'ZZS 0002', NULL, NULL, '2026-11-07 10:00+08');
   ASSERT (SELECT rate_id FROM parking_sessions WHERE id = (r->>'session_id')::uuid) = sat, 'open-ended on Sat';
   PERFORM pg_temp.act('+639170000002');
@@ -59,7 +60,14 @@ BEGIN
   ASSERT set_rate_active(sat, false)->>'success' = 'true', 'deactivated with an open-ended session on it';
   PERFORM pg_temp.act('+639170000003');
   d := session_details((r->>'session_id')::uuid);
-  ASSERT d->'session'->>'rate_active' = 'false' AND d->'price'->>'rate_name' = 'T SUV Sat', 'still priced, flagged: ' || d::text;
+  ASSERT d->'session'->'rate_changed_from'->>'name' = 'T SUV Sat'
+     AND (d->'session'->>'rate_id')::uuid = walk_in_auto_rate(SR, 'suv', '2026-11-07 10:00+08')
+     AND (d->'session'->>'rate_id')::uuid <> sat
+     AND d->'session'->>'rate_active' = 'true', 'moved to auto rate: ' || d::text;
+  -- changing the rate some other way (here: re-picking Automatic) clears the marker
+  UPDATE parking_sessions SET rate_id = NULL
+   WHERE id = (r->>'session_id')::uuid;
+  ASSERT (SELECT rate_changed_from FROM parking_sessions WHERE id = (r->>'session_id')::uuid) IS NULL, 'marker cleared';
   RAISE NOTICE 'session set rate: ok';
 END $$;
 ROLLBACK;
