@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Modal,
+  TouchableOpacity,
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
@@ -20,6 +28,11 @@ export default function AreasScreen() {
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [locationName, setLocationName] = React.useState('Listing');
+  // Area waiting for the delete confirmation, and the delete in flight.
+  const [pendingDelete, setPendingDelete] = React.useState<{ id: string; name: string } | null>(
+    null
+  );
+  const [deleting, setDeleting] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -63,7 +76,10 @@ export default function AreasScreen() {
   };
 
   const removeArea = async (id: string) => {
+    setDeleting(true);
     const { data, error: rpcError } = await supabase.rpc('delete_area', { p_area_id: id });
+    setDeleting(false);
+    setPendingDelete(null);
     if (rpcError || data?.error) {
       setError(rpcError?.message || String(data?.error));
       return;
@@ -90,7 +106,8 @@ export default function AreasScreen() {
             title="Delete"
             size="small"
             variant="outline"
-            onPress={() => removeArea(area.id)}
+            onPress={() => setPendingDelete({ id: area.id, name: area.name })}
+            testID={`area-delete-${area.name}`}
           />
         </View>
       ))}
@@ -113,6 +130,35 @@ export default function AreasScreen() {
           {notice}
         </Text>
       ) : null}
+
+      <Modal
+        visible={!!pendingDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && setPendingDelete(null)}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="area-delete-dialog">
+            <Text style={styles.dialogTitle}>Delete '{pendingDelete?.name}'?</Text>
+            <Text style={styles.dialogBody}>This removes the area from {locationName}.</Text>
+            <Button
+              title="Delete"
+              variant="danger"
+              onPress={() => pendingDelete && removeArea(pendingDelete.id)}
+              disabled={deleting}
+              testID="area-delete-confirm"
+            />
+            <TouchableOpacity
+              onPress={() => setPendingDelete(null)}
+              disabled={deleting}
+              style={styles.cancel}
+              testID="area-delete-cancel"
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -148,4 +194,28 @@ const styles = StyleSheet.create({
   rowTitle: { ...theme.typography.body, fontWeight: '600', flex: 1 },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.md },
+  // Same dialog look as the listing delete (operator/hub).
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  dialog: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+  },
+  dialogTitle: { ...theme.typography.h3 },
+  dialogBody: { ...theme.typography.body, color: theme.colors.text.secondary },
+  cancel: {
+    alignSelf: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  cancelText: { ...theme.typography.body, fontWeight: '600', color: theme.colors.text.secondary },
 });
