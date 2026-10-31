@@ -7,6 +7,8 @@ import { registerPushToken } from '../src/lib/push';
 import { useBackToExit } from '../src/hooks/useBackToExit';
 import { SidebarToggle } from '../src/components/Sidebar';
 import { Toast } from '../src/components/Toast';
+import { FallbackBackButton } from '../src/components/FallbackBackButton';
+import { backFallback, type RouteParams } from '../src/lib/backFallback';
 import { theme } from '../src/lib/theme';
 
 export default function RootLayout() {
@@ -44,10 +46,24 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" enabled={avoidKeyboard}>
         <Stack
-          screenOptions={{
-            // The bottom (navigation bar) inset is applied once, by each screen's content
-            // (useBottomInset); headers already pad the top.
-            contentStyle: { backgroundColor: theme.colors.background },
+          screenOptions={({ navigation, route }) => {
+            // No history (web refresh, deep link): Back still shows and opens the
+            // screen's parent page instead (src/lib/backFallback.ts).
+            const fallback = navigation.canGoBack()
+              ? null
+              : backFallback(route.name, route.params as RouteParams);
+            return {
+              // The bottom (navigation bar) inset is applied once, by each screen's content
+              // (useBottomInset); headers already pad the top.
+              contentStyle: { backgroundColor: theme.colors.background },
+              ...(fallback
+                ? {
+                    headerLeft: ({ tintColor }: { tintColor?: string }) => (
+                      <FallbackBackButton to={fallback} tintColor={tintColor} />
+                    ),
+                  }
+                : null),
+            };
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
