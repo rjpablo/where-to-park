@@ -7,6 +7,13 @@ import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { canBeDefault } from '../../src/lib/rates';
+import {
+  manilaTimeNow,
+  manilaToday,
+  previewDayLabel,
+  previewHours,
+  previewStartAt,
+} from '../../src/lib/quotePreview';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 function rateSummary(rate: any): string {
@@ -34,7 +41,13 @@ export default function RatesScreen() {
   const router = useRouter();
   const [rates, setRates] = React.useState<any[]>([]);
   const [hours, setHours] = React.useState('1');
+  // Preview start: a Manila date (default today) and time (default now).
+  const [quoteDate, setQuoteDate] = React.useState(() => manilaToday());
+  const [quoteTime, setQuoteTime] = React.useState(() => manilaTimeNow());
   const [quote, setQuote] = React.useState<any>(null);
+  const [quoteError, setQuoteError] = React.useState<string | null>(null);
+  // What the shown amount was quoted for (not the live inputs, which may be mid-edit).
+  const [quotedFor, setQuotedFor] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -79,16 +92,28 @@ export default function RatesScreen() {
     // answer 404 (no function with that parameter set) and replaced the
     // 'Pick a listing' message with its error.
     if (!locationId) return;
+    const start = previewStartAt(quoteDate, quoteTime);
+    const h = previewHours(hours);
+    const bad = 'error' in start ? start.error : typeof h === 'object' ? h.error : null;
+    if (bad || 'error' in start || typeof h === 'object') {
+      setQuote(null);
+      setQuoteError(bad || 'Check the preview fields');
+      return;
+    }
     const { data, error: qErr } = await supabase.rpc('quote_price', {
       p_location_id: locationId,
       p_vehicle_type: 'car',
-      p_start_at: new Date().toISOString(),
-      p_hours: Number(hours) || 1,
+      p_start_at: start.startAt,
+      p_hours: h,
     });
-    if (qErr) {
-      setError(qErr.message);
+    // Errors stay in the preview (not the page error) and never leave a stale amount.
+    if (qErr || data?.error) {
+      setQuote(null);
+      setQuoteError(qErr?.message || String(data.error));
       return;
     }
+    setQuoteError(null);
+    setQuotedFor(`Car, starting ${previewDayLabel(quoteDate)} ${quoteTime.trim()}`);
     setQuote(data);
   };
 
@@ -144,6 +169,22 @@ export default function RatesScreen() {
 
       <View style={styles.preview} testID="quote-preview">
         <Text style={styles.heading}>Price preview</Text>
+        <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
+        <TextInput
+          style={styles.input}
+          value={quoteDate}
+          onChangeText={setQuoteDate}
+          placeholder="YYYY-MM-DD"
+          testID="quote-date"
+        />
+        <Text style={styles.label}>Start time (HH:MM, 24-hour)</Text>
+        <TextInput
+          style={styles.input}
+          value={quoteTime}
+          onChangeText={setQuoteTime}
+          placeholder="HH:MM"
+          testID="quote-time"
+        />
         <Text style={styles.label}>Hours</Text>
         <TextInput
           style={styles.input}
@@ -154,13 +195,23 @@ export default function RatesScreen() {
         />
         <Button title="Refresh quote" onPress={refreshQuote} testID="quote-refresh" />
         {quote?.amount != null ? (
-          <Text style={styles.quoteAmount} testID="quote-amount">
-            {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} ·{' '}
-            {quote.billed_hours}h billed
-          </Text>
+          <>
+            <Text style={styles.quoteAmount} testID="quote-amount">
+              {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} ·{' '}
+              {quote.billed_hours}h billed
+            </Text>
+            <Text style={styles.meta} testID="quote-for">
+              {quotedFor}
+            </Text>
+          </>
         ) : (
-          <Text style={styles.meta}>{quote?.error || 'No quote yet'}</Text>
+          <Text style={styles.meta} testID="quote-message">
+            {quoteError || 'No quote yet'}
+          </Text>
         )}
+        <Text style={styles.meta}>
+          The rate in effect when the stay starts prices the whole stay.
+        </Text>
         <Text style={styles.meta}>
           Monthly rates are listed for drivers and never price a session.
         </Text>
