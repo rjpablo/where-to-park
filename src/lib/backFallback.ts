@@ -36,7 +36,7 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   },
   // Operator workspace
   'operator/listings': () => SEARCH,
-  'operator/onboarding': () => SEARCH,
+  'operator/onboarding': () => LISTINGS,
   'operator/hub/[id]': () => LISTINGS,
   'operator/edit/[id]': (p) => listingParent(p, 'id'),
   'operator/areas': (p) => listingParent(p),
