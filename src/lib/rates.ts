@@ -85,3 +85,21 @@ export const RATE_FILTER_OPTIONS: { value: RateType | null; label: string }[] = 
 export function isRateType(value: unknown): value is RateType {
   return typeof value === 'string' && (RATE_TYPES as readonly string[]).includes(value);
 }
+
+export type DefaultCandidate = {
+  is_default?: boolean | null;
+  rate_type: string;
+  active?: boolean | null;
+  effective_from?: string | null;
+  effective_to?: string | null;
+};
+
+/** Whether 'Set as default' is offered for a rate. Mirrors set_default_rate (0039): the
+ *  default is the listing's general rate and quote_price's fallback, so it must be an
+ *  active, undated, non-monthly rate (a monthly default would quote ₱0). */
+export function canBeDefault(rate: DefaultCandidate): boolean {
+  if (rate.is_default) return false;
+  if (rate.rate_type === 'monthly') return false;
+  if (rate.effective_from || rate.effective_to) return false;
+  return rate.active !== false;
+}

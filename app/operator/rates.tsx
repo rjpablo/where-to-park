@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso, fromDatetimeLocalValue } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
+import { canBeDefault } from '../../src/lib/rates';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 const RATE_TYPES = ['hourly', 'daily', 'flat_then_hourly', 'monthly'] as const;
 type RateType = (typeof RATE_TYPES)[number];
@@ -145,6 +146,21 @@ export default function RatesScreen() {
     await refreshQuote();
   };
 
+  // Make this rate the listing's default; the server unsets the old one (set_default_rate).
+  const makeDefault = async (rate: any) => {
+    setError(null);
+    const { data, error: rpcError } = await supabase.rpc('set_default_rate', {
+      p_rate_id: rate.id,
+    });
+    if (rpcError || data?.error) {
+      setError(rpcError?.message || String(data?.error));
+      return;
+    }
+    setNotice(`'${rate.name}' is now the default rate`);
+    await load();
+    await refreshQuote();
+  };
+
   const beginEdit = (rate: any) => {
     setEditingId(rate.id);
     setName(rate.name);
@@ -214,6 +230,15 @@ export default function RatesScreen() {
           ) : null}
           <View style={styles.row}>
             <Button title="Edit" size="small" variant="outline" onPress={() => beginEdit(rate)} />
+            {canBeDefault(rate) ? (
+              <Button
+                title="Set as default"
+                size="small"
+                variant="outline"
+                onPress={() => makeDefault(rate)}
+                testID={`default-rate-${rate.name}`}
+              />
+            ) : null}
             <Button
               title={rate.is_default ? 'Default (locked)' : 'Delete'}
               size="small"
@@ -366,6 +391,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
