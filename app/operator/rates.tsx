@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso, fromDatetimeLocalValue } from '../../src/utils/formatters';
@@ -192,7 +191,6 @@ export default function RatesScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="rates-loading">
-        <WorkspaceNav listingId={locationId} />
         <Text>Loading...</Text>
       </View>
     );
@@ -200,7 +198,6 @@ export default function RatesScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="rates-ready">
-      <WorkspaceNav listingId={locationId} />
       <Text style={styles.subtitle}>{locationName}</Text>
 
       <View style={styles.preview} testID="quote-preview">

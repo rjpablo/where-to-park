@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TextInput, ScrollView, Image } from 'react-nati
 import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { FacilityPhotoField } from '../../src/components/FacilityPhotoField';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { MapPinPicker } from '../../src/components/map/MapPinPicker';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -199,7 +198,6 @@ export default function OnboardingScreen() {
       contentContainerStyle={bottomInset}
       testID="onboarding-ready"
     >
-      <WorkspaceNav />
       <View style={styles.progress}>
         {[1, 2, 3, 4, 5].map((i) => (
           <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />

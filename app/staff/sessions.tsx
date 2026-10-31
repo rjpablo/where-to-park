@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -521,7 +520,6 @@ export default function SessionsScreen() {
   if (loading) {
     return (
       <View style={styles.container} testID="sessions-loading">
-        <WorkspaceNav listingId={locationId} />
         <View style={styles.centered}>
           <Text>Loading...</Text>
         </View>
@@ -532,7 +530,6 @@ export default function SessionsScreen() {
   if (error) {
     return (
       <View style={styles.container} testID="sessions-error">
-        <WorkspaceNav listingId={locationId} />
         <View style={styles.centered}>
           <Text style={styles.alertText}>Error: {error}</Text>
           <Button title="Retry" onPress={loadSessions} />
@@ -543,7 +540,6 @@ export default function SessionsScreen() {
 
   return (
     <View style={styles.container} testID="sessions-ready">
-      <WorkspaceNav listingId={locationId} />
       <View style={styles.header}>
         <Text style={styles.subtitle}>
           {locationName} · {sessions.length} active

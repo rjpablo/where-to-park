@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
@@ -48,7 +47,6 @@ export default function AdminReportsScreen() {
   if (loading) {
     return (
       <View style={styles.container} testID="reports-loading">
-        <WorkspaceNav />
         <Text>Loading...</Text>
       </View>
     );
@@ -56,7 +54,6 @@ export default function AdminReportsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="reports-ready">
-      <WorkspaceNav />
       <Text style={styles.meta}>{reports.length} pending</Text>
       {notice ? (
         <Text style={styles.notice} testID="reports-notice">

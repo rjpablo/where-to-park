@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { useAuthStore } from '../../src/stores/authStore';
 import {
   availabilityLabel,
@@ -67,7 +66,6 @@ export default function ListingsDashboardScreen() {
   if (!user) {
     return (
       <View style={styles.container} testID="listings-guest">
-        <WorkspaceNav />
         <View style={styles.header}>
           <Text style={styles.meta}>Sign in to manage your parking spaces.</Text>
           <Button title="Sign in" onPress={() => router.push('/auth')} />
@@ -82,7 +80,6 @@ export default function ListingsDashboardScreen() {
       contentContainerStyle={bottomInset}
       testID="listings-ready"
     >
-      <WorkspaceNav />
       <View style={styles.header}>
         <Text style={styles.meta}>
           Spaces you own or staff
@@ -162,6 +159,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
     paddingBottom: theme.spacing.md,
     gap: theme.spacing.sm,
   },

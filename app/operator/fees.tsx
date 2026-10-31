@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatPeso } from '../../src/utils/formatters';
@@ -122,7 +121,6 @@ export default function FeePresetsScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="fees-loading">
-        <WorkspaceNav listingId={locationId} />
         <Text>Loading...</Text>
       </View>
     );
@@ -130,7 +128,6 @@ export default function FeePresetsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="fees-ready">
-      <WorkspaceNav listingId={locationId} />
       <Text style={styles.subtitle}>{locationName}</Text>
 
       {presets.map((preset) => (

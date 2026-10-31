@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
@@ -80,7 +79,6 @@ export default function CheckInScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="checkin-ready">
-      <WorkspaceNav listingId={locationId} />
       <View style={styles.header}>
         <Text style={styles.subtitle}>{locationName}</Text>
       </View>

@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Switch } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
@@ -16,7 +15,6 @@ export default function StaffScreen() {
     locationId?: string | string[];
   }>();
   const operatorId = firstParam(params.operatorId);
-  const locationId = firstParam(params.locationId);
   const [members, setMembers] = React.useState<any[]>([]);
   const [canWaive, setCanWaive] = React.useState(true);
   const [email, setEmail] = React.useState('');
@@ -112,7 +110,6 @@ export default function StaffScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="staff-loading">
-        <WorkspaceNav listingId={locationId} />
         <Text>Loading...</Text>
       </View>
     );
@@ -120,7 +117,6 @@ export default function StaffScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="staff-ready">
-      <WorkspaceNav listingId={locationId} />
       <Text style={styles.subtitle}>{operatorName}</Text>
 
       <View style={styles.toggleRow} testID="staff-can-waive-row">

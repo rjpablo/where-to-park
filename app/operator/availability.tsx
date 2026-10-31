@@ -5,7 +5,6 @@ import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { formatLocalDateTime } from '../../src/utils/formatters';
 import { firstParam } from '../../src/lib/params';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 
 export default function AvailabilityScreen() {
@@ -143,7 +142,6 @@ export default function AvailabilityScreen() {
   if (loading && !location) {
     return (
       <View style={[styles.container, styles.centered]} testID="availability-loading">
-        <WorkspaceNav listingId={locationId} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -152,7 +150,6 @@ export default function AvailabilityScreen() {
   if (error && !location) {
     return (
       <View style={[styles.container, styles.centered]} testID="availability-error">
-        <WorkspaceNav listingId={locationId} />
         <Text style={styles.errorText}>Error: {error}</Text>
         <TouchableOpacity onPress={loadLocationData} style={styles.retryButton}>
           <Text style={styles.retryButtonText}>Retry</Text>
@@ -164,7 +161,6 @@ export default function AvailabilityScreen() {
   if (!location) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <WorkspaceNav listingId={locationId} />
         <Text style={styles.errorText}>No locations found</Text>
       </View>
     );
@@ -179,7 +175,6 @@ export default function AvailabilityScreen() {
       contentContainerStyle={bottomInset}
       testID="availability-ready"
     >
-      <WorkspaceNav listingId={location.id} />
       <View style={styles.header}>
         <Text style={styles.subtitle}>{location.name}</Text>
       </View>

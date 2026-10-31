@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, TextInput } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { WorkspaceNav } from '../../src/components/WorkspaceNav';
 import { supabase } from '../../src/lib/supabase';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
@@ -179,7 +178,6 @@ export default function VerificationQueueScreen() {
   if (loading && locations.length === 0) {
     return (
       <View style={[styles.container, styles.emptyState]} testID="admin-loading">
-        <WorkspaceNav />
         <Text>Loading...</Text>
       </View>
     );
@@ -188,7 +186,6 @@ export default function VerificationQueueScreen() {
   if (error) {
     return (
       <View style={[styles.container, styles.emptyState]} testID="admin-error">
-        <WorkspaceNav />
         <Text style={styles.cardAddress}>Error: {error}</Text>
         <Button title="Retry" onPress={() => loadQueue()} />
       </View>
@@ -197,7 +194,6 @@ export default function VerificationQueueScreen() {
 
   return (
     <View style={styles.container} testID="admin-ready">
-      <WorkspaceNav />
       <View style={styles.header}>
         <Text style={styles.subtitle}>{locations.length} pending</Text>
       </View>

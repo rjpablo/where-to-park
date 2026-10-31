@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../src/components/Button';
 import { FacilityPhotoField } from '../../../src/components/FacilityPhotoField';
-import { WorkspaceNav } from '../../../src/components/WorkspaceNav';
 import { MapPinPicker } from '../../../src/components/map/MapPinPicker';
 import { supabase } from '../../../src/lib/supabase';
 import { firstParam } from '../../../src/lib/params';
@@ -132,7 +131,6 @@ export default function EditLocationScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]} testID="edit-loading">
-        <WorkspaceNav listingId={id} />
         <Text>Loading...</Text>
       </View>
     );
@@ -140,7 +138,6 @@ export default function EditLocationScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="edit-ready">
-      <WorkspaceNav listingId={id} />
       <Text style={styles.label}>Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} testID="edit-name" />
 

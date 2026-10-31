@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../../src/components/Button';
-import { WorkspaceNav } from '../../../src/components/WorkspaceNav';
 import { useAuthStore } from '../../../src/stores/authStore';
 import { supabase } from '../../../src/lib/supabase';
 import { firstParam } from '../../../src/lib/params';
@@ -118,7 +117,6 @@ export default function ListingHubScreen() {
   if (!user) {
     return (
       <View style={styles.container} testID="hub-guest">
-        <WorkspaceNav />
         <Text style={styles.title}>Sign in to manage this listing</Text>
         <Button title="Sign in" onPress={() => router.push('/auth')} />
       </View>
@@ -128,7 +126,6 @@ export default function ListingHubScreen() {
   if (loading) {
     return (
       <View style={styles.container} testID="hub-loading">
-        <WorkspaceNav listingId={id} />
         <Text style={styles.meta}>Loading...</Text>
       </View>
     );
@@ -137,7 +134,6 @@ export default function ListingHubScreen() {
   if (error || !location || !role) {
     return (
       <View style={styles.container} testID="hub-error">
-        <WorkspaceNav />
         <Text style={styles.title}>Listing not found</Text>
         <Text style={styles.meta}>
           {error || (location ? 'You do not staff this location.' : 'It may have been deleted.')}
@@ -153,7 +149,6 @@ export default function ListingHubScreen() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={bottomInset} testID="hub-ready">
-      <WorkspaceNav listingId={location.id} />
       <View style={styles.header}>
         <Text style={styles.title} testID="hub-name">
           {location.name}
@@ -296,10 +291,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    paddingBottom: theme.spacing.lg,
+    padding: theme.spacing.lg,
   },
   scroll: { flex: 1, backgroundColor: theme.colors.background },
-  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md },
+  header: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+  },
   title: { ...theme.typography.h2 },
   meta: {
     ...theme.typography.bodySmall,
