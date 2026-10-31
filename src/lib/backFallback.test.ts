@@ -71,3 +71,8 @@ test('a session falls back to Active Sessions', () => {
   );
   assert.equal(backFallback('staff/session', {}), '/operator/listings');
 });
+
+test('Shortcuts falls back to Search', async () => {
+  const { backFallback } = await import('./backFallback.ts');
+  assert.equal(backFallback('shortcuts', {}), '/search');
+});

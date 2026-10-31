@@ -70,6 +70,7 @@ export default function RootLayout() {
           <Stack.Screen name="auth" options={{ title: 'Sign in' }} />
           <Stack.Screen name="profile" options={{ title: 'Profile' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+          <Stack.Screen name="shortcuts" options={{ title: 'Shortcuts' }} />
           <Stack.Screen name="vehicles" options={{ title: 'Vehicles' }} />
           <Stack.Screen name="chat/[locationId]" options={{ title: 'Messages' }} />
           <Stack.Screen

@@ -18,6 +18,8 @@ import { buildSidebarItems, needsAttention, type SidebarItem } from '../lib/side
 import { theme } from '../lib/theme';
 import { useAuthStore } from '../stores/authStore';
 import { useSidebarStore } from '../stores/sidebarStore';
+import { loadShortcuts, useShortcutsStore } from '../stores/shortcutsStore';
+import { shortcutLabel, sidebarShortcuts } from '../lib/shortcuts';
 
 const MAX_WIDTH = 320;
 const ANIM_MS = 200;
@@ -64,6 +66,12 @@ export function Sidebar({ hasWorkspace }: Props) {
   const [busy, setBusy] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const progress = React.useRef(new Animated.Value(0)).current;
+  const shortcuts = sidebarShortcuts(useShortcutsStore((s) => s.items));
+  const userId = user?.id ?? null;
+
+  React.useEffect(() => {
+    if (open) loadShortcuts(userId);
+  }, [open, userId]);
 
   React.useEffect(() => {
     if (open) {
@@ -176,6 +184,40 @@ export function Sidebar({ hasWorkspace }: Props) {
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.list}>
+            {/* Shortcuts (first 3; the section shows once there is at least one). */}
+            {shortcuts.length ? (
+              <View testID="sidebar-shortcuts">
+                <View style={styles.sectionRow}>
+                  <Text style={[styles.section, styles.sectionInRow]}>Shortcuts</Text>
+                  <TouchableOpacity
+                    onPress={() => go('/shortcuts')}
+                    accessibilityRole="link"
+                    accessibilityLabel="View all shortcuts"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    testID="sidebar-shortcuts-all"
+                  >
+                    <Text style={styles.viewAll}>View all</Text>
+                  </TouchableOpacity>
+                </View>
+                {shortcuts.map((sc) => (
+                  <TouchableOpacity
+                    key={sc.locationId}
+                    style={styles.row}
+                    onPress={() => go(`/location/${encodeURIComponent(sc.locationId)}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Shortcut: ${shortcutLabel(sc)}`}
+                    testID={`sidebar-shortcut-${sc.locationId}`}
+                  >
+                    <Text
+                      style={[styles.rowLabel, !sc.available && styles.rowMuted]}
+                      numberOfLines={1}
+                    >
+                      {shortcutLabel(sc)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
             {account.map((it) => (
               <Row key={it.key} item={it} busy={busy === it.key} onPress={() => onItem(it)} />
             ))}
@@ -289,6 +331,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: theme.spacing.lg,
+  },
+  sectionInRow: { flex: 1 },
+  viewAll: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.primary,
+    fontWeight: '600',
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.xs,
   },

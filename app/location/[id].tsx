@@ -57,6 +57,7 @@ import {
 import * as ExpoLocation from 'expo-location';
 import { navigateLabel, preferredNavApp } from '../../src/lib/navigation';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { loadShortcuts, useShortcutsStore } from '../../src/stores/shortcutsStore';
 
 const GRID_GAP = 4;
 
@@ -69,6 +70,11 @@ export default function LocationDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { user, initialize } = useAuthStore();
+  const shortcutItems = useShortcutsStore((s) => s.items);
+  const addShortcut = useShortcutsStore((s) => s.add);
+  const removeShortcutFor = useShortcutsStore((s) => s.remove);
+  const [shortcutBusy, setShortcutBusy] = useState(false);
+  const [shortcutNotice, setShortcutNotice] = useState<string | null>(null);
   const [location, setLocation] = useState<any>(null);
   // Live count of people on this page (including me), via Realtime Presence; joins once
   // the listing has loaded (not for 'Listing not found').
@@ -276,6 +282,28 @@ export default function LocationDetailScreen() {
   }, [searchOrigin]);
 
   const listingId: string | undefined = location?.id;
+  const userId = user?.id ?? null;
+
+  useEffect(() => {
+    loadShortcuts(userId);
+  }, [userId]);
+
+  const hasShortcut = !!listingId && shortcutItems.some((s) => s.locationId === listingId);
+  const toggleShortcut = async () => {
+    if (!location || shortcutBusy) return;
+    setShortcutBusy(true);
+    setShortcutNotice(null);
+    try {
+      const err = hasShortcut
+        ? await removeShortcutFor(location.id)
+        : await addShortcut({ id: location.id, name: location.name });
+      setShortcutNotice(
+        err || (hasShortcut ? 'Shortcut removed' : 'Added to Shortcuts in the menu')
+      );
+    } finally {
+      setShortcutBusy(false);
+    }
+  };
   const originLat = origin?.lat;
   const originLng = origin?.lng;
   useEffect(() => {
@@ -442,6 +470,27 @@ export default function LocationDetailScreen() {
               staleThresholdMin={location.stale_after_min}
             />
           </View>
+
+          {/* Listing actions: shortcut for everyone. */}
+          <View style={styles.listingActions}>
+            <TouchableOpacity
+              onPress={toggleShortcut}
+              disabled={shortcutBusy}
+              style={[styles.actionChip, hasShortcut && styles.actionChipOn]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: hasShortcut }}
+              testID="shortcut-toggle"
+            >
+              <Text style={[styles.actionChipText, hasShortcut && styles.actionChipTextOn]}>
+                {hasShortcut ? '★ Remove shortcut' : '☆ Add shortcut'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {shortcutNotice ? (
+            <Text style={styles.shortcutNotice} testID="shortcut-notice">
+              {shortcutNotice}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.tabs} accessibilityRole="tablist" testID="details-tabs">
@@ -886,6 +935,32 @@ const styles = StyleSheet.create({
   },
   availability: {
     marginTop: theme.spacing.sm,
+  },
+  listingActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  actionChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+  },
+  actionChipOn: { borderColor: theme.colors.primary, backgroundColor: '#eff6ff' },
+  actionChipText: {
+    ...theme.typography.bodySmall,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  actionChipTextOn: { color: theme.colors.primary },
+  shortcutNotice: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
   },
   section: {
     marginBottom: theme.spacing.xl,
