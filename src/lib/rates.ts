@@ -92,15 +92,16 @@ export type DefaultCandidate = {
   active?: boolean | null;
   effective_from?: string | null;
   effective_to?: string | null;
+  days_of_week?: number[] | null;
 };
 
-/** Whether 'Set as default' is offered for a rate. Mirrors set_default_rate (0039): the
- *  default is the listing's general rate and quote_price's fallback, so it must be an
- *  active, undated, non-monthly rate (a monthly default would quote ₱0). */
+/** Whether 'Set as default' is offered for a rate. Mirrors set_default_rate (0042): any
+ *  rate type (monthly too), but the default applies every day with no dates, and must be
+ *  active. */
 export function canBeDefault(rate: DefaultCandidate): boolean {
   if (rate.is_default) return false;
-  if (rate.rate_type === 'monthly') return false;
   if (rate.effective_from || rate.effective_to) return false;
+  if (Array.isArray(rate.days_of_week) && rate.days_of_week.length > 0) return false;
   return rate.active !== false;
 }
 
@@ -119,6 +120,9 @@ const RATE_ERRORS: Record<string, string> = {
   days_of_week_invalid: 'Pick days from Monday to Sunday.',
   default_cannot_have_dates: "The default rate can't have effective dates.",
   default_cannot_have_days: "The default rate can't be limited to days of the week.",
+  default_must_be_active: 'Only an active rate can be the default.',
+  'No rate found':
+    'No rate covers this stay. Monthly rates never price a stay, so add an hourly, daily or flat rate for this time.',
 };
 
 /** Friendly text for a rate RPC error code (unknown messages pass through). */

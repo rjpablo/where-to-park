@@ -112,7 +112,7 @@ export default function RatesScreen() {
     // Errors stay in the preview (not the page error) and never leave a stale amount.
     if (qErr || data?.error) {
       setQuote(null);
-      setQuoteError(qErr?.message || String(data.error));
+      setQuoteError(qErr?.message || rateErrorMessage(data.error));
       return;
     }
     setQuoteError(null);

@@ -40,15 +40,15 @@ test('params only carry the chosen type amounts', () => {
   assert.equal(p.p_first_hours, null);
 });
 
-test('canBeDefault: only active, undated, non-monthly, non-default rates', async () => {
+test('canBeDefault: any type, but no dates, no days, active, not already default', async () => {
   const { canBeDefault } = await import('./rates.ts');
   assert.equal(canBeDefault({ rate_type: 'hourly' }), true);
-  assert.equal(canBeDefault({ rate_type: 'daily', active: true }), true);
-  assert.equal(canBeDefault({ rate_type: 'flat_then_hourly' }), true);
+  assert.equal(canBeDefault({ rate_type: 'monthly' }), true);
+  assert.equal(canBeDefault({ rate_type: 'flat_then_hourly', days_of_week: [] }), true);
   assert.equal(canBeDefault({ rate_type: 'hourly', is_default: true }), false);
-  assert.equal(canBeDefault({ rate_type: 'monthly' }), false);
   assert.equal(canBeDefault({ rate_type: 'hourly', effective_from: '2026-12-24' }), false);
   assert.equal(canBeDefault({ rate_type: 'hourly', effective_to: '2026-12-26' }), false);
+  assert.equal(canBeDefault({ rate_type: 'hourly', days_of_week: [0, 6] }), false);
   assert.equal(canBeDefault({ rate_type: 'hourly', active: false }), false);
 });
 

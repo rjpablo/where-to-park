@@ -49,7 +49,12 @@ test('edit keeps hidden fields (area, max per day, active, default)', () => {
   assert.equal(p.p_max_per_day, '500.00');
   assert.equal(p.p_is_default, true);
   assert.equal(p.p_hourly_amount, 60);
-  assert.equal(p.p_effective_from, '2026-12-23T16:00:00.000Z');
+  // the default never carries dates/days
+  assert.equal(p.p_effective_from, null);
+  const nd = rateUpsertPayload('L', { ...v, days: [0] }, { ...rate, is_default: false });
+  assert.equal(nd.p_effective_from, '2026-12-23T16:00:00.000Z');
+  assert.deepEqual(nd.p_days_of_week, [0]);
+  assert.equal(rateUpsertPayload('L', { ...v, days: [0] }, rate).p_days_of_week, null);
 });
 
 test('new rate payload', () => {

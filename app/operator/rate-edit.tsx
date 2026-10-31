@@ -203,41 +203,50 @@ export default function RateEditScreen() {
         </>
       )}
 
-      <Text style={styles.label}>Days (none selected = every day)</Text>
-      <View style={styles.types}>
-        {WEEK_DAYS.map((d) => {
-          const on = v.days.includes(d.value);
-          return (
-            <TouchableOpacity
-              key={d.value}
-              onPress={() => set('days', toggleDay(v.days, d.value))}
-              style={[styles.typeChip, on && styles.typeChipOn]}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              testID={`rate-day-${d.value}`}
-            >
-              <Text style={[styles.typeChipText, on && styles.typeChipTextOn]}>{d.short}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {existing?.is_default ? (
+        <Text style={styles.meta} testID="rate-default-note">
+          The default rate applies every day, with no dates. To limit days or dates, use another
+          rate.
+        </Text>
+      ) : (
+        <>
+          <Text style={styles.label}>Days (none selected = every day)</Text>
+          <View style={styles.types}>
+            {WEEK_DAYS.map((d) => {
+              const on = v.days.includes(d.value);
+              return (
+                <TouchableOpacity
+                  key={d.value}
+                  onPress={() => set('days', toggleDay(v.days, d.value))}
+                  style={[styles.typeChip, on && styles.typeChipOn]}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  testID={`rate-day-${d.value}`}
+                >
+                  <Text style={[styles.typeChipText, on && styles.typeChipTextOn]}>{d.short}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-      <Text style={styles.label}>Effective from (optional YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        value={v.from}
-        onChangeText={(x) => set('from', x)}
-        placeholder="YYYY-MM-DD"
-        testID="rate-from"
-      />
-      <Text style={styles.label}>Effective to (optional, inclusive)</Text>
-      <TextInput
-        style={styles.input}
-        value={v.to}
-        onChangeText={(x) => set('to', x)}
-        placeholder="YYYY-MM-DD"
-        testID="rate-to"
-      />
+          <Text style={styles.label}>Effective from (optional YYYY-MM-DD)</Text>
+          <TextInput
+            style={styles.input}
+            value={v.from}
+            onChangeText={(x) => set('from', x)}
+            placeholder="YYYY-MM-DD"
+            testID="rate-from"
+          />
+          <Text style={styles.label}>Effective to (optional, inclusive)</Text>
+          <TextInput
+            style={styles.input}
+            value={v.to}
+            onChangeText={(x) => set('to', x)}
+            placeholder="YYYY-MM-DD"
+            testID="rate-to"
+          />
+        </>
+      )}
 
       <Button
         title={rateId ? 'Save rate' : 'Create rate'}

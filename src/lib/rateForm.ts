@@ -100,9 +100,10 @@ export function rateUpsertPayload(
     p_max_per_day: existing?.max_per_day ?? null,
     p_area_id: existing?.area_id ?? null,
     p_active: existing?.active ?? true,
-    p_effective_from: fromDayStart(v.from),
-    p_effective_to: toDayEnd(v.to),
-    p_days_of_week: v.days.length ? normalizeDays(v.days) : null,
+    // The default rate applies every day with no dates (0042): never send them for it.
+    p_effective_from: existing?.is_default ? null : fromDayStart(v.from),
+    p_effective_to: existing?.is_default ? null : toDayEnd(v.to),
+    p_days_of_week: existing?.is_default || !v.days.length ? null : normalizeDays(v.days),
   };
 }
 
