@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, Platform } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
@@ -19,9 +19,13 @@ import { useBottomInset } from '../../src/hooks/useBottomInset';
 export default function SessionsScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
-  const locationId = firstParam(
-    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
-  );
+  const router = useRouter();
+  const sp = useLocalSearchParams<{
+    locationId?: string | string[];
+    checkedIn?: string | string[];
+  }>();
+  const locationId = firstParam(sp.locationId);
+  const checkedIn = firstParam(sp.checkedIn);
   const user = useAuthStore((s) => s.user);
   const [sessions, setSessions] = useState<any[]>([]);
   const [showWaiver, setShowWaiver] = useState(true);
@@ -48,6 +52,19 @@ export default function SessionsScreen() {
   const [overrideNotice, setOverrideNotice] = useState<string | null>(null);
   const [adjustId, setAdjustId] = useState<string | null>(null);
   const [extendHours, setExtendHours] = useState('1');
+
+  // Reload when coming back from a session page (edits, payments, end).
+  const firstFocus = React.useRef(true);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      loadSessions();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
   useEffect(() => {
     loadSessions();
@@ -249,6 +266,19 @@ export default function SessionsScreen() {
             </Text>
           ) : null}
         </View>
+
+        <Button
+          title="Open"
+          size="small"
+          testID={`session-open-${item.plate}`}
+          onPress={() =>
+            router.push({
+              pathname: '/staff/session',
+              params: { id: item.id, locationId: item.location_id },
+            })
+          }
+          style={{ marginBottom: theme.spacing.sm }}
+        />
 
         <Button
           title={adjustId === item.id ? 'Hide adjustments' : 'Adjust times / amount'}
@@ -546,6 +576,11 @@ export default function SessionsScreen() {
         </Text>
       </View>
 
+      {checkedIn ? (
+        <Text style={styles.successBanner} testID="checkin-success">
+          Checked in {checkedIn}
+        </Text>
+      ) : null}
       {closeSuccess ? (
         <Text style={styles.successBanner} testID="session-closed">
           {closeSuccess}

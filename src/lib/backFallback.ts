@@ -51,6 +51,11 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'operator/availability': (p) => listingParent(p),
   'staff/checkin': (p) => listingParent(p),
   'staff/sessions': (p) => listingParent(p),
+  // One session: back to that listing's Active Sessions.
+  'staff/session': (p) => {
+    const id = one(p, 'locationId');
+    return id ? `/staff/sessions?locationId=${encodeURIComponent(id)}` : LISTINGS;
+  },
   // Messages: from a listing's page back to it; from the sidebar back to search.
   'operator/inbox': (p) => {
     const id = one(p, 'locationId');

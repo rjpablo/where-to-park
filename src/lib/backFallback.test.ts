@@ -63,3 +63,11 @@ test('screens without Back have no fallback', () => {
   assert.equal(backFallback('index'), null);
   assert.ok(!BACK_FALLBACK_ROUTES.includes('search'));
 });
+
+test('a session falls back to Active Sessions', () => {
+  assert.equal(
+    backFallback('staff/session', { locationId: L, id: 's' }),
+    `/staff/sessions?locationId=${L}`
+  );
+  assert.equal(backFallback('staff/session', {}), '/operator/listings');
+});
