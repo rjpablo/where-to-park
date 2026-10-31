@@ -78,6 +78,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 - Custom rates with any name, optional effective period, optional scope (area/slot/vehicle/days)
 - Monthly rate alongside Hourly/Daily so drivers can filter by Monthly
 - Rate preview tool shows which rate wins and why
+- 🟧 The rate preview (Areas and Rates screen) asks for a quote only when a listing is picked; opened without one it just shows 'Pick a listing from My listings' (before, it still called `quote_price` without a listing, got a 404 and showed that error instead).
 
 **Rate Types:**
 

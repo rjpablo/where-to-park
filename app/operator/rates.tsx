@@ -88,6 +88,11 @@ export default function RatesScreen() {
   }, [load]);
 
   const refreshQuote = async () => {
+    // No listing picked (e.g. /operator/rates opened without ?locationId): there is
+    // nothing to quote. Calling quote_price without p_location_id made PostgREST
+    // answer 404 (no function with that parameter set) and replaced the
+    // 'Pick a listing' message with its error.
+    if (!locationId) return;
     const { data, error: qErr } = await supabase.rpc('quote_price', {
       p_location_id: locationId,
       p_vehicle_type: 'car',
