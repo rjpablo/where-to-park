@@ -47,3 +47,37 @@ export function previewDayLabel(date: string): string {
     year: 'numeric',
   }).format(d);
 }
+
+/** e.g. "Sun 22:00": weekday and time in Manila for an ISO timestamp. */
+export function manilaWeekdayTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    weekday: 'short',
+  }).format(d);
+  return `${day} ${new Date(d.getTime() + MANILA_MS).toISOString().slice(11, 16)}`;
+}
+
+export type QuotePart = {
+  key: string;
+  rateName: string;
+  hours: number;
+  amount: number;
+  from: string;
+};
+
+/**
+ * Per-rate parts of a split quote (quote_price 'breakdown', migration 0043), in order
+ * of first use; 'from' is when that rate first applies. Empty for older replies.
+ */
+export function quoteParts(quote: any): QuotePart[] {
+  if (!Array.isArray(quote?.breakdown)) return [];
+  return quote.breakdown.map((b: any, i: number) => ({
+    key: `${b.rate_id ?? i}`,
+    rateName: String(b.rate_name ?? ''),
+    hours: Number(b.hours),
+    amount: Number(b.amount),
+    from: manilaWeekdayTime(String(b.from ?? '')),
+  }));
+}

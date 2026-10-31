@@ -35,3 +35,44 @@ test('day label', () => {
   assert.equal(previewDayLabel('2026-11-07'), 'Sat, Nov 7, 2026');
   assert.equal(previewDayLabel('2026-1'), '');
 });
+
+test('split quote parts: per rate, Manila start times', async () => {
+  const { quoteParts, manilaWeekdayTime } = await import('./quotePreview.ts');
+  assert.equal(manilaWeekdayTime('2026-11-01T14:00:00+00:00'), 'Sun 22:00');
+  assert.equal(manilaWeekdayTime('2026-11-01T16:00:00+00:00'), 'Mon 00:00');
+  assert.equal(manilaWeekdayTime('nope'), '');
+  // rj's example: Sun 22:00 for 4 h, weekend ₱60/h then weekday ₱40/h = ₱200
+  const q = {
+    amount: 200,
+    breakdown: [
+      {
+        rate_id: 'w',
+        rate_name: 'Weekend',
+        hours: 2,
+        amount: 120,
+        from: '2026-11-01T14:00:00+00:00',
+      },
+      {
+        rate_id: 'd',
+        rate_name: 'Car Rate',
+        hours: 2,
+        amount: 80,
+        from: '2026-11-01T16:00:00+00:00',
+      },
+    ],
+  };
+  const parts = quoteParts(q);
+  assert.deepEqual(
+    parts.map((p) => [p.rateName, p.hours, p.amount, p.from]),
+    [
+      ['Weekend', 2, 120, 'Sun 22:00'],
+      ['Car Rate', 2, 80, 'Mon 00:00'],
+    ]
+  );
+  assert.equal(
+    parts.reduce((s, p) => s + p.amount, 0),
+    q.amount
+  );
+  assert.deepEqual(quoteParts({ amount: 40 }), []);
+  assert.deepEqual(quoteParts(null), []);
+});

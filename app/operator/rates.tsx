@@ -15,6 +15,8 @@ import {
   previewDayLabel,
   previewHours,
   previewStartAt,
+  manilaWeekdayTime,
+  quoteParts,
 } from '../../src/lib/quotePreview';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 
@@ -112,7 +114,10 @@ export default function RatesScreen() {
     // Errors stay in the preview (not the page error) and never leave a stale amount.
     if (qErr || data?.error) {
       setQuote(null);
-      setQuoteError(qErr?.message || rateErrorMessage(data.error));
+      const from = data?.uncovered_from ? manilaWeekdayTime(data.uncovered_from) : '';
+      setQuoteError(
+        qErr?.message || rateErrorMessage(data.error) + (from ? ` (Not covered from ${from}.)` : '')
+      );
       return;
     }
     setQuoteError(null);
@@ -218,10 +223,23 @@ export default function RatesScreen() {
         <Button title="Refresh quote" onPress={refreshQuote} testID="quote-refresh" />
         {quote?.amount != null ? (
           <>
-            <Text style={styles.quoteAmount} testID="quote-amount">
-              {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} ·{' '}
-              {quote.billed_hours}h billed
-            </Text>
+            {quoteParts(quote).length > 1 ? (
+              <>
+                <Text style={styles.quoteAmount} testID="quote-amount">
+                  {formatPeso(quote.amount)} · {quote.billed_hours}h billed
+                </Text>
+                {quoteParts(quote).map((p) => (
+                  <Text key={p.key} style={styles.meta} testID={`quote-part-${p.rateName}`}>
+                    {p.rateName}: {p.hours}h from {p.from} · {formatPeso(p.amount)}
+                  </Text>
+                ))}
+              </>
+            ) : (
+              <Text style={styles.quoteAmount} testID="quote-amount">
+                {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} ·{' '}
+                {quote.billed_hours}h billed
+              </Text>
+            )}
             <Text style={styles.meta} testID="quote-for">
               {quotedFor}
             </Text>
@@ -232,7 +250,8 @@ export default function RatesScreen() {
           </Text>
         )}
         <Text style={styles.meta}>
-          The rate in effect when the stay starts prices the whole stay.
+          Each hour is priced at the rate in effect when that hour starts, so a stay can be split
+          across rates. Extra charges (e.g. overnight) are added by staff as fees.
         </Text>
         <Text style={styles.meta}>
           Monthly rates are listed for drivers and never price a session.
