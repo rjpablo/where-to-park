@@ -16,27 +16,15 @@ import {
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
 import { Sidebar } from '../components/Sidebar';
 import { useUserLocation } from '../hooks/useUserLocation';
-import {
-  locationMessage,
-  RECENTER_ZOOM,
-  recenterAction,
-  recenterButtonTop,
-} from '../lib/userLocation';
-import Animated, {
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
+import { locationMessage, RECENTER_ZOOM, recenterAction } from '../lib/userLocation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   maximizedHeight,
   nextSheetMode,
   normalHeight,
   peekHeight,
-  sheetContainerHeight,
   sheetModeAt,
   sheetModeIndex,
-  sheetVisibleHeight,
 } from '../lib/sheetLayout';
 import { useSidebarStore } from '../stores/sidebarStore';
 import { DistanceSlider } from '../components/DistanceSlider';
@@ -78,19 +66,17 @@ import { useBottomInset } from '../hooks/useBottomInset';
 // - Maximized: its top sits SHEET_MAX_GAP px below the header, so that much map shows.
 // The sort chips and the list are always rendered below the top part (clipped when
 // Minimized), so changing mode needs no re-render. The sheet is drawn above every map
-// element (search box, 'Search this area', pins, location dot and button).
+// element (search box, 'Search this area', pins, location dot and the ◎ button, which
+// share one overlay layer under the sheet).
 const SHEET_NORMAL_FRACTION = 0.65;
 const SHEET_MAX_GAP = 10;
 /** Minimized height until the top part has been measured, and its limits. */
 const SHEET_PEEK_DEFAULT = 170;
 const SHEET_PEEK_MIN = 120;
 const SHEET_PEEK_MAX_FRACTION = 0.5;
-/** Above the map overlays (search box: zIndex 10 / elevation 12; ◎ button: zIndex 5). */
+/** Above the map overlay layer (search box, 'Search this area', ◎: zIndex 10 / elevation 12). */
 const SHEET_LAYER = 30;
 const RECENTER_SIZE = 46;
-const RECENTER_GAP = 16;
-/** Below the place search box (72 px) plus room for the location message. */
-const RECENTER_MIN_TOP = 140;
 
 export function SearchScreen() {
   const router = useRouter();
@@ -148,11 +134,6 @@ export function SearchScreen() {
   const maxPx = maximizedHeight(screenH, SHEET_MAX_GAP, normalPx);
   const snapPoints = useMemo(() => [peekPx, normalPx, maxPx], [peekPx, normalPx, maxPx]);
   const currentSheetPx = snapPoints[sheetModeIndex(sheetPosition)];
-  // The ◎ button rides RECENTER_GAP above the sheet top in every mode and is hidden
-  // (and not tappable) when that leaves no room below the search box, e.g. Maximized.
-  const recenterHidden =
-    recenterButtonTop(screenH - currentSheetPx, RECENTER_SIZE, RECENTER_GAP, RECENTER_MIN_TOP) ===
-    null;
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   // Keep cluster zooms clear of the bottom sheet (collapsed or expanded height).
   const overlayInsets = useMemo(
@@ -216,38 +197,6 @@ export function SearchScreen() {
     }
     setLocationNotice(locationMessage(permission));
   };
-  // The ◎ button rides just above the sheet (and moves while it's dragged); it
-  // hides when the sheet leaves no room below the search box, so it never
-  // covers the results list.
-  // Sheet top in this screen's px. The sheet's own container can be taller than
-  // this screen (on web it is the whole window), but both end at the bottom, so
-  // use the sheet's height: its container height (position / (1 - fraction))
-  // minus its top (position).
-  const sheetIndex = useSharedValue(0);
-  const sheetTopPx = useSharedValue(0);
-  const screenHeight = useSharedValue(windowHeight);
-  const snapShared = useSharedValue<number[]>(snapPoints);
-  const containerHeight = useSharedValue(0);
-  useEffect(() => {
-    snapShared.value = snapPoints;
-  }, [snapPoints, snapShared]);
-  // The sheet's container height, re-derived each time it rests on a snap point.
-  useAnimatedReaction(
-    () => [sheetIndex.value, sheetTopPx.value, snapShared.value] as const,
-    ([index, position, snaps]) => {
-      containerHeight.value = sheetContainerHeight(index, position, snaps, containerHeight.value);
-    }
-  );
-  const recenterStyle = useAnimatedStyle(() => {
-    const sheetHeight = containerHeight.value
-      ? sheetVisibleHeight(containerHeight.value, sheetTopPx.value)
-      : snapShared.value[
-          Math.min(snapShared.value.length - 1, Math.max(0, Math.round(sheetIndex.value)))
-        ];
-    const sheetTop = screenHeight.value - sheetHeight;
-    const top = recenterButtonTop(sheetTop, RECENTER_SIZE, RECENTER_GAP, RECENTER_MIN_TOP);
-    return top === null ? { opacity: 0, top: RECENTER_MIN_TOP } : { opacity: 1, top };
-  });
   // Center as soon as the first fix arrives after a recenter tap.
   useEffect(() => {
     if (pendingRecenter.current && userLocation) {
@@ -519,13 +468,7 @@ export function SearchScreen() {
   );
 
   return (
-    <View
-      style={styles.container}
-      onLayout={(e) => {
-        screenHeight.value = e.nativeEvent.layout.height;
-        setScreenH(e.nativeEvent.layout.height);
-      }}
-    >
+    <View style={styles.container} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
       {/* Map with location pins */}
       <Map
         ref={mapRef}
@@ -552,50 +495,52 @@ export function SearchScreen() {
           onSelect={handlePlaceSelect}
           onClear={() => setPlaceMarker(null)}
         />
-        {movedViewport ? (
-          <TouchableOpacity
-            style={styles.searchAreaButton}
-            onPress={searchThisArea}
-            accessibilityRole="button"
-            testID="search-this-area"
-          >
-            <Text style={styles.searchAreaText}>Search this area</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      <Animated.View style={[styles.recenterWrap, recenterStyle]}>
-        {/* Hidden over the expanded sheet: never intercept taps on the list. */}
-        <View style={styles.recenterInner} pointerEvents={recenterHidden ? 'none' : 'box-none'}>
-          {locationNotice ? (
-            <View style={styles.locationNotice} testID="location-notice">
-              <Text style={styles.locationNoticeText}>{locationNotice}</Text>
+        {/* One overlay layer under the sheet: 'Search this area' (centred) and the ◎
+            button (right), just below the search box. The sheet covers them when it
+            reaches this high (Maximized), so they never sit over the list. */}
+        <View style={styles.overlayRow} pointerEvents="box-none">
+          {movedViewport ? (
+            <TouchableOpacity
+              style={styles.searchAreaButton}
+              onPress={searchThisArea}
+              accessibilityRole="button"
+              testID="search-this-area"
+            >
+              <Text style={styles.searchAreaText}>Search this area</Text>
+            </TouchableOpacity>
+          ) : null}
+          {/* Hidden while place suggestions are open (that layer is then lifted above the sheet). */}
+          {!suggestionsOpen ? (
+            <View style={styles.recenterWrap} pointerEvents="box-none">
+              <TouchableOpacity
+                style={styles.recenterButton}
+                onPress={handleRecenter}
+                accessibilityRole="button"
+                accessibilityLabel="Center the map on my location"
+                testID="recenter-button"
+              >
+                <View
+                  style={[
+                    styles.recenterIcon,
+                    permission === 'granted' && userLocation ? styles.recenterIconActive : null,
+                  ]}
+                >
+                  <View style={styles.recenterDot} />
+                </View>
+              </TouchableOpacity>
+              {locationNotice ? (
+                <View style={styles.locationNotice} testID="location-notice">
+                  <Text style={styles.locationNoticeText}>{locationNotice}</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
-          <TouchableOpacity
-            style={styles.recenterButton}
-            onPress={handleRecenter}
-            accessibilityRole="button"
-            accessibilityLabel="Center the map on my location"
-            testID="recenter-button"
-          >
-            <View
-              style={[
-                styles.recenterIcon,
-                permission === 'granted' && userLocation ? styles.recenterIconActive : null,
-              ]}
-            >
-              <View style={styles.recenterDot} />
-            </View>
-          </TouchableOpacity>
         </View>
-      </Animated.View>
+      </View>
 
       {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
       <BottomSheet
         ref={sheetRef}
-        animatedIndex={sheetIndex}
-        animatedPosition={sheetTopPx}
         index={sheetModeIndex(sheetPosition)}
         snapPoints={snapPoints}
         onChange={(index) => {
@@ -746,13 +691,19 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  // Row under the search box: 'Search this area' centred, ◎ pinned to the right.
+  overlayRow: {
+    width: '100%',
+    minHeight: RECENTER_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   recenterWrap: {
     position: 'absolute',
-    right: theme.spacing.md,
-    left: theme.spacing.md,
-    zIndex: 5,
+    top: 0,
+    right: 0,
+    alignItems: 'flex-end',
   },
-  recenterInner: { alignItems: 'flex-end' },
   recenterButton: {
     width: RECENTER_SIZE,
     height: RECENTER_SIZE,
@@ -779,10 +730,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   locationNotice: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: RECENTER_SIZE + theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+    maxWidth: 260,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,

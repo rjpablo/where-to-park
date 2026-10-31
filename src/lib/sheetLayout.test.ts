@@ -5,10 +5,8 @@ import {
   nextSheetMode,
   normalHeight,
   peekHeight,
-  sheetContainerHeight,
   sheetModeAt,
   sheetModeIndex,
-  sheetVisibleHeight,
 } from './sheetLayout.ts';
 
 test('peekHeight fits the content plus the bottom inset, within limits', () => {
@@ -16,22 +14,6 @@ test('peekHeight fits the content plus the bottom inset, within limits', () => {
   assert.equal(peekHeight(150, 24, 120, 0.5, 800), 174);
   assert.equal(peekHeight(40, 0, 120, 0.5, 800), 120);
   assert.equal(peekHeight(700, 0, 120, 0.5, 800), 400);
-});
-
-test('sheetContainerHeight from any snap point, kept in between', () => {
-  const snaps = [150, 520, 790];
-  // Minimized: top 650 + 150 tall = 800.
-  assert.equal(sheetContainerHeight(0, 650, snaps, 0), 800);
-  // Normal: top 280 + 520 = 800; Maximized: top 10 + 790 = 800.
-  assert.equal(sheetContainerHeight(1, 280, snaps, 0), 800);
-  assert.equal(sheetContainerHeight(2, 10, snaps, 0), 800);
-  // Mid-drag keeps the last value.
-  assert.equal(sheetContainerHeight(1.4, 400, snaps, 800), 800);
-});
-
-test('sheetVisibleHeight', () => {
-  assert.equal(sheetVisibleHeight(800, 650), 150);
-  assert.equal(sheetVisibleHeight(800, 900), 0);
 });
 
 test('normalHeight: 65% of the search screen, above Minimized', () => {
