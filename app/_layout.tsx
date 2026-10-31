@@ -7,6 +7,7 @@ import { registerPushToken } from '../src/lib/push';
 import { useBackToExit } from '../src/hooks/useBackToExit';
 import { SidebarToggle } from '../src/components/Sidebar';
 import { Toast } from '../src/components/Toast';
+import { ShortcutsMergePrompt } from '../src/components/ShortcutsMergePrompt';
 import { FallbackBackButton } from '../src/components/FallbackBackButton';
 import { backFallback, type RouteParams } from '../src/lib/backFallback';
 import { theme } from '../src/lib/theme';
@@ -100,6 +101,7 @@ export default function RootLayout() {
         </Stack>
       </KeyboardAvoidingView>
       <Toast />
+      <ShortcutsMergePrompt />
     </GestureHandlerRootView>
   );
 }

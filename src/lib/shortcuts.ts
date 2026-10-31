@@ -72,3 +72,24 @@ export function parseGuestShortcuts(
     return [];
   }
 }
+
+/** Device key remembering which guest set was already offered (Add or Don't add). */
+export const GUEST_SHORTCUTS_ASKED_KEY = 'wtp-shortcuts-asked';
+
+/** Order-independent fingerprint of a set of listing ids ('' for none). */
+export function shortcutSetKey(ids: string[]): string {
+  return [...new Set(ids)].sort().join(',');
+}
+
+/** Device shortcuts to append to the account, in device order, skipping ones it has. */
+export function shortcutsToMerge(accountIds: string[], deviceIds: string[]): string[] {
+  const have = new Set(accountIds);
+  const out: string[] = [];
+  for (const id of deviceIds) {
+    if (!have.has(id)) {
+      have.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}

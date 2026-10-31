@@ -56,3 +56,11 @@ test('guest storage parsing', () => {
     [{ locationId: 'a', name: 'A' }]
   );
 });
+
+test('guest -> account merge helpers', async () => {
+  const { shortcutSetKey, shortcutsToMerge } = await import('./shortcuts.ts');
+  assert.equal(shortcutSetKey(['b', 'a', 'b']), 'a,b');
+  assert.equal(shortcutSetKey(['a', 'b']), shortcutSetKey(['b', 'a']));
+  assert.equal(shortcutSetKey([]), '');
+  assert.deepEqual(shortcutsToMerge(['a'], ['c', 'a', 'b', 'c']), ['c', 'b']);
+});
