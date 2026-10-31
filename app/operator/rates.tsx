@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
@@ -8,6 +8,7 @@ import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { canBeDefault } from '../../src/lib/rates';
 import { daysLabel } from '../../src/lib/rateForm';
+import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import {
   manilaTimeNow,
   manilaToday,
@@ -45,6 +46,7 @@ export default function RatesScreen() {
   // Preview start: a Manila date (default today) and time (default now).
   const [quoteDate, setQuoteDate] = React.useState(() => manilaToday());
   const [quoteTime, setQuoteTime] = React.useState(() => manilaTimeNow());
+  const [quoteVehicle, setQuoteVehicle] = React.useState<VehicleType>('car');
   const [quote, setQuote] = React.useState<any>(null);
   const [quoteError, setQuoteError] = React.useState<string | null>(null);
   // What the shown amount was quoted for (not the live inputs, which may be mid-edit).
@@ -103,7 +105,7 @@ export default function RatesScreen() {
     }
     const { data, error: qErr } = await supabase.rpc('quote_price', {
       p_location_id: locationId,
-      p_vehicle_type: 'car',
+      p_vehicle_type: quoteVehicle,
       p_start_at: start.startAt,
       p_hours: h,
     });
@@ -114,7 +116,9 @@ export default function RatesScreen() {
       return;
     }
     setQuoteError(null);
-    setQuotedFor(`Car, starting ${previewDayLabel(quoteDate)} ${quoteTime.trim()}`);
+    setQuotedFor(
+      `${VEHICLE_TYPE_LABELS[quoteVehicle]}, starting ${previewDayLabel(quoteDate)} ${quoteTime.trim()}`
+    );
     setQuote(data);
   };
 
@@ -170,6 +174,23 @@ export default function RatesScreen() {
 
       <View style={styles.preview} testID="quote-preview">
         <Text style={styles.heading}>Price preview</Text>
+        <Text style={styles.label}>Vehicle</Text>
+        <View style={styles.chips}>
+          {VEHICLE_TYPES.map((t) => (
+            <TouchableOpacity
+              key={t}
+              onPress={() => setQuoteVehicle(t)}
+              style={[styles.chip, quoteVehicle === t && styles.chipOn]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: quoteVehicle === t }}
+              testID={`quote-vehicle-${t}`}
+            >
+              <Text style={[styles.chipText, quoteVehicle === t && styles.chipTextOn]}>
+                {VEHICLE_TYPE_LABELS[t]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
         <TextInput
           style={styles.input}
@@ -328,6 +349,22 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,
   },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginVertical: theme.spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  chipOn: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  chipText: { ...theme.typography.caption, color: theme.colors.text.primary },
+  chipTextOn: { color: '#fff' },
   addButton: { marginBottom: theme.spacing.md },
   preview: {
     marginTop: theme.spacing.lg,
