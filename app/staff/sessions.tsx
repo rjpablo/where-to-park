@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
-import { useAuthStore } from '../../src/stores/authStore';
-import {
-  canManageListings,
-  loadMyMemberships,
-  roleForLocation,
-} from '../../src/lib/operatorAccess';
 import { formatLocalDateTime, formatPeso, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
@@ -23,21 +17,15 @@ export default function SessionsScreen() {
   const sp = useLocalSearchParams<{
     locationId?: string | string[];
     checkedIn?: string | string[];
+    ended?: string | string[];
   }>();
   const locationId = firstParam(sp.locationId);
   const checkedIn = firstParam(sp.checkedIn);
-  const user = useAuthStore((s) => s.user);
+  const ended = firstParam(sp.ended);
   const [sessions, setSessions] = useState<any[]>([]);
-  const [showWaiver, setShowWaiver] = useState(true);
   const [locationName, setLocationName] = useState('Listing');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [cashAmount, setCashAmount] = useState('');
-  const [waiverNote, setWaiverNote] = useState('');
-  const [closeError, setCloseError] = useState<string | null>(null);
-  const [closeSuccess, setCloseSuccess] = useState<string | null>(null);
-  const [closing, setClosing] = useState(false);
   const [presets, setPresets] = useState<any[]>([]);
   const [applyNotice, setApplyNotice] = useState<string | null>(null);
   const [driverReviews, setDriverReviews] = useState<Record<string, any[]>>({});
@@ -77,20 +65,16 @@ export default function SessionsScreen() {
   }, [locationId]);
 
   useEffect(() => {
-    (async () => {
-      if (!locationId || !user) return;
-      const { data: loc } = await supabase
-        .from('locations')
-        .select('id, name, operator_id, operators(staff_can_waive)')
-        .eq('id', locationId)
-        .single();
-      if (loc?.name) setLocationName(loc.name);
-      const memberships = await loadMyMemberships(user.id);
-      const role = loc ? roleForLocation(memberships, loc as any) : null;
-      const staffCanWaive = !!(loc as any)?.operators?.staff_can_waive;
-      setShowWaiver(canManageListings(role || undefined) || staffCanWaive);
-    })();
-  }, [locationId, user]);
+    if (!locationId) return;
+    supabase
+      .from('locations')
+      .select('name')
+      .eq('id', locationId)
+      .single()
+      .then(({ data }) => {
+        if (data?.name) setLocationName(data.name);
+      });
+  }, [locationId]);
 
   const loadSessions = async () => {
     try {
@@ -152,56 +136,16 @@ export default function SessionsScreen() {
 
   const applyPreset = async (sessionId: string, preset: any) => {
     setApplyNotice(null);
-    setCloseError(null);
     const { data, error: rpcError } = await supabase.rpc('apply_fee_preset', {
       p_session_id: sessionId,
       p_preset_id: preset.id,
     });
     if (rpcError || data?.error) {
-      setCloseError(rpcError?.message || String(data?.error));
+      setOverrideNotice(rpcError?.message || String(data?.error));
       return;
     }
     setApplyNotice(`Applied ${preset.name} ${formatPeso(data.amount)}`);
     await loadSessions();
-  };
-
-  const handleClose = async (sessionId: string) => {
-    setClosing(true);
-    setCloseError(null);
-    setCloseSuccess(null);
-    try {
-      const cash = Number(cashAmount);
-      const { data, error: rpcError } = await supabase.rpc('end_session', {
-        p_session_id: sessionId,
-        p_cash_amount: Number.isFinite(cash) ? cash : 0,
-        p_waive_note: showWaiver ? waiverNote.trim() || null : null,
-      });
-
-      if (rpcError) throw rpcError;
-      if (data?.error === 'balance_due') {
-        setCloseError(
-          `₱${Number(data.balance).toFixed(2)} still due after partial cash. Settle it, or enter a waiver note.`
-        );
-        return;
-      }
-      if (data?.error === 'waiver_not_allowed') {
-        setCloseError('Staff cannot waive at this operator (staff_can_waive is off).');
-        return;
-      }
-      if (data?.error) {
-        setCloseError(String(data.error));
-        return;
-      }
-
-      setCloseSuccess('Session closed');
-      setSelectedId(null);
-      await deliverReturnedPush(data, 'Session ended', 'A walk-in session was closed');
-      await loadSessions();
-    } catch (err: any) {
-      setCloseError(err.message || 'Close failed');
-    } finally {
-      setClosing(false);
-    }
   };
 
   const renderSession = ({ item }: { item: any }) => {
@@ -210,7 +154,6 @@ export default function SessionsScreen() {
     const parkingSoFar = Number(preview?.parking_so_far ?? 0);
     const extraFees = Number(preview?.extra_fees ?? 0);
     const isOverdue = item.status === 'overdue';
-    const open = selectedId === item.id;
     const overdueMin = Number(
       item.overdue_minutes ||
         (item.scheduled_end_at
@@ -473,76 +416,16 @@ export default function SessionsScreen() {
         ))}
 
         <Button
-          title={open ? 'Cancel close' : 'End Session'}
+          title="End Session"
           size="small"
           testID={`end-session-${item.plate}`}
-          onPress={() => {
-            setSelectedId(open ? null : item.id);
-            setCloseError(null);
-            setCloseSuccess(null);
-          }}
+          onPress={() =>
+            router.push({
+              pathname: '/staff/session',
+              params: { id: item.id, locationId: item.location_id },
+            })
+          }
         />
-
-        {open && (
-          <View style={styles.closeForm} testID="session-close-form">
-            <Text style={styles.label}>Parking so far {formatPeso(parkingSoFar)}</Text>
-            <Text style={styles.label}>Extra fees {formatPeso(extraFees)}</Text>
-            <Text style={styles.sessionBalance}>Balance due {formatPeso(balance)}</Text>
-            <Text style={styles.label}>Cash collected (₱)</Text>
-            <TextInput
-              style={styles.input}
-              value={cashAmount}
-              onChangeText={setCashAmount}
-              keyboardType="numeric"
-              testID="session-cash-amount"
-            />
-            {showWaiver ? (
-              <>
-                <Text style={styles.label}>Waiver note (required if balance remains)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={waiverNote}
-                  onChangeText={setWaiverNote}
-                  placeholder="Reason for waiver"
-                  testID="session-waiver-note"
-                />
-              </>
-            ) : (
-              <Text style={styles.label} testID="session-waiver-disabled">
-                Waivers are limited to owners and managers at this operator.
-              </Text>
-            )}
-            {closeError ? (
-              <Text style={styles.alertText} testID="waiver-alert">
-                {closeError}
-              </Text>
-            ) : null}
-            {Platform.OS === 'web' ? (
-              <div
-                data-testid="session-close-submit"
-                onClick={() => handleClose(item.id)}
-                style={{
-                  backgroundColor: '#2563eb',
-                  color: '#fff',
-                  textAlign: 'center',
-                  padding: 12,
-                  borderRadius: 8,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Close with payment
-              </div>
-            ) : (
-              <Button
-                title="Close with payment"
-                loading={closing}
-                onPress={() => handleClose(item.id)}
-                testID="session-close-submit"
-              />
-            )}
-          </View>
-        )}
       </View>
     );
   };
@@ -581,9 +464,9 @@ export default function SessionsScreen() {
           Checked in {checkedIn}
         </Text>
       ) : null}
-      {closeSuccess ? (
+      {ended ? (
         <Text style={styles.successBanner} testID="session-closed">
-          {closeSuccess}
+          Session ended: {ended}
         </Text>
       ) : null}
       {applyNotice ? (
