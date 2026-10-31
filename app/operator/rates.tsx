@@ -55,6 +55,8 @@ export default function RatesScreen() {
   const [quotedFor, setQuotedFor] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = React.useState<string | null>(null);
+  const [showArchived, setShowArchived] = React.useState(false);
+  const [archived, setArchived] = React.useState<any[]>([]);
   // Deactivate/archive errors show on the rate's own row.
   const [rowError, setRowError] = React.useState<{ id: string; message: string } | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -88,6 +90,35 @@ export default function RatesScreen() {
       setLoading(false);
     }
   }, [locationId]);
+
+  // Archived rates (0051): listed only when asked for, each with Restore.
+  const loadArchived = React.useCallback(async () => {
+    if (!locationId) return;
+    const { data } = await supabase
+      .from('rates')
+      .select('*')
+      .eq('location_id', locationId)
+      .not('archived_at', 'is', null)
+      .order('archived_at', { ascending: false });
+    setArchived(data || []);
+  }, [locationId]);
+
+  React.useEffect(() => {
+    if (showArchived) loadArchived();
+  }, [showArchived, loadArchived, rates]);
+
+  const restore = async (rate: any) => {
+    setError(null);
+    setNotice(null);
+    setRowError(null);
+    const { data, error: rpcError } = await supabase.rpc('unarchive_rate', { p_rate_id: rate.id });
+    if (rpcError || data?.error) {
+      setRowError({ id: rate.id, message: rpcError?.message || rateStatusErrorMessage(data) });
+      return;
+    }
+    setNotice(`'${rate.name}' restored (inactive). Activate it to use it again.`);
+    await load();
+  };
 
   // Reload whenever the list is shown again (e.g. back from New/Edit rate).
   useFocusEffect(
@@ -399,6 +430,42 @@ export default function RatesScreen() {
           </View>
         </View>
       ))}
+
+      <Button
+        title={showArchived ? 'Hide archived' : 'Show archived'}
+        size="small"
+        variant="outline"
+        onPress={() => setShowArchived((v) => !v)}
+        style={styles.addButton}
+        testID="rates-archived-toggle"
+      />
+      {showArchived ? (
+        archived.length ? (
+          archived.map((rate) => (
+            <View key={rate.id} style={styles.card} testID={`archived-row-${rate.name}`}>
+              <Text style={styles.rowTitle}>{rate.name}</Text>
+              <Text style={styles.meta}>
+                {rate.rate_type} · {rateSummary(rate)} · archived{' '}
+                {formatLocalDate(rate.archived_at)}
+              </Text>
+              {rowError?.id === rate.id ? (
+                <Text style={styles.error}>{rowError?.message}</Text>
+              ) : null}
+              <Button
+                title="Restore"
+                size="small"
+                variant="outline"
+                onPress={() => restore(rate)}
+                testID={`restore-rate-${rate.name}`}
+              />
+            </View>
+          ))
+        ) : (
+          <Text style={styles.meta} testID="rates-archived-empty">
+            No archived rates.
+          </Text>
+        )
+      ) : null}
 
       {error ? (
         <Text style={styles.error} testID="rates-error">

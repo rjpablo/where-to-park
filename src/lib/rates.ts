@@ -118,7 +118,7 @@ const RATE_ERRORS: Record<string, string> = {
     "The default rate can't be deactivated. Make another rate the default first.",
   cannot_archive_default: "The default rate can't be archived.",
   archive_needs_inactive: 'Deactivate the rate before archiving it.',
-  rate_archived: 'That rate is archived. Refresh the list.',
+  rate_archived: 'That rate is archived. Restore it first (Show archived).',
   rate_in_use:
     'An open session uses this rate. End it or switch it to another rate, then deactivate.',
   rate_has_sessions: 'Past sessions use this rate, so it can only be archived.',

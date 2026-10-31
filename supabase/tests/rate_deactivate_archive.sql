@@ -60,6 +60,13 @@ BEGIN
   ASSERT (SELECT archived_at IS NOT NULL FROM rates WHERE id = promo), 'archived_at';
   ASSERT set_rate_active(promo, true)->>'error' = 'rate_archived', 'no un-archive';
   ASSERT (SELECT rate_id FROM parking_sessions WHERE id = sid) = promo, 'past session keeps rate';
+  -- 0051: restore comes back inactive, then it can be activated
+  PERFORM pg_temp.act('+639170000003');
+  ASSERT unarchive_rate(promo)->>'error' = 'Permission denied', 'staff restore';
+  PERFORM pg_temp.act('+639170000002');
+  ASSERT unarchive_rate(promo)->>'success' = 'true', 'restore';
+  ASSERT (SELECT archived_at IS NULL AND active IS FALSE FROM rates WHERE id = promo), 'restored inactive';
+  ASSERT set_rate_active(promo, true)->>'success' = 'true', 'activate restored';
   RAISE NOTICE 'rate deactivate/archive: ok';
 END $$;
 
