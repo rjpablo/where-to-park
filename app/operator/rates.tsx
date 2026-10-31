@@ -6,7 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
-import { canBeDefault, rateErrorMessage } from '../../src/lib/rates';
+import { canBeDefault, rateErrorMessage, rateStatusErrorMessage } from '../../src/lib/rates';
 import { daysLabel } from '../../src/lib/rateForm';
 import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import {
@@ -54,6 +54,9 @@ export default function RatesScreen() {
   // What the shown amount was quoted for (not the live inputs, which may be mid-edit).
   const [quotedFor, setQuotedFor] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
+  const [confirmArchive, setConfirmArchive] = React.useState<string | null>(null);
+  // Deactivate/archive errors show on the rate's own row.
+  const [rowError, setRowError] = React.useState<{ id: string; message: string } | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [locationName, setLocationName] = React.useState('Listing');
@@ -71,6 +74,8 @@ export default function RatesScreen() {
           .from('rates')
           .select('*')
           .eq('location_id', locationId)
+          // Archived rates are hidden (soft-deleted, kept for past sessions; 0048).
+          .is('archived_at', null)
           .order('is_default', { ascending: false }),
         supabase.from('locations').select('name').eq('id', locationId).single(),
       ]);
@@ -132,16 +137,37 @@ export default function RatesScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rates]);
 
-  const removeRate = async (rate: any) => {
+  // Deactivate / re-activate a non-default rate (0048). The server refuses while an
+  // open session (started or upcoming) has the rate chosen, and says how many.
+  const setActive = async (rate: any, active: boolean) => {
     setError(null);
-    const { data, error: rpcError } = await supabase.rpc('delete_rate', { p_rate_id: rate.id });
+    setNotice(null);
+    setRowError(null);
+    const { data, error: rpcError } = await supabase.rpc('set_rate_active', {
+      p_rate_id: rate.id,
+      p_active: active,
+    });
     if (rpcError || data?.error) {
-      setError(rpcError?.message || rateErrorMessage(data?.error));
+      setRowError({ id: rate.id, message: rpcError?.message || rateStatusErrorMessage(data) });
       return;
     }
-    setNotice('Rate deleted');
+    setNotice(`'${rate.name}' ${active ? 'is active again' : 'is now inactive'}`);
     await load();
-    await refreshQuote();
+  };
+
+  // Archive = soft delete of an inactive rate: hidden here, kept for past sessions.
+  const archive = async (rate: any) => {
+    setError(null);
+    setNotice(null);
+    setRowError(null);
+    setConfirmArchive(null);
+    const { data, error: rpcError } = await supabase.rpc('archive_rate', { p_rate_id: rate.id });
+    if (rpcError || data?.error) {
+      setRowError({ id: rate.id, message: rpcError?.message || rateStatusErrorMessage(data) });
+      return;
+    }
+    setNotice(`'${rate.name}' archived`);
+    await load();
   };
 
   // Make this rate the listing's default; the server unsets the old one (set_default_rate).
@@ -268,9 +294,16 @@ export default function RatesScreen() {
       />
       {rates.map((rate) => (
         <View key={rate.id} style={styles.card} testID={`rate-row-${rate.name}`}>
-          <Text style={styles.rowTitle}>
-            {rate.name} {rate.is_default ? '(default)' : ''}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.rowTitle}>
+              {rate.name} {rate.is_default ? '(default)' : ''}
+            </Text>
+            {rate.active === false ? (
+              <Text style={styles.inactiveBadge} testID={`rate-inactive-${rate.name}`}>
+                Inactive
+              </Text>
+            ) : null}
+          </View>
           <Text style={styles.meta}>
             {rate.rate_type} · {rateSummary(rate)}
           </Text>
@@ -289,6 +322,35 @@ export default function RatesScreen() {
               {rate.effective_to ? formatLocalDate(rate.effective_to) : '—'}
             </Text>
           ) : null}
+          {rowError?.id === rate.id ? (
+            <Text style={styles.error} testID={`rate-error-${rate.name}`}>
+              {rowError?.message}
+            </Text>
+          ) : null}
+          {confirmArchive === rate.id ? (
+            <View style={styles.confirm} testID={`archive-confirm-${rate.name}`}>
+              <Text style={styles.meta}>
+                Archive '{rate.name}'? It disappears from this list and can't be used again. Past
+                sessions keep it.
+              </Text>
+              <View style={styles.row}>
+                <Button
+                  title="Archive rate"
+                  size="small"
+                  variant="danger"
+                  onPress={() => archive(rate)}
+                  testID={`archive-yes-${rate.name}`}
+                />
+                <Button
+                  title="Cancel"
+                  size="small"
+                  variant="outline"
+                  onPress={() => setConfirmArchive(null)}
+                  testID={`archive-no-${rate.name}`}
+                />
+              </View>
+            </View>
+          ) : null}
           <View style={styles.row}>
             <Button
               title="Edit"
@@ -306,14 +368,32 @@ export default function RatesScreen() {
                 testID={`default-rate-${rate.name}`}
               />
             ) : null}
-            {/* No Delete on the default rate (the server refuses it too). */}
-            {rate.is_default ? null : (
+            {/* The default can't be deactivated or archived (server-enforced too). Archive
+                replaces Delete so past sessions keep their rate (0048). */}
+            {rate.is_default ? null : rate.active === false ? (
+              <>
+                <Button
+                  title="Activate"
+                  size="small"
+                  variant="outline"
+                  onPress={() => setActive(rate, true)}
+                  testID={`activate-rate-${rate.name}`}
+                />
+                <Button
+                  title="Archive"
+                  size="small"
+                  variant="danger"
+                  onPress={() => setConfirmArchive(rate.id)}
+                  testID={`archive-rate-${rate.name}`}
+                />
+              </>
+            ) : (
               <Button
-                title="Delete"
+                title="Deactivate"
                 size="small"
-                variant="danger"
-                onPress={() => removeRate(rate)}
-                testID={`delete-rate-${rate.name}`}
+                variant="outline"
+                onPress={() => setActive(rate, false)}
+                testID={`deactivate-rate-${rate.name}`}
               />
             )}
           </View>
@@ -366,6 +446,23 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   rowTitle: { ...theme.typography.body, fontWeight: '600', flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  inactiveBadge: {
+    ...theme.typography.bodySmall,
+    fontWeight: '600',
+    color: '#374151',
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.sm,
+    overflow: 'hidden',
+  },
+  confirm: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: '#fef2f2',
+    marginBottom: theme.spacing.sm,
+  },
   meta: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,

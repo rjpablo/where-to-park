@@ -114,6 +114,14 @@ const RATE_ERRORS: Record<string, string> = {
   cannot_delete_default:
     "The default rate can't be deleted. Make another rate the default first, then delete this one.",
   not_found: 'That rate no longer exists. Refresh the list.',
+  cannot_deactivate_default:
+    "The default rate can't be deactivated. Make another rate the default first.",
+  cannot_archive_default: "The default rate can't be archived.",
+  archive_needs_inactive: 'Deactivate the rate before archiving it.',
+  rate_archived: 'That rate is archived. Refresh the list.',
+  rate_in_use:
+    'An open session uses this rate. End it or switch it to another rate, then deactivate.',
+  rate_has_sessions: 'Past sessions use this rate, so it can only be archived.',
   not_authenticated: 'Sign in again to change rates.',
   'Permission denied': 'Only the listing owner or a manager can change rates.',
   name_required: 'Give the rate a name.',
@@ -134,6 +142,17 @@ const RATE_ERRORS: Record<string, string> = {
 };
 
 /** Friendly text for a rate RPC error code (unknown messages pass through). */
+/** set_rate_active / archive_rate error, with the open-session count for rate_in_use (0048). */
+export function rateStatusErrorMessage(
+  data: { error?: unknown; sessions?: unknown } | null
+): string {
+  const n = Number(data?.sessions);
+  if (data?.error === 'rate_in_use' && Number.isFinite(n) && n > 0) {
+    return `${n} open session${n === 1 ? '' : 's'} (active or upcoming) use${n === 1 ? 's' : ''} this rate. End ${n === 1 ? 'it' : 'them'} or switch ${n === 1 ? 'it' : 'them'} to another rate, then deactivate.`;
+  }
+  return rateErrorMessage(data?.error);
+}
+
 export function rateErrorMessage(code: unknown): string {
   const key = String(code ?? '').trim();
   return RATE_ERRORS[key] ?? (key || 'Something went wrong. Try again.');

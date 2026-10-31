@@ -69,3 +69,20 @@ test('the default is always applicable: no vehicle, area or spot (0047)', async 
   assert.equal(canBeDefault({ ...base, slot_id: 's' }), false);
   assert.match(rateErrorMessage('default_cannot_have_vehicle'), /every vehicle/);
 });
+
+test('rate status errors: in-use count, default, archive (0048)', async () => {
+  const { rateStatusErrorMessage, rateErrorMessage } = await import('./rates.ts');
+  assert.match(
+    rateStatusErrorMessage({ error: 'rate_in_use', sessions: 1 }),
+    /^1 open session \(active or upcoming\) uses this rate/
+  );
+  assert.match(
+    rateStatusErrorMessage({ error: 'rate_in_use', sessions: 3 }),
+    /^3 open sessions .* use this rate. End them/
+  );
+  assert.match(
+    rateStatusErrorMessage({ error: 'cannot_deactivate_default' }),
+    /can't be deactivated/
+  );
+  assert.match(rateErrorMessage('archive_needs_inactive'), /Deactivate the rate/);
+});
