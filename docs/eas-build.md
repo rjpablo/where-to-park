@@ -258,5 +258,6 @@ Notes:
 - Sign-in is phone OTP only, so no Supabase Auth redirect URL is needed for the web domain.
   If email or magic-link sign-in is ever added, add `https://where-to-park.expo.app/**`
   to the project's Auth redirect URLs.
-- Known web-only issue: the results sheet can't be collapsed back after expanding it
-  (reanimated `setAttribute` error on web). Android is not affected.
+- 🟧 The old web-only issue (the results sheet couldn't be collapsed after expanding,
+  a reanimated `setAttribute` error) is fixed since the SDK 54 upgrade: on web the sheet
+  moves between Minimized, Normal and Maximized by tapping or dragging the handle.
