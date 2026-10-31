@@ -7,6 +7,7 @@ import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { rateErrorMessage } from '../../src/lib/rates';
+import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS } from '../../src/lib/searchFilters';
 import {
   NEW_RATE,
   formFromRate,
@@ -202,6 +203,27 @@ export default function RateEditScreen() {
           />
         </>
       )}
+
+      <Text style={styles.label}>Vehicle (optional)</Text>
+      <View style={styles.types}>
+        {[null, ...VEHICLE_TYPES].map((t) => {
+          const on = v.vehicleType === t;
+          return (
+            <TouchableOpacity
+              key={t ?? 'all'}
+              onPress={() => set('vehicleType', t)}
+              style={[styles.typeChip, on && styles.typeChipOn]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on }}
+              testID={`rate-vehicle-${t ?? 'all'}`}
+            >
+              <Text style={[styles.typeChipText, on && styles.typeChipTextOn]}>
+                {t ? VEHICLE_TYPE_LABELS[t] : 'All vehicles'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {existing?.is_default ? (
         <Text style={styles.meta} testID="rate-default-note">

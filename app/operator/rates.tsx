@@ -277,6 +277,12 @@ export default function RatesScreen() {
           <Text style={styles.meta} testID={`rate-days-${rate.name}`}>
             {daysLabel(rate.days_of_week)}
           </Text>
+          <Text style={styles.meta} testID={`rate-vehicle-${rate.name}`}>
+            {rate.vehicle_type
+              ? (VEHICLE_TYPE_LABELS as Record<string, string>)[rate.vehicle_type] ||
+                rate.vehicle_type
+              : 'All vehicles'}
+          </Text>
           {rate.effective_from || rate.effective_to ? (
             <Text style={styles.meta}>
               {rate.effective_from ? formatLocalDate(rate.effective_from) : '—'} →{' '}

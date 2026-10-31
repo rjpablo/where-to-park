@@ -15,6 +15,8 @@ export type RateFormValues = {
   to: string;
   /** Days of week the rate applies on (0 = Sunday … 6 = Saturday); empty = every day */
   days: number[];
+  /** Vehicle type the rate is for ('car', 'suv', …); null = all vehicles */
+  vehicleType: string | null;
 };
 
 export const NEW_RATE: RateFormValues = {
@@ -29,6 +31,7 @@ export const NEW_RATE: RateFormValues = {
   from: '',
   to: '',
   days: [],
+  vehicleType: null,
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -66,6 +69,7 @@ export function formFromRate(rate: any): RateFormValues {
     from: manilaDate(rate.effective_from),
     to: manilaDate(rate.effective_to),
     days: normalizeDays(rate.days_of_week),
+    vehicleType: rate.vehicle_type ?? null,
   };
 }
 
@@ -104,6 +108,7 @@ export function rateUpsertPayload(
     p_effective_from: existing?.is_default ? null : fromDayStart(v.from),
     p_effective_to: existing?.is_default ? null : toDayEnd(v.to),
     p_days_of_week: existing?.is_default || !v.days.length ? null : normalizeDays(v.days),
+    p_vehicle_type: v.vehicleType || null,
   };
 }
 

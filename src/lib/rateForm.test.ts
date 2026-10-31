@@ -89,3 +89,18 @@ test('days of week: label, toggle, payload', () => {
   assert.deepEqual(rateUpsertPayload('L', { ...NEW_RATE, days: [6, 0] }).p_days_of_week, [0, 6]);
   assert.deepEqual(formFromRate({ rate_type: 'hourly', days_of_week: [6, 0] }).days, [0, 6]);
 });
+
+test('vehicle type: optional, empty = all vehicles, kept on edit', () => {
+  assert.equal(NEW_RATE.vehicleType, null);
+  assert.equal(rateUpsertPayload('L', { ...NEW_RATE }).p_vehicle_type, null);
+  assert.equal(rateUpsertPayload('L', { ...NEW_RATE, vehicleType: 'suv' }).p_vehicle_type, 'suv');
+  const v = formFromRate({
+    id: 'r',
+    name: 'SUV',
+    rate_type: 'hourly',
+    hourly_amount: 90,
+    vehicle_type: 'suv',
+  });
+  assert.equal(v.vehicleType, 'suv');
+  assert.equal(formFromRate({ id: 'r', name: 'X', rate_type: 'hourly' }).vehicleType, null);
+});
