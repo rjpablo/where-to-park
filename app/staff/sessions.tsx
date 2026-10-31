@@ -161,9 +161,9 @@ export default function SessionsScreen() {
       });
 
       if (rpcError) throw rpcError;
-      if (data?.error === 'waiver_note_required') {
+      if (data?.error === 'balance_due') {
         setCloseError(
-          `Waiver required: ₱${Number(data.balance).toFixed(2)} still due after partial cash. Enter a waiver note.`
+          `₱${Number(data.balance).toFixed(2)} still due after partial cash. Settle it, or enter a waiver note.`
         );
         return;
       }

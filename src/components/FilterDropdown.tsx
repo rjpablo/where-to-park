@@ -1,5 +1,14 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import type { DropdownOption } from '../lib/searchFilters';
 import { theme } from '../lib/theme';
 
@@ -15,6 +24,8 @@ type Props<T extends string> = {
   /** Fill the chip when a non-'All' value is picked (filters); off for settings. */
   highlightActive?: boolean;
   testID?: string;
+  /** Extra chip style (e.g. full width for long options). */
+  style?: StyleProp<ViewStyle>;
 };
 
 /** Chip that opens a list of options (filters: 'All' = no filter; also used for settings). */
@@ -26,6 +37,7 @@ export function FilterDropdown<T extends string>({
   onChange,
   highlightActive = true,
   testID,
+  style,
 }: Props<T>) {
   const [open, setOpen] = React.useState(false);
   const current = options.find((o) => o.value === value) ?? options[0];
@@ -33,7 +45,7 @@ export function FilterDropdown<T extends string>({
   return (
     <>
       <TouchableOpacity
-        style={[styles.chip, active && styles.chipActive]}
+        style={[styles.chip, active && styles.chipActive, style]}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${current.label}. Change`}
