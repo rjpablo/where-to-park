@@ -51,3 +51,11 @@ test('canBeDefault: only active, undated, non-monthly, non-default rates', async
   assert.equal(canBeDefault({ rate_type: 'hourly', effective_to: '2026-12-26' }), false);
   assert.equal(canBeDefault({ rate_type: 'hourly', active: false }), false);
 });
+
+test('rateErrorMessage maps codes, passes others through', async () => {
+  const { rateErrorMessage } = await import('./rates.ts');
+  assert.match(rateErrorMessage('cannot_delete_default'), /default rate can't be deleted/);
+  assert.match(rateErrorMessage('Permission denied'), /owner or a manager/);
+  assert.equal(rateErrorMessage('some other error'), 'some other error');
+  assert.equal(rateErrorMessage(undefined), 'Something went wrong. Try again.');
+});

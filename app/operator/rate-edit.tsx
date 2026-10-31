@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { rateErrorMessage } from '../../src/lib/rates';
 import {
   NEW_RATE,
   formFromRate,
@@ -95,7 +96,7 @@ export default function RateEditScreen() {
     );
     setSaving(false);
     if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
+      setError(rpcError?.message || rateErrorMessage(data?.error));
       return;
     }
     backToRates();

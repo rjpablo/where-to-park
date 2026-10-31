@@ -6,7 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
-import { canBeDefault } from '../../src/lib/rates';
+import { canBeDefault, rateErrorMessage } from '../../src/lib/rates';
 import { daysLabel } from '../../src/lib/rateForm';
 import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import {
@@ -131,7 +131,7 @@ export default function RatesScreen() {
     setError(null);
     const { data, error: rpcError } = await supabase.rpc('delete_rate', { p_rate_id: rate.id });
     if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
+      setError(rpcError?.message || rateErrorMessage(data?.error));
       return;
     }
     setNotice('Rate deleted');
@@ -146,7 +146,7 @@ export default function RatesScreen() {
       p_rate_id: rate.id,
     });
     if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
+      setError(rpcError?.message || rateErrorMessage(data?.error));
       return;
     }
     setNotice(`'${rate.name}' is now the default rate`);
@@ -281,13 +281,16 @@ export default function RatesScreen() {
                 testID={`default-rate-${rate.name}`}
               />
             ) : null}
-            <Button
-              title={rate.is_default ? 'Default (locked)' : 'Delete'}
-              size="small"
-              variant={rate.is_default ? 'outline' : 'danger'}
-              onPress={() => removeRate(rate)}
-              testID={rate.is_default ? 'delete-default-rate' : `delete-rate-${rate.name}`}
-            />
+            {/* No Delete on the default rate (the server refuses it too). */}
+            {rate.is_default ? null : (
+              <Button
+                title="Delete"
+                size="small"
+                variant="danger"
+                onPress={() => removeRate(rate)}
+                testID={`delete-rate-${rate.name}`}
+              />
+            )}
           </View>
         </View>
       ))}

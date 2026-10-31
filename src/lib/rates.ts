@@ -103,3 +103,26 @@ export function canBeDefault(rate: DefaultCandidate): boolean {
   if (rate.effective_from || rate.effective_to) return false;
   return rate.active !== false;
 }
+
+const RATE_ERRORS: Record<string, string> = {
+  cannot_delete_default:
+    "The default rate can't be deleted. Make another rate the default first, then delete this one.",
+  not_found: 'That rate no longer exists. Refresh the list.',
+  not_authenticated: 'Sign in again to change rates.',
+  'Permission denied': 'Only the listing owner or a manager can change rates.',
+  name_required: 'Give the rate a name.',
+  hourly_amount_required: 'Enter the hourly amount.',
+  daily_amount_required: 'Enter the daily amount.',
+  monthly_amount_required: 'Enter the monthly amount.',
+  flat_then_hourly_fields_required:
+    'Enter the first hours, their amount and the hourly amount after.',
+  days_of_week_invalid: 'Pick days from Monday to Sunday.',
+  default_cannot_have_dates: "The default rate can't have effective dates.",
+  default_cannot_have_days: "The default rate can't be limited to days of the week.",
+};
+
+/** Friendly text for a rate RPC error code (unknown messages pass through). */
+export function rateErrorMessage(code: unknown): string {
+  const key = String(code ?? '').trim();
+  return RATE_ERRORS[key] ?? (key || 'Something went wrong. Try again.');
+}
