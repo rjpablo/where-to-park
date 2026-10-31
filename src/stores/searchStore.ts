@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase, type SearchResult } from '../lib/supabase';
 import { DEFAULT_DISTANCE_KM } from '../lib/distance';
 import { searchFilterParams, type SearchFilters } from '../lib/searchFilters';
+import type { SheetMode } from '../lib/sheetLayout';
 
 interface SearchState {
   results: SearchResult[];
@@ -9,7 +10,7 @@ interface SearchState {
   error: string | null;
   filters: SearchFilters;
   sortBy: 'distance' | 'price' | 'availability' | 'rating' | 'eta';
-  sheetPosition: 'peek' | 'expanded';
+  sheetPosition: SheetMode;
   cameraPosition: { lat: number; lng: number; zoom: number } | null;
   /** Centre of the last search: the origin of the list's distances and ETAs (and the details page's). */
   searchOrigin: { lat: number; lng: number } | null;
@@ -17,7 +18,7 @@ interface SearchState {
   search: (lat: number, lng: number, radius?: number) => Promise<void>;
   setFilters: (filters: Partial<SearchState['filters']>) => void;
   setSortBy: (sortBy: SearchState['sortBy']) => void;
-  setSheetPosition: (position: 'peek' | 'expanded') => void;
+  setSheetPosition: (position: SheetMode) => void;
   setCameraPosition: (position: { lat: number; lng: number; zoom: number }) => void;
 }
 
@@ -32,7 +33,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     distanceKm: DEFAULT_DISTANCE_KM,
   },
   sortBy: 'distance',
-  sheetPosition: 'peek',
+  // Every new search opens the sheet in Normal (SearchScreen snaps it there).
+  sheetPosition: 'normal',
   cameraPosition: null,
   searchOrigin: null,
 

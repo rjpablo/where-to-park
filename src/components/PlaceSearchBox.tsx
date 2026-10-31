@@ -17,10 +17,13 @@ type Props = {
   near?: Coordinate;
   onSelect: (place: PlaceSuggestion) => void;
   onClear?: () => void;
+  /** Called when the suggestions list opens or closes (the search screen lifts the box
+   *  above the results sheet while it is open). */
+  onSuggestionsVisibleChange?: (visible: boolean) => void;
 };
 
 /** Map place search with debounced as-you-type suggestions. */
-export function PlaceSearchBox({ near, onSelect, onClear }: Props) {
+export function PlaceSearchBox({ near, onSelect, onClear, onSuggestionsVisibleChange }: Props) {
   const geocoder = getGeocoder();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -85,6 +88,10 @@ export function PlaceSearchBox({ near, onSelect, onClear }: Props) {
   };
 
   const showList = open && query.trim().length >= geocoder.minQueryLength;
+  const listVisible = showList && (suggestions.length > 0 || !!error || !loading);
+  useEffect(() => {
+    onSuggestionsVisibleChange?.(listVisible);
+  }, [listVisible, onSuggestionsVisibleChange]);
 
   return (
     <View style={styles.wrap} testID="place-search">
@@ -118,7 +125,7 @@ export function PlaceSearchBox({ near, onSelect, onClear }: Props) {
         ) : null}
       </View>
 
-      {showList && (suggestions.length > 0 || error || !loading) ? (
+      {listVisible ? (
         <View style={styles.list} testID="place-suggestions">
           {error ? <Text style={styles.empty}>{error}</Text> : null}
           {!error && !loading && suggestions.length === 0 ? (

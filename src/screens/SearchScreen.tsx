@@ -29,9 +29,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  expandedHeight,
+  maximizedHeight,
+  nextSheetMode,
+  normalHeight,
   peekHeight,
   sheetContainerHeight,
+  sheetModeAt,
+  sheetModeIndex,
   sheetVisibleHeight,
 } from '../lib/sheetLayout';
 import { useSidebarStore } from '../stores/sidebarStore';
@@ -67,18 +71,22 @@ import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 import { useBottomInset } from '../hooks/useBottomInset';
 
-// Results sheet: collapsed it fits its top part (title, summary, filters, distance
-// slider); expanded it takes 85% of the screen. The sort chips and the list are always
-// rendered below the top part, so collapsed they sit clipped below the visible area and
-// expanding needs no re-render.
-const SHEET_EXPANDED = 0.85;
-/** Collapsed height until the top part has been measured, and its limits. */
+// Results sheet, three modes (snap points, drag the handle between them):
+// - Minimized: fits its top part (title, summary, one row of filters, distance slider);
+// - Normal: 65% of the search screen (the area below the header); every new search
+//   opens the sheet in Normal;
+// - Maximized: its top sits SHEET_MAX_GAP px below the header, so that much map shows.
+// The sort chips and the list are always rendered below the top part (clipped when
+// Minimized), so changing mode needs no re-render. The sheet is drawn above every map
+// element (search box, 'Search this area', pins, location dot and button).
+const SHEET_NORMAL_FRACTION = 0.65;
+const SHEET_MAX_GAP = 10;
+/** Minimized height until the top part has been measured, and its limits. */
 const SHEET_PEEK_DEFAULT = 170;
 const SHEET_PEEK_MIN = 120;
 const SHEET_PEEK_MAX_FRACTION = 0.5;
-/** Expanded, the sheet's top stays below the place search box (72 px) plus a gap. */
-const SHEET_KEEP_CLEAR_TOP = 88;
-const SHEET_EXPANDED_MIN = 240;
+/** Above the map overlays (search box: zIndex 10 / elevation 12; ◎ button: zIndex 5). */
+const SHEET_LAYER = 30;
 const RECENTER_SIZE = 46;
 const RECENTER_GAP = 16;
 /** Below the place search box (72 px) plus room for the location message. */
@@ -135,20 +143,26 @@ export function SearchScreen() {
       )
     : SHEET_PEEK_DEFAULT;
   const [screenH, setScreenH] = useState(windowHeight);
-  const expandedPx = Math.max(
-    peekPx + 1,
-    expandedHeight(screenH, SHEET_EXPANDED, SHEET_KEEP_CLEAR_TOP, SHEET_EXPANDED_MIN)
-  );
-  const snapPoints = useMemo(() => [peekPx, expandedPx], [peekPx, expandedPx]);
+  // screenH is this screen's height, which starts right under the header.
+  const normalPx = normalHeight(screenH, SHEET_NORMAL_FRACTION, peekPx);
+  const maxPx = maximizedHeight(screenH, SHEET_MAX_GAP, normalPx);
+  const snapPoints = useMemo(() => [peekPx, normalPx, maxPx], [peekPx, normalPx, maxPx]);
+  const currentSheetPx = snapPoints[sheetModeIndex(sheetPosition)];
+  // The ◎ button rides RECENTER_GAP above the sheet top in every mode and is hidden
+  // (and not tappable) when that leaves no room below the search box, e.g. Maximized.
+  const recenterHidden =
+    recenterButtonTop(screenH - currentSheetPx, RECENTER_SIZE, RECENTER_GAP, RECENTER_MIN_TOP) ===
+    null;
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   // Keep cluster zooms clear of the bottom sheet (collapsed or expanded height).
   const overlayInsets = useMemo(
     () => ({
       top: 72, // place search box
       right: 0,
       left: 0,
-      bottom: sheetPosition === 'expanded' ? expandedPx : peekPx,
+      bottom: currentSheetPx,
     }),
-    [sheetPosition, peekPx, expandedPx]
+    [currentSheetPx]
   );
 
   // Initial camera only; later moves come from the user, clusters or place search.
@@ -212,30 +226,24 @@ export function SearchScreen() {
   const sheetIndex = useSharedValue(0);
   const sheetTopPx = useSharedValue(0);
   const screenHeight = useSharedValue(windowHeight);
-  const peekShared = useSharedValue(peekPx);
-  const expandedShared = useSharedValue(expandedPx);
+  const snapShared = useSharedValue<number[]>(snapPoints);
   const containerHeight = useSharedValue(0);
   useEffect(() => {
-    peekShared.value = peekPx;
-    expandedShared.value = expandedPx;
-  }, [peekPx, expandedPx, peekShared, expandedShared]);
+    snapShared.value = snapPoints;
+  }, [snapPoints, snapShared]);
   // The sheet's container height, re-derived each time it rests on a snap point.
   useAnimatedReaction(
-    () => [sheetIndex.value, sheetTopPx.value, peekShared.value, expandedShared.value] as const,
-    ([index, position, peek, expanded]) => {
-      containerHeight.value = sheetContainerHeight(
-        index,
-        position,
-        peek,
-        expanded,
-        containerHeight.value
-      );
+    () => [sheetIndex.value, sheetTopPx.value, snapShared.value] as const,
+    ([index, position, snaps]) => {
+      containerHeight.value = sheetContainerHeight(index, position, snaps, containerHeight.value);
     }
   );
   const recenterStyle = useAnimatedStyle(() => {
     const sheetHeight = containerHeight.value
       ? sheetVisibleHeight(containerHeight.value, sheetTopPx.value)
-      : peekShared.value;
+      : snapShared.value[
+          Math.min(snapShared.value.length - 1, Math.max(0, Math.round(sheetIndex.value)))
+        ];
     const sheetTop = screenHeight.value - sheetHeight;
     const top = recenterButtonTop(sheetTop, RECENTER_SIZE, RECENTER_GAP, RECENTER_MIN_TOP);
     return top === null ? { opacity: 0, top: RECENTER_MIN_TOP } : { opacity: 1, top };
@@ -373,6 +381,11 @@ export function SearchScreen() {
     const searchKey = `${location.lat},${location.lng},${searchNonce}`;
     const isNewSearch = lastSearchKey.current !== searchKey;
     lastSearchKey.current = searchKey;
+    // Every new search (first load, 'Search this area') opens the sheet in Normal.
+    if (isNewSearch) {
+      setSheetPosition('normal');
+      sheetRef.current?.snapToIndex(sheetModeIndex('normal'));
+    }
     const origin: [number, number] = [location.lng, location.lat];
     const viewport = latestViewport.current;
     const farthest = viewport
@@ -529,9 +542,13 @@ export function SearchScreen() {
         onViewportChange={handleViewportChange}
       />
 
-      <View style={styles.topOverlay} pointerEvents="box-none">
+      <View
+        style={[styles.topOverlay, suggestionsOpen && styles.topOverlayRaised]}
+        pointerEvents="box-none"
+      >
         <PlaceSearchBox
           near={mapCenter}
+          onSuggestionsVisibleChange={setSuggestionsOpen}
           onSelect={handlePlaceSelect}
           onClear={() => setPlaceMarker(null)}
         />
@@ -549,10 +566,7 @@ export function SearchScreen() {
 
       <Animated.View style={[styles.recenterWrap, recenterStyle]}>
         {/* Hidden over the expanded sheet: never intercept taps on the list. */}
-        <View
-          style={styles.recenterInner}
-          pointerEvents={sheetPosition === 'expanded' ? 'none' : 'box-none'}
-        >
+        <View style={styles.recenterInner} pointerEvents={recenterHidden ? 'none' : 'box-none'}>
           {locationNotice ? (
             <View style={styles.locationNotice} testID="location-notice">
               <Text style={styles.locationNoticeText}>{locationNotice}</Text>
@@ -582,10 +596,10 @@ export function SearchScreen() {
         ref={sheetRef}
         animatedIndex={sheetIndex}
         animatedPosition={sheetTopPx}
-        index={sheetPosition === 'expanded' ? 1 : 0}
+        index={sheetModeIndex(sheetPosition)}
         snapPoints={snapPoints}
         onChange={(index) => {
-          setSheetPosition(index >= 1 ? 'expanded' : 'peek');
+          if (index >= 0) setSheetPosition(sheetModeAt(index));
         }}
         handleComponent={null}
         // bottom-sheet v5 adds a content-sized snap point by default; ours are measured px.
@@ -596,6 +610,9 @@ export function SearchScreen() {
         failOffsetX={[-8, 8]}
         backgroundStyle={styles.sheetBackground}
         style={styles.sheet}
+        // Draw the sheet above all map overlays; on Android sibling order follows
+        // elevation, so it needs a higher elevation than the search box (12).
+        containerStyle={styles.sheetLayer}
       >
         <View
           style={styles.sheetBody}
@@ -609,7 +626,9 @@ export function SearchScreen() {
             <TouchableOpacity
               testID="sheet-expand-toggle"
               accessibilityLabel="Toggle search sheet"
-              onPress={() => sheetRef.current?.snapToIndex(sheetPosition === 'expanded' ? 0 : 1)}
+              onPress={() =>
+                sheetRef.current?.snapToIndex(sheetModeIndex(nextSheetMode(sheetPosition)))
+              }
               style={styles.sheetHandleHit}
             >
               <View style={styles.sheetHandle} />
@@ -796,6 +815,15 @@ const styles = StyleSheet.create({
   },
   sheet: {
     ...theme.shadows.lg,
+  },
+  sheetLayer: {
+    zIndex: SHEET_LAYER,
+    elevation: SHEET_LAYER,
+  },
+  // While place suggestions are open they must show over the sheet.
+  topOverlayRaised: {
+    zIndex: SHEET_LAYER + 1,
+    elevation: SHEET_LAYER + 1,
   },
   sheetBackground: {
     backgroundColor: theme.colors.background,
