@@ -20,6 +20,7 @@ import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   balanceToSettle,
+  isNegativeBalance,
   paymentAmountError,
   refundAmountError,
   startsIn,
@@ -294,7 +295,10 @@ export default function SessionScreen() {
             Waived: {formatPeso(d.waived)}
           </Text>
         ) : null}
-        <Text style={styles.balance} testID="session-balance">
+        <Text
+          style={[styles.balance, isNegativeBalance(d.balance) && styles.negative]}
+          testID="session-balance"
+        >
           Balance: {formatPeso(d.balance)}
         </Text>
       </View>
@@ -636,6 +640,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   balance: { ...theme.typography.h3, color: theme.colors.primary, marginTop: theme.spacing.sm },
+  negative: { color: theme.colors.danger },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.sm },
   error: { ...theme.typography.body, color: theme.colors.danger, margin: theme.spacing.md },
 });

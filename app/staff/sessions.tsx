@@ -9,7 +9,16 @@ import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { deliverReturnedPush } from '../../src/lib/push';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
-import { isReservation, sessionWaived, startsIn } from '../../src/lib/walkIn';
+import {
+  endedBalance,
+  isNegativeBalance,
+  isReservation,
+  sessionWaived,
+  startsIn,
+} from '../../src/lib/walkIn';
+
+// folios is a one-to-one embed (object) or an array, depending on PostgREST's view.
+const embeddedFolio = (e: any) => (Array.isArray(e?.folios) ? e.folios[0] : e?.folios);
 
 export default function SessionsScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
@@ -144,7 +153,7 @@ export default function SessionsScreen() {
     let query = supabase
       .from('parking_sessions')
       .select(
-        'id, plate, vehicle_type, started_at, ended_at, cancelled_at, location_id, folios(folio_charges(amount, type, voided_at))'
+        'id, plate, vehicle_type, started_at, ended_at, cancelled_at, location_id, folios(folio_charges(amount, type, voided_at), payments(amount, direction))'
       )
       .eq('status', 'ended')
       .gte('ended_at', new Date(Date.now() - 7 * 24 * 3600_000).toISOString())
@@ -240,7 +249,10 @@ export default function SessionsScreen() {
               Extra fees: {formatPeso(extraFees)}
             </Text>
           ) : null}
-          <Text style={styles.sessionBalance} testID={`session-balance-${item.plate}`}>
+          <Text
+            style={[styles.sessionBalance, isNegativeBalance(balance) && styles.negative]}
+            testID={`session-balance-${item.plate}`}
+          >
             Balance: {formatPeso(balance)}
           </Text>
           {isOverdue ? (
@@ -562,6 +574,15 @@ export default function SessionsScreen() {
                         <Text style={styles.sessionType}>
                           {e.cancelled_at ? 'Cancelled' : 'Ended'} {formatLocalDateTime(e.ended_at)}
                         </Text>
+                        <Text
+                          style={[
+                            styles.sessionTime,
+                            isNegativeBalance(endedBalance(embeddedFolio(e))) && styles.negative,
+                          ]}
+                          testID={`ended-balance-${e.plate}`}
+                        >
+                          Balance: {formatPeso(endedBalance(embeddedFolio(e)))}
+                        </Text>
                       </View>
                       {e.cancelled_at ? (
                         <View style={styles.cancelledBadge} testID={`cancelled-${e.plate}`}>
@@ -698,6 +719,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
   },
+  negative: { color: theme.colors.danger },
   sessionBalance: {
     ...theme.typography.h3,
     color: theme.colors.primary,

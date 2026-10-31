@@ -199,3 +199,29 @@ export function startsIn(iso: string, now: number = Date.now()): string {
   if (min < 1440) return `in ${Math.floor(min / 60)}h`;
   return `in ${Math.floor(min / 1440)}d`;
 }
+
+/** A negative balance (credit) is shown in red (rj); the amount keeps its '₱-5.00' format. */
+export function isNegativeBalance(balance: unknown): boolean {
+  const n = Number(balance);
+  return Number.isFinite(n) && n < -0.005;
+}
+
+/** Ended session balance from its folio: charges (incl. waivers) minus net payments. */
+export function endedBalance(
+  folio:
+    | {
+        folio_charges?: { amount: unknown; type: string; voided_at?: string | null }[] | null;
+        payments?: { amount: unknown; direction?: string | null }[] | null;
+      }
+    | null
+    | undefined
+): number {
+  const charges = (folio?.folio_charges || [])
+    .filter((c) => !c.voided_at)
+    .reduce((t, c) => t + Number(c.amount || 0), 0);
+  const paid = (folio?.payments || []).reduce(
+    (t, p) => t + (p.direction === 'refund' ? -1 : 1) * Number(p.amount || 0),
+    0
+  );
+  return Math.round((charges - paid) * 100) / 100;
+}
