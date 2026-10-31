@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import { useSearchStore } from '../stores/searchStore';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
 import { Map } from '../components/map';
@@ -631,8 +632,17 @@ export function SearchScreen() {
                 </View>
               </View>
 
-              {/* Vehicle, Rate, Show Full; wraps onto a second line on narrow screens. */}
-              <View style={styles.filterRow} testID="filter-row">
+              {/* Vehicle, Rate, Show Full in one row that scrolls sideways on narrow screens.
+                  Gesture-handler ScrollView so it cooperates with the sheet's pan gesture
+                  (the sheet only takes vertical drags: activeOffsetY / failOffsetX). */}
+              <GestureScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterScroll}
+                contentContainerStyle={styles.filterRow}
+                keyboardShouldPersistTaps="handled"
+                testID="filter-row"
+              >
                 <FilterDropdown
                   label="Vehicle"
                   showLabel={false}
@@ -657,7 +667,7 @@ export function SearchScreen() {
                 >
                   <Text style={styles.filterChipText}>Show Full</Text>
                 </TouchableOpacity>
-              </View>
+              </GestureScrollView>
 
               <DistanceSlider
                 valueKm={filters.distanceKm}
@@ -833,11 +843,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
+  filterScroll: {
+    flexGrow: 0,
+    // Bleed to the sheet edges so chips scroll under the side padding.
+    marginHorizontal: -theme.spacing.lg,
+  },
   filterRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
   },
   filterChip: {
     paddingHorizontal: theme.spacing.md,
