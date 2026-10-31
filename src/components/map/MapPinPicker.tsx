@@ -47,7 +47,7 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
 
   return (
     <View style={[styles.container, style]} testID="map-pin-picker">
-      <View>
+      <View style={styles.mapWrap}>
         <Map
           region={region}
           onRegionChange={setRegion}
@@ -86,6 +86,10 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
 const styles = StyleSheet.create({
   container: {
     minHeight: 300,
+  },
+  // Fixed height: the web map is flex: 1, so it needs a sized parent.
+  mapWrap: {
+    height: 280,
   },
   map: {
     height: 280,
