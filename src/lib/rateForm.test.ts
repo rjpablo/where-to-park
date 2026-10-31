@@ -45,7 +45,9 @@ test('edit keeps hidden fields (area, max per day, active, default)', () => {
   assert.equal(v.from, '2026-12-24');
   const p = rateUpsertPayload('L', v, rate);
   assert.equal(p.p_rate_id, 'r1');
-  assert.equal(p.p_area_id, 'a1');
+  // the default is never area-limited (0047); a normal rate keeps its area
+  assert.equal(p.p_area_id, null);
+  assert.equal(rateUpsertPayload('L', v, { ...rate, is_default: false }).p_area_id, 'a1');
   assert.equal(p.p_max_per_day, '500.00');
   assert.equal(p.p_is_default, true);
   assert.equal(p.p_hourly_amount, 60);
@@ -103,4 +105,20 @@ test('vehicle type: optional, empty = all vehicles, kept on edit', () => {
   });
   assert.equal(v.vehicleType, 'suv');
   assert.equal(formFromRate({ id: 'r', name: 'X', rate_type: 'hourly' }).vehicleType, null);
+});
+
+test('editing the default never sends a vehicle, an area or inactive', () => {
+  const dflt = {
+    id: 'd',
+    name: 'Std',
+    rate_type: 'hourly',
+    hourly_amount: 50,
+    is_default: true,
+    area_id: 'a',
+    active: false,
+  };
+  const p = rateUpsertPayload('L', { ...formFromRate(dflt), vehicleType: 'car' }, dflt);
+  assert.equal(p.p_vehicle_type, null);
+  assert.equal(p.p_area_id, null);
+  assert.equal(p.p_active, true);
 });

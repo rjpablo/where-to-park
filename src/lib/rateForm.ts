@@ -102,13 +102,14 @@ export function rateUpsertPayload(
     p_first_amount: t === 'flat_then_hourly' ? Number(v.firstAmount) : null,
     p_succeeding_hourly_amount: t === 'flat_then_hourly' ? Number(v.succeeding) : null,
     p_max_per_day: existing?.max_per_day ?? null,
-    p_area_id: existing?.area_id ?? null,
-    p_active: existing?.active ?? true,
+    p_area_id: existing?.is_default ? null : (existing?.area_id ?? null),
+    p_active: existing?.is_default ? true : (existing?.active ?? true),
     // The default rate applies every day with no dates (0042): never send them for it.
     p_effective_from: existing?.is_default ? null : fromDayStart(v.from),
     p_effective_to: existing?.is_default ? null : toDayEnd(v.to),
     p_days_of_week: existing?.is_default || !v.days.length ? null : normalizeDays(v.days),
-    p_vehicle_type: v.vehicleType || null,
+    // The default applies to every vehicle (0047).
+    p_vehicle_type: existing?.is_default ? null : v.vehicleType || null,
   };
 }
 

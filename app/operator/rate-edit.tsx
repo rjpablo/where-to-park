@@ -204,31 +204,35 @@ export default function RateEditScreen() {
         </>
       )}
 
-      <Text style={styles.label}>Vehicle (optional)</Text>
-      <View style={styles.types}>
-        {[null, ...VEHICLE_TYPES].map((t) => {
-          const on = v.vehicleType === t;
-          return (
-            <TouchableOpacity
-              key={t ?? 'all'}
-              onPress={() => set('vehicleType', t)}
-              style={[styles.typeChip, on && styles.typeChipOn]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: on }}
-              testID={`rate-vehicle-${t ?? 'all'}`}
-            >
-              <Text style={[styles.typeChipText, on && styles.typeChipTextOn]}>
-                {t ? VEHICLE_TYPE_LABELS[t] : 'All vehicles'}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {existing?.is_default ? null : (
+        <>
+          <Text style={styles.label}>Vehicle (optional)</Text>
+          <View style={styles.types}>
+            {[null, ...VEHICLE_TYPES].map((t) => {
+              const on = v.vehicleType === t;
+              return (
+                <TouchableOpacity
+                  key={t ?? 'all'}
+                  onPress={() => set('vehicleType', t)}
+                  style={[styles.typeChip, on && styles.typeChipOn]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  testID={`rate-vehicle-${t ?? 'all'}`}
+                >
+                  <Text style={[styles.typeChipText, on && styles.typeChipTextOn]}>
+                    {t ? VEHICLE_TYPE_LABELS[t] : 'All vehicles'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      )}
 
       {existing?.is_default ? (
         <Text style={styles.meta} testID="rate-default-note">
-          The default rate applies every day, with no dates. To limit days or dates, use another
-          rate.
+          The default rate applies to every vehicle, every day, with no dates, so it can always
+          price a session. To limit vehicles, days or dates, use another rate.
         </Text>
       ) : (
         <>

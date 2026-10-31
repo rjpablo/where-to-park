@@ -76,6 +76,7 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 ### F2. Parking Rates
 
 - One default rate per location (editable, not deletable)
+- 🟧 **The default rate is always applicable (migration 0047)**: the default applies to **every vehicle, every day, with no dates, area or spot**, and is always active, so it is always in the check-in rate list and can always price a session (any rate type, monthly included). The New/Edit rate form hides the Vehicle choice when editing the default (note: 'The default rate applies to every vehicle, every day, with no dates…'); **Set as default** is offered only on active all-vehicle rates without dates, days, area or spot; the server refuses the rest (`default_cannot_have_vehicle`, `default_cannot_have_area`, plus the 0042 date/day rules) and a check constraint backs it. Existing defaults with a vehicle or area were cleared to all vehicles / no area (none on staging). **Every listing always has a default**: `create_location` (used by onboarding) creates the listing and its 'Standard Rate' default in one transaction, the RPCs refuse deleting or unsetting the default, and deferred database checks refuse, at commit, any write that would leave a listing without a default (including direct table writes); deleting a listing still takes its rates with it. Staging: all 13 listings have a default.
 - Custom rates with any name, optional effective period, optional scope (area/slot/vehicle/days)
 - Monthly rate alongside Hourly/Daily so drivers can filter by Monthly
 - Rate preview tool shows which rate wins and why
@@ -84,11 +85,11 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 **Rate Types:**
 
-| Type                            | Operator Enters                            | Charged                                                             |
-| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
-| Hourly (default)                | ₱ per hour                                 | Per started hour, minimum 1 hour                                    |
-| Daily                           | ₱ per day                                  | Per started 24h from check-in                                       |
-| Flat first N hours, then hourly | N hours, ₱ for them, ₱ per succeeding hour | Flat amount covers first N hours, then per started hour             |
+| Type                            | Operator Enters                            | Charged                                                                                                                                                                                                                                                |
+| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Hourly (default)                | ₱ per hour                                 | Per started hour, minimum 1 hour                                                                                                                                                                                                                       |
+| Daily                           | ₱ per day                                  | Per started 24h from check-in                                                                                                                                                                                                                          |
+| Flat first N hours, then hourly | N hours, ₱ for them, ₱ per succeeding hour | Flat amount covers first N hours, then per started hour                                                                                                                                                                                                |
 | Monthly                         | ₱ per month                                | Shown on listing and used by Monthly filter. 🟧 Prices a walk-in session only when it is the session's rate (chosen, or Automatic when only monthly rates apply): per started month from the start (0045); the price preview still skips monthly rates |
 
 **Rate Resolution Precedence:**

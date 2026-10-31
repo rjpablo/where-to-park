@@ -93,6 +93,9 @@ export type DefaultCandidate = {
   effective_from?: string | null;
   effective_to?: string | null;
   days_of_week?: number[] | null;
+  vehicle_type?: string | null;
+  area_id?: string | null;
+  slot_id?: string | null;
 };
 
 /** Whether 'Set as default' is offered for a rate. Mirrors set_default_rate (0042): any
@@ -102,6 +105,8 @@ export function canBeDefault(rate: DefaultCandidate): boolean {
   if (rate.is_default) return false;
   if (rate.effective_from || rate.effective_to) return false;
   if (Array.isArray(rate.days_of_week) && rate.days_of_week.length > 0) return false;
+  // The default is always applicable (0047): all vehicles, no area or spot.
+  if (rate.vehicle_type || rate.area_id || rate.slot_id) return false;
   return rate.active !== false;
 }
 
@@ -121,6 +126,9 @@ const RATE_ERRORS: Record<string, string> = {
   default_cannot_have_dates: "The default rate can't have effective dates.",
   default_cannot_have_days: "The default rate can't be limited to days of the week.",
   default_must_be_active: 'Only an active rate can be the default.',
+  default_cannot_have_vehicle:
+    'The default rate applies to every vehicle. Remove its vehicle type, or use another rate.',
+  default_cannot_have_area: "The default rate can't be limited to an area or spot.",
   'No rate found':
     'No rate covers this stay. Monthly rates never price a stay, so add an hourly, daily or flat rate for this time.',
 };

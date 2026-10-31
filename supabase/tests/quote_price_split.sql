@@ -75,8 +75,13 @@ BEGIN
   ASSERT (q->>'amount')::numeric = 340, 'cap per segment: ' || q::text;
 END $$;
 
--- An hour with no rate fails the quote: weekend only, default switched off
-UPDATE rates SET active = false WHERE location_id = '30000000-0000-0000-0000-000000000005' AND is_default;
+-- An hour with no rate fails the quote: weekend only, with a monthly default (monthly
+-- rates never price a stay in quote_price) and the hourly rate switched off
+INSERT INTO rates (location_id, name, rate_type, monthly_amount, active, is_default)
+VALUES ('30000000-0000-0000-0000-000000000005', 'T Monthly', 'monthly', 3000, true, false);
+UPDATE rates SET is_default = false WHERE location_id = '30000000-0000-0000-0000-000000000005' AND is_default;
+UPDATE rates SET is_default = true WHERE location_id = '30000000-0000-0000-0000-000000000005' AND name = 'T Monthly';
+UPDATE rates SET active = false WHERE location_id = '30000000-0000-0000-0000-000000000005' AND name = 'Car Rate';
 DO $$
 DECLARE
   q jsonb := quote_price('30000000-0000-0000-0000-000000000005', 'car', '2026-11-01 22:00+08', 4);

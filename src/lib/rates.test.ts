@@ -59,3 +59,13 @@ test('rateErrorMessage maps codes, passes others through', async () => {
   assert.equal(rateErrorMessage('some other error'), 'some other error');
   assert.equal(rateErrorMessage(undefined), 'Something went wrong. Try again.');
 });
+
+test('the default is always applicable: no vehicle, area or spot (0047)', async () => {
+  const { canBeDefault, rateErrorMessage } = await import('./rates.ts');
+  const base = { rate_type: 'hourly', active: true };
+  assert.equal(canBeDefault({ ...base }), true);
+  assert.equal(canBeDefault({ ...base, vehicle_type: 'suv' }), false);
+  assert.equal(canBeDefault({ ...base, area_id: 'a' }), false);
+  assert.equal(canBeDefault({ ...base, slot_id: 's' }), false);
+  assert.match(rateErrorMessage('default_cannot_have_vehicle'), /every vehicle/);
+});
