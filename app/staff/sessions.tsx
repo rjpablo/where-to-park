@@ -9,6 +9,7 @@ import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { deliverReturnedPush } from '../../src/lib/push';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { sessionWaived } from '../../src/lib/walkIn';
 
 export default function SessionsScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
@@ -23,6 +24,8 @@ export default function SessionsScreen() {
   const checkedIn = firstParam(sp.checkedIn);
   const ended = firstParam(sp.ended);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [showEnded, setShowEnded] = useState(false);
+  const [endedSessions, setEndedSessions] = useState<any[]>([]);
   const [locationName, setLocationName] = useState('Listing');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +92,7 @@ export default function SessionsScreen() {
           folios(
             id,
             status,
-            folio_charges(amount, type),
+            folio_charges(amount, type, voided_at),
             payments(amount)
           )
         `
@@ -131,6 +134,27 @@ export default function SessionsScreen() {
       setLoading(false);
     }
   };
+
+  // Ended in the last 7 days (with any waived amount), shown under the active list.
+  const loadEnded = async () => {
+    let query = supabase
+      .from('parking_sessions')
+      .select(
+        'id, plate, vehicle_type, started_at, ended_at, location_id, folios(folio_charges(amount, type, voided_at))'
+      )
+      .eq('status', 'ended')
+      .gte('ended_at', new Date(Date.now() - 7 * 24 * 3600_000).toISOString())
+      .order('ended_at', { ascending: false })
+      .limit(50);
+    if (locationId) query = query.eq('location_id', locationId);
+    const { data } = await query;
+    setEndedSessions(data || []);
+  };
+
+  React.useEffect(() => {
+    if (showEnded) loadEnded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showEnded, sessions]);
 
   const livePreview = (item: any) => previews[item.id] || null;
 
@@ -179,6 +203,11 @@ export default function SessionsScreen() {
               <Text style={styles.overdueBadgeText}>OVERDUE</Text>
             </View>
           )}
+          {sessionWaived(item) > 0 ? (
+            <View style={styles.waivedBadge} testID={`waived-${item.plate}`}>
+              <Text style={styles.waivedBadgeText}>Waived {formatPeso(sessionWaived(item))}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.sessionDetails}>
@@ -497,6 +526,54 @@ export default function SessionsScreen() {
             <Text style={styles.emptyText}>No active sessions</Text>
           </View>
         }
+        ListFooterComponent={
+          <View style={{ marginTop: theme.spacing.md }}>
+            <Button
+              title={showEnded ? 'Hide ended sessions' : 'Show ended sessions (last 7 days)'}
+              size="small"
+              variant="outline"
+              onPress={() => setShowEnded(!showEnded)}
+              testID="ended-toggle"
+            />
+            {showEnded ? (
+              endedSessions.length ? (
+                endedSessions.map((e) => (
+                  <View key={e.id} style={styles.sessionCard} testID={`ended-row-${e.plate}`}>
+                    <View style={styles.sessionHeader}>
+                      <View>
+                        <Text style={styles.sessionPlate}>{e.plate}</Text>
+                        <Text style={styles.sessionType}>
+                          Ended {formatLocalDateTime(e.ended_at)}
+                        </Text>
+                      </View>
+                      {sessionWaived(e) > 0 ? (
+                        <View style={styles.waivedBadge} testID={`waived-${e.plate}`}>
+                          <Text style={styles.waivedBadgeText}>
+                            Waived {formatPeso(sessionWaived(e))}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Button
+                      title="Open"
+                      size="small"
+                      variant="outline"
+                      testID={`ended-open-${e.plate}`}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/staff/session',
+                          params: { id: e.id, locationId: e.location_id },
+                        })
+                      }
+                    />
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>No sessions ended in the last 7 days</Text>
+              )
+            ) : null}
+          </View>
+        }
       />
     </View>
   );
@@ -550,6 +627,17 @@ const styles = StyleSheet.create({
     ...theme.typography.caption,
     color: theme.colors.text.secondary,
     textTransform: 'uppercase',
+  },
+  waivedBadge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    backgroundColor: '#fef3c7',
+    borderRadius: theme.borderRadius.sm,
+  },
+  waivedBadgeText: {
+    ...theme.typography.caption,
+    color: '#92400e',
+    fontWeight: '700',
   },
   overdueBadge: {
     paddingHorizontal: theme.spacing.sm,

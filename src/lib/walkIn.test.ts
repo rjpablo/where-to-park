@@ -93,3 +93,22 @@ test('payments and settling', () => {
   assert.equal(walkInErrorMessage('start_in_future'), "The start can't be in the future");
   assert.equal(walkInErrorMessage('weird_code'), 'weird_code');
 });
+
+test('waived amount from charges', async () => {
+  const { waivedAmount, sessionWaived } = await import('./walkIn.ts');
+  assert.equal(
+    waivedAmount([
+      { amount: -70, type: 'waiver' },
+      { amount: 50, type: 'parking_fee' },
+    ]),
+    70
+  );
+  assert.equal(waivedAmount([{ amount: -70, type: 'waiver', voided_at: '2026-11-01' }]), 0);
+  assert.equal(waivedAmount(null), 0);
+  assert.equal(
+    sessionWaived({ folios: [{ folio_charges: [{ amount: '-12.5', type: 'waiver' }] }] }),
+    12.5
+  );
+  assert.equal(sessionWaived({ folios: { folio_charges: [{ amount: -5, type: 'waiver' }] } }), 5);
+  assert.equal(sessionWaived({}), 0);
+});

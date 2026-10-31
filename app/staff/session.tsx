@@ -195,7 +195,12 @@ export default function SessionScreen() {
         </Text>
         <Text style={styles.headerMeta}>
           {VEHICLE_TYPE_LABELS[s.vehicle_type as VehicleType] || s.vehicle_type} · {s.location_name}{' '}
-          · {s.status === 'overdue' ? 'Overdue' : ended ? 'Ended' : 'Active'}
+          ·{' '}
+          {s.status === 'overdue'
+            ? 'Overdue'
+            : ended
+              ? `Ended ${formatLocalDateTime(s.ended_at)}`
+              : 'Active'}
         </Text>
       </View>
 
@@ -217,6 +222,11 @@ export default function SessionScreen() {
         <Text style={styles.row} testID="session-paid">
           Paid: {formatPeso(d.paid)}
         </Text>
+        {Number(d.waived) > 0 ? (
+          <Text style={styles.waived} testID="session-waived">
+            Waived: {formatPeso(d.waived)}
+          </Text>
+        ) : null}
         <Text style={styles.balance} testID="session-balance">
           Balance: {formatPeso(d.balance)}
         </Text>
@@ -442,6 +452,12 @@ const styles = StyleSheet.create({
   chipTextOn: { color: '#fff', fontWeight: '600' },
   row: { ...theme.typography.body, marginTop: 4 },
   meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 2 },
+  waived: {
+    ...theme.typography.body,
+    color: theme.colors.warning,
+    fontWeight: '700',
+    marginTop: 4,
+  },
   balance: { ...theme.typography.h3, color: theme.colors.primary, marginTop: theme.spacing.sm },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.sm },
   error: { ...theme.typography.body, color: theme.colors.danger, margin: theme.spacing.md },

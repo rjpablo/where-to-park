@@ -142,3 +142,23 @@ export function walkInErrorMessage(code: unknown, balance?: unknown): string {
   if (c === 'balance_due') return `Settle the ${peso(balance)} balance before ending the session.`;
   return ERRORS[c] || c || 'Something went wrong';
 }
+
+/** Waived amount (positive) from a folio's charges; waivers are negative 'waiver' rows. */
+export function waivedAmount(
+  charges: { amount: unknown; type: string; voided_at?: string | null }[] | null | undefined
+): number {
+  const total = (charges || [])
+    .filter((c) => c.type === 'waiver' && !c.voided_at)
+    .reduce((s, c) => s - Number(c.amount || 0), 0);
+  return Math.round(total * 100) / 100;
+}
+
+/** Waived amount across a session's folios (as loaded with folios(folio_charges(...))). */
+export function sessionWaived(session: any): number {
+  const folios = Array.isArray(session?.folios)
+    ? session.folios
+    : session?.folios
+      ? [session.folios]
+      : [];
+  return folios.reduce((s: number, f: any) => s + waivedAmount(f?.folio_charges), 0);
+}
