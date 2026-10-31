@@ -21,6 +21,14 @@ test('listing subpages fall back to that listing', () => {
   assert.equal(backFallback('operator/rates', { locationId: [L, 'x'] }), `/operator/hub/${L}`);
 });
 
+test('New / Edit rate falls back to the Rates list', () => {
+  assert.equal(
+    backFallback('operator/rate-edit', { locationId: L, rateId: 'r' }),
+    `/operator/rates?locationId=${L}`
+  );
+  assert.equal(backFallback('operator/rate-edit', {}), '/operator/listings');
+});
+
 test('listing page and List Your Space fall back to My listings, My listings to search', () => {
   assert.equal(backFallback('operator/onboarding'), '/operator/listings');
   assert.equal(backFallback('operator/hub/[id]', { id: L }), '/operator/listings');

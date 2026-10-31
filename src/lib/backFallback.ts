@@ -41,6 +41,11 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'operator/edit/[id]': (p) => listingParent(p, 'id'),
   'operator/areas': (p) => listingParent(p),
   'operator/rates': (p) => listingParent(p),
+  // New / Edit rate: back to that listing's Rates list.
+  'operator/rate-edit': (p) => {
+    const id = one(p, 'locationId');
+    return id ? `/operator/rates?locationId=${encodeURIComponent(id)}` : LISTINGS;
+  },
   'operator/fees': (p) => listingParent(p),
   'operator/staff': (p) => listingParent(p),
   'operator/availability': (p) => listingParent(p),

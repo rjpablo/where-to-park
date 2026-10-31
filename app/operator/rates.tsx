@@ -1,15 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
-import { formatLocalDate, formatPeso, fromDatetimeLocalValue } from '../../src/utils/formatters';
+import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { canBeDefault } from '../../src/lib/rates';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
-const RATE_TYPES = ['hourly', 'daily', 'flat_then_hourly', 'monthly'] as const;
-type RateType = (typeof RATE_TYPES)[number];
 
 function rateSummary(rate: any): string {
   switch (rate.rate_type) {
@@ -33,18 +31,8 @@ export default function RatesScreen() {
   const locationId = firstParam(
     useLocalSearchParams<{ locationId?: string | string[] }>().locationId
   );
+  const router = useRouter();
   const [rates, setRates] = React.useState<any[]>([]);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [name, setName] = React.useState('Custom Rate');
-  const [rateType, setRateType] = React.useState<RateType>('hourly');
-  const [hourly, setHourly] = React.useState('50');
-  const [daily, setDaily] = React.useState('400');
-  const [monthly, setMonthly] = React.useState('4000');
-  const [firstHours, setFirstHours] = React.useState('3');
-  const [firstAmount, setFirstAmount] = React.useState('100');
-  const [succeeding, setSucceeding] = React.useState('40');
-  const [from, setFrom] = React.useState('');
-  const [to, setTo] = React.useState('');
   const [hours, setHours] = React.useState('1');
   const [quote, setQuote] = React.useState<any>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -78,9 +66,12 @@ export default function RatesScreen() {
     }
   }, [locationId]);
 
-  React.useEffect(() => {
-    load();
-  }, [load]);
+  // Reload whenever the list is shown again (e.g. back from New/Edit rate).
+  useFocusEffect(
+    React.useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const refreshQuote = async () => {
     // No listing picked (e.g. /operator/rates opened without ?locationId): there is
@@ -104,35 +95,7 @@ export default function RatesScreen() {
   React.useEffect(() => {
     refreshQuote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rates.length]);
-
-  const saveRate = async () => {
-    setError(null);
-    const payload: Record<string, any> = {
-      p_location_id: locationId,
-      p_name: name.trim(),
-      p_rate_type: rateType,
-      p_rate_id: editingId,
-      p_is_default: false,
-      p_hourly_amount: rateType === 'hourly' ? Number(hourly) : null,
-      p_daily_amount: rateType === 'daily' ? Number(daily) : null,
-      p_monthly_amount: rateType === 'monthly' ? Number(monthly) : null,
-      p_first_hours: rateType === 'flat_then_hourly' ? Number(firstHours) : null,
-      p_first_amount: rateType === 'flat_then_hourly' ? Number(firstAmount) : null,
-      p_succeeding_hourly_amount: rateType === 'flat_then_hourly' ? Number(succeeding) : null,
-      p_effective_from: from ? fromDatetimeLocalValue(`${from}T00:00`) : null,
-      p_effective_to: to ? fromDatetimeLocalValue(`${to}T00:00`) : null,
-    };
-    const { data, error: rpcError } = await supabase.rpc('upsert_rate', payload);
-    if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
-      return;
-    }
-    setNotice(editingId ? 'Rate updated' : 'Rate created');
-    setEditingId(null);
-    await load();
-    await refreshQuote();
-  };
+  }, [rates]);
 
   const removeRate = async (rate: any) => {
     setError(null);
@@ -161,19 +124,11 @@ export default function RatesScreen() {
     await refreshQuote();
   };
 
-  const beginEdit = (rate: any) => {
-    setEditingId(rate.id);
-    setName(rate.name);
-    setRateType(rate.rate_type);
-    if (rate.hourly_amount != null) setHourly(String(rate.hourly_amount));
-    if (rate.daily_amount != null) setDaily(String(rate.daily_amount));
-    if (rate.monthly_amount != null) setMonthly(String(rate.monthly_amount));
-    if (rate.first_hours != null) setFirstHours(String(rate.first_hours));
-    if (rate.first_amount != null) setFirstAmount(String(rate.first_amount));
-    if (rate.succeeding_hourly_amount != null) setSucceeding(String(rate.succeeding_hourly_amount));
-    setFrom(rate.effective_from ? String(rate.effective_from).slice(0, 10) : '');
-    setTo(rate.effective_to ? String(rate.effective_to).slice(0, 10) : '');
-  };
+  const openForm = (rate?: any) =>
+    router.push({
+      pathname: '/operator/rate-edit',
+      params: rate ? { locationId: locationId!, rateId: rate.id } : { locationId: locationId! },
+    });
 
   if (loading) {
     return (
@@ -206,14 +161,19 @@ export default function RatesScreen() {
         ) : (
           <Text style={styles.meta}>{quote?.error || 'No quote yet'}</Text>
         )}
-        {rateType === 'monthly' ? (
-          <Text style={styles.meta}>
-            Monthly rates are listed for drivers and never price a session.
-          </Text>
-        ) : null}
+        <Text style={styles.meta}>
+          Monthly rates are listed for drivers and never price a session.
+        </Text>
       </View>
 
       <Text style={styles.heading}>Rates</Text>
+      <Button
+        title="Add rate"
+        onPress={() => openForm()}
+        disabled={!locationId}
+        style={styles.addButton}
+        testID="rate-add"
+      />
       {rates.map((rate) => (
         <View key={rate.id} style={styles.card} testID={`rate-row-${rate.name}`}>
           <Text style={styles.rowTitle}>
@@ -229,7 +189,13 @@ export default function RatesScreen() {
             </Text>
           ) : null}
           <View style={styles.row}>
-            <Button title="Edit" size="small" variant="outline" onPress={() => beginEdit(rate)} />
+            <Button
+              title="Edit"
+              size="small"
+              variant="outline"
+              onPress={() => openForm(rate)}
+              testID={`edit-rate-${rate.name}`}
+            />
             {canBeDefault(rate) ? (
               <Button
                 title="Set as default"
@@ -249,108 +215,6 @@ export default function RatesScreen() {
           </View>
         </View>
       ))}
-
-      <Text style={styles.heading}>{editingId ? 'Edit rate' : 'New custom rate'}</Text>
-      <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} testID="rate-name" />
-
-      <Text style={styles.label}>Type</Text>
-      <View style={styles.types}>
-        {RATE_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type}
-            onPress={() => setRateType(type)}
-            style={[styles.typeChip, rateType === type && styles.typeChipOn]}
-            testID={`rate-type-${type}`}
-          >
-            <Text style={[styles.typeChipText, rateType === type && styles.typeChipTextOn]}>
-              {type === 'flat_then_hourly' ? 'flat then hourly' : type}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {rateType === 'hourly' && (
-        <>
-          <Text style={styles.label}>Hourly amount (₱)</Text>
-          <TextInput
-            style={styles.input}
-            value={hourly}
-            onChangeText={setHourly}
-            keyboardType="decimal-pad"
-          />
-        </>
-      )}
-      {rateType === 'daily' && (
-        <>
-          <Text style={styles.label}>Daily amount (₱)</Text>
-          <TextInput
-            style={styles.input}
-            value={daily}
-            onChangeText={setDaily}
-            keyboardType="decimal-pad"
-          />
-        </>
-      )}
-      {rateType === 'monthly' && (
-        <>
-          <Text style={styles.label}>Monthly amount (₱)</Text>
-          <TextInput
-            style={styles.input}
-            value={monthly}
-            onChangeText={setMonthly}
-            keyboardType="decimal-pad"
-          />
-        </>
-      )}
-      {rateType === 'flat_then_hourly' && (
-        <>
-          <Text style={styles.label}>First N hours</Text>
-          <TextInput
-            style={styles.input}
-            value={firstHours}
-            onChangeText={setFirstHours}
-            keyboardType="numeric"
-          />
-          <Text style={styles.label}>Amount for first N (₱)</Text>
-          <TextInput
-            style={styles.input}
-            value={firstAmount}
-            onChangeText={setFirstAmount}
-            keyboardType="decimal-pad"
-          />
-          <Text style={styles.label}>Succeeding hourly (₱)</Text>
-          <TextInput
-            style={styles.input}
-            value={succeeding}
-            onChangeText={setSucceeding}
-            keyboardType="decimal-pad"
-          />
-        </>
-      )}
-
-      <Text style={styles.label}>Effective from (optional YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        value={from}
-        onChangeText={setFrom}
-        placeholder="2026-12-24"
-        testID="rate-from"
-      />
-      <Text style={styles.label}>Effective to (optional)</Text>
-      <TextInput
-        style={styles.input}
-        value={to}
-        onChangeText={setTo}
-        placeholder="2026-12-26"
-        testID="rate-to"
-      />
-
-      <Button
-        title={editingId ? 'Save rate' : 'Create rate'}
-        onPress={saveRate}
-        testID="rate-save"
-      />
 
       {error ? (
         <Text style={styles.error} testID="rates-error">
@@ -409,22 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,
   },
-  types: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-    marginVertical: theme.spacing.sm,
-  },
-  typeChip: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  typeChipOn: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-  typeChipText: { ...theme.typography.caption, color: theme.colors.text.primary },
-  typeChipTextOn: { color: '#fff' },
+  addButton: { marginBottom: theme.spacing.md },
   preview: {
     marginTop: theme.spacing.lg,
     padding: theme.spacing.md,

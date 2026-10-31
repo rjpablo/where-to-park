@@ -86,6 +86,7 @@ export default function RootLayout() {
           <Stack.Screen name="operator/edit/[id]" options={{ title: 'Edit Location' }} />
           <Stack.Screen name="operator/areas" options={{ title: 'Areas' }} />
           <Stack.Screen name="operator/rates" options={{ title: 'Rates' }} />
+          <Stack.Screen name="operator/rate-edit" options={{ title: 'Rate' }} />
           <Stack.Screen name="operator/staff" options={{ title: 'Staff' }} />
           <Stack.Screen name="operator/fees" options={{ title: 'Fee Presets' }} />
           <Stack.Screen name="operator/inbox" options={{ title: 'Messages' }} />
