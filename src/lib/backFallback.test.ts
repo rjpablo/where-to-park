@@ -6,6 +6,7 @@ const L = 'loc-1';
 
 test('listing subpages fall back to that listing', () => {
   for (const r of [
+    'operator/areas',
     'operator/rates',
     'operator/fees',
     'operator/staff',

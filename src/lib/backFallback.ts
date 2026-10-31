@@ -39,6 +39,7 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'operator/onboarding': () => SEARCH,
   'operator/hub/[id]': () => LISTINGS,
   'operator/edit/[id]': (p) => listingParent(p, 'id'),
+  'operator/areas': (p) => listingParent(p),
   'operator/rates': (p) => listingParent(p),
   'operator/fees': (p) => listingParent(p),
   'operator/staff': (p) => listingParent(p),

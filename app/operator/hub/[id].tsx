@@ -171,7 +171,13 @@ export default function ListingHubScreen() {
               testID="hub-edit"
             />
             <Button
-              title="Areas and rates"
+              title="Areas"
+              variant="outline"
+              onPress={() => go('/operator/areas', { locationId: location.id })}
+              testID="hub-areas"
+            />
+            <Button
+              title="Rates"
               variant="outline"
               onPress={() => go('/operator/rates', { locationId: location.id })}
               testID="hub-rates"

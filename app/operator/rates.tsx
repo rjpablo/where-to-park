@@ -25,15 +25,14 @@ function rateSummary(rate: any): string {
   }
 }
 
+// A listing's rates and price preview (areas are on their own page, /operator/areas).
 export default function RatesScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
   const locationId = firstParam(
     useLocalSearchParams<{ locationId?: string | string[] }>().locationId
   );
-  const [areas, setAreas] = React.useState<any[]>([]);
   const [rates, setRates] = React.useState<any[]>([]);
-  const [areaName, setAreaName] = React.useState('');
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [name, setName] = React.useState('Custom Rate');
   const [rateType, setRateType] = React.useState<RateType>('hourly');
@@ -60,20 +59,16 @@ export default function RatesScreen() {
       return;
     }
     try {
-      const [{ data: areaRows, error: areaErr }, { data: rateRows, error: rateErr }, loc] =
-        await Promise.all([
-          supabase.from('areas').select('*').eq('location_id', locationId).order('sort_order'),
-          supabase
-            .from('rates')
-            .select('*')
-            .eq('location_id', locationId)
-            .order('is_default', { ascending: false }),
-          supabase.from('locations').select('name').eq('id', locationId).single(),
-        ]);
+      const [{ data: rateRows, error: rateErr }, loc] = await Promise.all([
+        supabase
+          .from('rates')
+          .select('*')
+          .eq('location_id', locationId)
+          .order('is_default', { ascending: false }),
+        supabase.from('locations').select('name').eq('id', locationId).single(),
+      ]);
       if (loc.data?.name) setLocationName(loc.data.name);
-      if (areaErr) throw areaErr;
       if (rateErr) throw rateErr;
-      setAreas(areaRows || []);
       setRates(rateRows || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load rates');
@@ -109,30 +104,6 @@ export default function RatesScreen() {
     refreshQuote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rates.length]);
-
-  const addArea = async () => {
-    if (!areaName.trim()) return;
-    const { data, error: rpcError } = await supabase.rpc('upsert_area', {
-      p_location_id: locationId,
-      p_name: areaName.trim(),
-    });
-    if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
-      return;
-    }
-    setAreaName('');
-    setNotice(`Area saved`);
-    await load();
-  };
-
-  const removeArea = async (id: string) => {
-    const { data, error: rpcError } = await supabase.rpc('delete_area', { p_area_id: id });
-    if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
-      return;
-    }
-    await load();
-  };
 
   const saveRate = async () => {
     setError(null);
@@ -225,27 +196,6 @@ export default function RatesScreen() {
           </Text>
         ) : null}
       </View>
-
-      <Text style={styles.heading}>Areas</Text>
-      {areas.map((area) => (
-        <View key={area.id} style={styles.row}>
-          <Text style={styles.rowTitle}>{area.name}</Text>
-          <Button
-            title="Delete"
-            size="small"
-            variant="outline"
-            onPress={() => removeArea(area.id)}
-          />
-        </View>
-      ))}
-      <TextInput
-        style={styles.input}
-        value={areaName}
-        onChangeText={setAreaName}
-        placeholder="New area name"
-        testID="area-name"
-      />
-      <Button title="Add area" onPress={addArea} testID="area-add" />
 
       <Text style={styles.heading}>Rates</Text>
       {rates.map((rate) => (

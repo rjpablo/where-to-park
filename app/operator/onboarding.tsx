@@ -356,9 +356,7 @@ export default function OnboardingScreen() {
 
           <View style={styles.info}>
             <Text style={styles.infoText}>✓ Default rate type: {RATE_TYPE_LABELS[rateType]}</Text>
-            <Text style={styles.infoText}>
-              ✓ You can add more rates later under Areas and Rates
-            </Text>
+            <Text style={styles.infoText}>✓ You can add more rates later under Rates</Text>
             {rateType === 'hourly' || rateType === 'flat_then_hourly' ? (
               <Text style={styles.infoText}>✓ Billing is per started hour</Text>
             ) : null}
