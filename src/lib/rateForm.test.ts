@@ -8,6 +8,9 @@ import {
   rateDatesError,
   rateUpsertPayload,
   toDayEnd,
+  daysLabel,
+  normalizeDays,
+  toggleDay,
 } from './rateForm.ts';
 
 test('dates are Manila days; "to" covers the whole last day', () => {
@@ -66,4 +69,18 @@ test('date validation', () => {
     'Effective to is before Effective from'
   );
   assert.match(rateDatesError({ from: '24/12', to: '' }) || '', /YYYY-MM-DD/);
+});
+
+test('days of week: label, toggle, payload', () => {
+  assert.equal(daysLabel([0, 6]), 'Sat, Sun');
+  assert.equal(daysLabel([6, 0, 1]), 'Mon, Sat, Sun');
+  assert.equal(daysLabel(null), 'Every day');
+  assert.equal(daysLabel([]), 'Every day');
+  assert.equal(daysLabel([0, 1, 2, 3, 4, 5, 6]), 'Every day');
+  assert.deepEqual(normalizeDays([6, 6, 9, -1, 0]), [0, 6]);
+  assert.deepEqual(toggleDay([0], 6), [0, 6]);
+  assert.deepEqual(toggleDay([0, 6], 0), [6]);
+  assert.equal(rateUpsertPayload('L', { ...NEW_RATE }).p_days_of_week, null);
+  assert.deepEqual(rateUpsertPayload('L', { ...NEW_RATE, days: [6, 0] }).p_days_of_week, [0, 6]);
+  assert.deepEqual(formFromRate({ rate_type: 'hourly', days_of_week: [6, 0] }).days, [0, 6]);
 });

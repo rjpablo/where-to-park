@@ -13,6 +13,8 @@ export type RateFormValues = {
   from: string;
   /** YYYY-MM-DD (Manila) or '', inclusive */
   to: string;
+  /** Days of week the rate applies on (0 = Sunday … 6 = Saturday); empty = every day */
+  days: number[];
 };
 
 export const NEW_RATE: RateFormValues = {
@@ -26,6 +28,7 @@ export const NEW_RATE: RateFormValues = {
   succeeding: '40',
   from: '',
   to: '',
+  days: [],
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -62,6 +65,7 @@ export function formFromRate(rate: any): RateFormValues {
     succeeding: s(rate.succeeding_hourly_amount, NEW_RATE.succeeding),
     from: manilaDate(rate.effective_from),
     to: manilaDate(rate.effective_to),
+    days: normalizeDays(rate.days_of_week),
   };
 }
 
@@ -98,5 +102,38 @@ export function rateUpsertPayload(
     p_active: existing?.active ?? true,
     p_effective_from: fromDayStart(v.from),
     p_effective_to: toDayEnd(v.to),
+    p_days_of_week: v.days.length ? normalizeDays(v.days) : null,
   };
+}
+
+/** Day chips in display order (Monday first), with the stored value (0 = Sunday). */
+export const WEEK_DAYS: { value: number; short: string }[] = [
+  { value: 1, short: 'Mon' },
+  { value: 2, short: 'Tue' },
+  { value: 3, short: 'Wed' },
+  { value: 4, short: 'Thu' },
+  { value: 5, short: 'Fri' },
+  { value: 6, short: 'Sat' },
+  { value: 0, short: 'Sun' },
+];
+
+/** Valid, unique, sorted day numbers. */
+export function normalizeDays(days: unknown): number[] {
+  if (!Array.isArray(days)) return [];
+  const ok = days.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  return [...new Set(ok)].sort((a, b) => a - b);
+}
+
+/** Toggle one day in the selection. */
+export function toggleDay(days: number[], day: number): number[] {
+  return days.includes(day) ? days.filter((d) => d !== day) : normalizeDays([...days, day]);
+}
+
+/** Row label: 'Sat, Sun' (Monday-first order), 'Every day' when not limited. */
+export function daysLabel(days: unknown): string {
+  const set = new Set(normalizeDays(days));
+  if (set.size === 0 || set.size === 7) return 'Every day';
+  return WEEK_DAYS.filter((d) => set.has(d.value))
+    .map((d) => d.short)
+    .join(', ');
 }

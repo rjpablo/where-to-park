@@ -7,6 +7,7 @@ import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { canBeDefault } from '../../src/lib/rates';
+import { daysLabel } from '../../src/lib/rateForm';
 import {
   manilaTimeNow,
   manilaToday,
@@ -232,6 +233,9 @@ export default function RatesScreen() {
           </Text>
           <Text style={styles.meta}>
             {rate.rate_type} · {rateSummary(rate)}
+          </Text>
+          <Text style={styles.meta} testID={`rate-days-${rate.name}`}>
+            {daysLabel(rate.days_of_week)}
           </Text>
           {rate.effective_from || rate.effective_to ? (
             <Text style={styles.meta}>
