@@ -30,10 +30,11 @@ BEGIN
   r := walk_in_rate_options(SR, 'car', now());
   ASSERT r->>'error' = 'Permission denied', 'Sarah options: ' || r::text;
 
-  -- Options: hourly default applies, so the monthly rate is left out; Automatic = split
+  -- Options: hourly default applies, so the monthly rate is left out; Automatic =
+  -- one rate (0054: the rate the priority picks at the start)
   PERFORM pg_temp.act('+639170000003');
   r := walk_in_rate_options(SR, 'car', now());
-  ASSERT r->'auto'->>'mode' = 'split', 'auto split: ' || r::text;
+  ASSERT r->'auto'->>'mode' = 'rate' AND r->'auto'->>'rate_name' = 'Standard Rate', 'auto rate: ' || r::text;
   ASSERT NOT (r->'rates' @> jsonb_build_array(jsonb_build_object('id', monthly))), 'monthly hidden: ' || r::text;
   ASSERT r->'rates' @> '[{"name":"Standard Rate"}]', 'standard listed: ' || r::text;
 

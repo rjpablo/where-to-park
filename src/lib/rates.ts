@@ -148,8 +148,8 @@ export function rateStatusErrorMessage(
 ): string {
   const n = Number(data?.sessions);
   if (data?.error === 'rate_in_use' && Number.isFinite(n) && n > 0) {
-    // 0050: 'use' = chosen, or on Automatic and this rate could price part of the stay.
-    return `${n} open session${n === 1 ? '' : 's'} (active or upcoming) use${n === 1 ? 's' : ''} this rate, chosen or on Automatic. End ${n === 1 ? 'it' : 'them'} or pick another rate for ${n === 1 ? 'it' : 'them'}, then deactivate.`;
+    // 0054: sessions whose set rate is this one (Automatic is resolved and stored).
+    return `${n} open session${n === 1 ? '' : 's'} (active or upcoming) use${n === 1 ? 's' : ''} this rate. End ${n === 1 ? 'it' : 'them'} or pick another rate for ${n === 1 ? 'it' : 'them'}, then deactivate.`;
   }
   return rateErrorMessage(data?.error);
 }

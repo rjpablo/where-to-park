@@ -308,7 +308,8 @@ export default function RatesScreen() {
         )}
         <Text style={styles.meta}>
           Each hour is priced at the rate in effect when that hour starts, so a stay can be split
-          across rates. Extra charges (e.g. overnight) are added by staff as fees.
+          across rates. Sessions don't split: each uses one set rate (Automatic picks the rate in
+          effect at the start). Extra charges (e.g. overnight) are added by staff as fees.
         </Text>
         <Text style={styles.meta}>
           Monthly rates are listed for drivers and never price a session.

@@ -78,7 +78,7 @@ test('rate status errors: in-use count, default, archive (0048)', async () => {
   );
   assert.match(
     rateStatusErrorMessage({ error: 'rate_in_use', sessions: 3 }),
-    /^3 open sessions .* use this rate, chosen or on Automatic. End them/
+    /^3 open sessions .* use this rate. End them or pick another rate for them/
   );
   assert.match(
     rateStatusErrorMessage({ error: 'cannot_deactivate_default' }),

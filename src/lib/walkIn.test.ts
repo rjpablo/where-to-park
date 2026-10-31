@@ -63,10 +63,13 @@ test('rate dropdown labels and keeping a choice', () => {
     rateOptionLabel({ id: 'm', name: 'Monthly', rate_type: 'monthly', monthly_amount: 4000 }),
     'Monthly · ₱4000.00/month'
   );
-  assert.equal(autoOptionLabel({ mode: 'split' }), 'Automatic · by priority, split across rates');
+  assert.equal(
+    autoOptionLabel({ mode: 'rate', rate_name: 'Standard Rate' }),
+    'Automatic (Standard Rate)'
+  );
   assert.equal(
     autoOptionLabel({ mode: 'monthly', rate_name: 'Monthly' }),
-    'Automatic · Monthly (monthly)'
+    'Automatic (Monthly, monthly)'
   );
   assert.equal(autoOptionLabel(null), 'Automatic (no rate applies)');
   const opts = [{ id: 'a', name: 'A', rate_type: 'hourly' }];

@@ -82,8 +82,9 @@ export function rateOptionLabel(r: RateOption): string {
 /** First dropdown option: what Automatic does right now. */
 export function autoOptionLabel(auto: { mode: string; rate_name?: string } | null): string {
   if (!auto) return 'Automatic (no rate applies)';
-  if (auto.mode === 'monthly') return `Automatic · ${auto.rate_name} (monthly)`;
-  return 'Automatic · by priority, split across rates';
+  // 0054: Automatic resolves to one rate (stored on the session when saved).
+  if (auto.mode === 'monthly') return `Automatic (${auto.rate_name}, monthly)`;
+  return auto.rate_name ? `Automatic (${auto.rate_name})` : 'Automatic';
 }
 
 /** A chosen rate that is no longer applicable (vehicle/start changed) goes back to Automatic. */
