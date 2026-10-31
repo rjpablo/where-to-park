@@ -270,6 +270,12 @@ export default function SessionScreen() {
           {reservation ? 'Planned stay' : 'Parking'}: {formatPeso(d.parking)}
           {d.price?.rate_name ? ` · ${d.price.rate_name}` : ''}
         </Text>
+        {!ended && s.rate_active === false ? (
+          <Text style={styles.rateInactive} testID="session-rate-inactive">
+            Rate inactive: '{d.price?.rate_name}' was deactivated. This session is still priced at
+            it; edit the session below to pick another rate (Automatic picks the current one).
+          </Text>
+        ) : null}
         <Text style={styles.meta} testID="session-price-detail">
           {reservation && !s.end_at
             ? `From ${formatLocalDateTime(s.started_at)} · minimum charge until an End is set`
@@ -641,6 +647,14 @@ const styles = StyleSheet.create({
   },
   balance: { ...theme.typography.h3, color: theme.colors.primary, marginTop: theme.spacing.sm },
   negative: { color: theme.colors.danger },
+  rateInactive: {
+    ...theme.typography.bodySmall,
+    color: '#92400e',
+    backgroundColor: '#fef3c7',
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginVertical: theme.spacing.xs,
+  },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.sm },
   error: { ...theme.typography.body, color: theme.colors.danger, margin: theme.spacing.md },
 });

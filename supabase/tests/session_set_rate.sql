@@ -50,6 +50,16 @@ BEGIN
   PERFORM pg_temp.act('+639170000003');
   r := update_walk_in_session(sid, '2026-11-07 10:00+08', '2026-11-07 13:00+08', 'suv', 'ZZS 0001', sat);
   ASSERT (SELECT rate_id FROM parking_sessions WHERE id = sid) = sat, 'kept';
+  -- 0055: an open-ended session on the Sat rate doesn't block; it keeps pricing at it
+  r := start_walk_in(SR, 'suv', 'ZZS 0002', NULL, NULL, '2026-11-07 10:00+08');
+  ASSERT (SELECT rate_id FROM parking_sessions WHERE id = (r->>'session_id')::uuid) = sat, 'open-ended on Sat';
+  PERFORM pg_temp.act('+639170000002');
+  ASSERT (set_rate_active(sat, false)->>'sessions')::int = b_sat + 1, 'open-ended not counted';
+  UPDATE parking_sessions SET status = 'ended', ended_at = now() WHERE id = sid;
+  ASSERT set_rate_active(sat, false)->>'success' = 'true', 'deactivated with an open-ended session on it';
+  PERFORM pg_temp.act('+639170000003');
+  d := session_details((r->>'session_id')::uuid);
+  ASSERT d->'session'->>'rate_active' = 'false' AND d->'price'->>'rate_name' = 'T SUV Sat', 'still priced, flagged: ' || d::text;
   RAISE NOTICE 'session set rate: ok';
 END $$;
 ROLLBACK;

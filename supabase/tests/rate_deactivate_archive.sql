@@ -31,7 +31,8 @@ BEGIN
   -- Archive needs inactive
   ASSERT archive_rate(promo)->>'error' = 'archive_needs_inactive', 'archive active';
   -- In use by a started session and a future-start one: blocked with the count
-  r := start_walk_in(SR, 'car', 'ZZD 0001', NULL, NULL, now() - interval '1 hour', promo);
+  -- 0055: only sessions with an end block; this one has one
+  r := start_walk_in(SR, 'car', 'ZZD 0001', NULL, now() + interval '1 hour', now() - interval '1 hour', promo);
   ASSERT r->>'success' = 'true', 'start: ' || r::text;
   sid := (r->>'session_id')::uuid;
   r := set_rate_active(promo, false);
