@@ -121,6 +121,9 @@ const ERRORS: Record<string, string> = {
   vehicle_required: 'Select the vehicle type',
   start_required: 'Start date and time are required',
   start_in_future: "The start can't be in the future",
+  not_started:
+    "This reservation hasn't started yet. Cancel the reservation instead, or edit its start.",
+  already_started: 'This session has already started, so it is no longer a reservation.',
   end_before_start: 'End must be after the start',
   no_applicable_rate:
     'No rate applies to this vehicle at this start time. Add a rate for it under Rates first.',
@@ -161,4 +164,23 @@ export function sessionWaived(session: any): number {
       ? [session.folios]
       : [];
   return folios.reduce((s: number, f: any) => s + waivedAmount(f?.folio_charges), 0);
+}
+
+/** A session whose start is still in the future is a reservation (0049). */
+export function isReservation(
+  s: { started_at?: string | null; status?: string | null } | null | undefined,
+  now: number = Date.now()
+): boolean {
+  if (!s?.started_at || (s.status && !['active', 'overdue'].includes(s.status))) return false;
+  const t = new Date(s.started_at).getTime();
+  return Number.isFinite(t) && t > now;
+}
+
+/** 'in 45min', 'in 3h', 'in 2d' for a future time ('now' when it's not in the future). */
+export function startsIn(iso: string, now: number = Date.now()): string {
+  const min = Math.floor((new Date(iso).getTime() - now) / 60000);
+  if (!Number.isFinite(min) || min < 1) return 'now';
+  if (min < 60) return `in ${min}min`;
+  if (min < 1440) return `in ${Math.floor(min / 60)}h`;
+  return `in ${Math.floor(min / 1440)}d`;
 }

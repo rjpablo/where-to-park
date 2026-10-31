@@ -112,3 +112,16 @@ test('waived amount from charges', async () => {
   assert.equal(sessionWaived({ folios: { folio_charges: [{ amount: -5, type: 'waiver' }] } }), 5);
   assert.equal(sessionWaived({}), 0);
 });
+
+test('reservations: future start, labels (0049)', async () => {
+  const { isReservation, startsIn, walkInErrorMessage } = await import('./walkIn.ts');
+  const now = Date.parse('2026-11-01T00:00:00Z');
+  assert.equal(isReservation({ started_at: '2026-11-01T02:00:00Z', status: 'active' }, now), true);
+  assert.equal(isReservation({ started_at: '2026-10-31T23:00:00Z', status: 'active' }, now), false);
+  assert.equal(isReservation({ started_at: '2026-11-01T02:00:00Z', status: 'ended' }, now), false);
+  assert.equal(startsIn('2026-11-01T00:30:00Z', now), 'in 30min');
+  assert.equal(startsIn('2026-11-01T05:00:00Z', now), 'in 5h');
+  assert.equal(startsIn('2026-11-03T00:00:00Z', now), 'in 2d');
+  assert.equal(startsIn('2026-10-31T00:00:00Z', now), 'now');
+  assert.match(walkInErrorMessage('not_started'), /Cancel the reservation/);
+});

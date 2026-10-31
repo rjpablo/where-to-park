@@ -30,6 +30,8 @@ type Props = {
   initial?: Partial<WalkInValues>;
   showNote?: boolean;
   submitLabel: string;
+  /** Button label when the start is in the future (a reservation, 0049). */
+  reservationSubmitLabel?: string;
   /** Returns an error message to show, or null on success. */
   onSubmit: (v: WalkInValues) => Promise<string | null>;
   /** Bump to reload rate options and the amount (e.g. after a save elsewhere). */
@@ -46,6 +48,7 @@ export function WalkInForm({
   initial,
   showNote,
   submitLabel,
+  reservationSubmitLabel,
   onSubmit,
   refreshKey,
 }: Props) {
@@ -271,13 +274,21 @@ export function WalkInForm({
       <View style={styles.amountBox}>
         {quote ? (
           <>
+            {quote.reservation ? (
+              <Text style={styles.reservationNote} testID="walkin-reservation">
+                Reservation: the start is in the future. The amount is for the planned stay
+                {endAt ? '' : ' (minimum charge until you set an End)'}.
+              </Text>
+            ) : null}
             <Text style={styles.amount} testID="walkin-amount">
-              Amount due: {formatPeso(quote.amount)}
+              {quote.reservation ? 'Planned amount' : 'Amount due'}: {formatPeso(quote.amount)}
             </Text>
             <Text style={styles.meta} testID="walkin-amount-detail">
-              {quote.until_now
-                ? `Up to now (${formatLocalDateTime(quote.until)})`
-                : `To ${formatLocalDateTime(quote.until)}`}
+              {quote.reservation && !endAt
+                ? `From ${formatLocalDateTime(startAt || '')}`
+                : quote.until_now
+                  ? `Up to now (${formatLocalDateTime(quote.until)})`
+                  : `To ${formatLocalDateTime(quote.until)}`}
               {' · '}
               {quote.rate_type === 'monthly'
                 ? `${quote.billed_months} month${quote.billed_months === 1 ? '' : 's'}`
@@ -319,7 +330,12 @@ export function WalkInForm({
           {error}
         </Text>
       ) : null}
-      <Button title={submitLabel} onPress={submit} loading={saving} testID="walkin-submit" />
+      <Button
+        title={quote?.reservation && reservationSubmitLabel ? reservationSubmitLabel : submitLabel}
+        onPress={submit}
+        loading={saving}
+        testID="walkin-submit"
+      />
     </View>
   );
 }
@@ -360,6 +376,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceDark,
   },
   amount: { ...theme.typography.h3, color: theme.colors.primary },
+  reservationNote: {
+    ...theme.typography.bodySmall,
+    color: '#1e3a8a',
+    backgroundColor: '#dbeafe',
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginBottom: theme.spacing.sm,
+  },
   meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 4 },
   error: { ...theme.typography.body, color: theme.colors.danger, marginVertical: theme.spacing.md },
 });

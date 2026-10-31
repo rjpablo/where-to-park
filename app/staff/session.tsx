@@ -21,6 +21,7 @@ import {
   PAYMENT_METHOD_LABELS,
   balanceToSettle,
   paymentAmountError,
+  startsIn,
   walkInErrorMessage,
   type PaymentMethod,
 } from '../../src/lib/walkIn';
@@ -43,6 +44,9 @@ export default function SessionScreen() {
   const [payY, setPayY] = React.useState(0);
   const [presets, setPresets] = React.useState<any[]>([]);
   const [payAmount, setPayAmount] = React.useState('');
+  const [cancelReason, setCancelReason] = React.useState('');
+  const [confirmCancel, setConfirmCancel] = React.useState(false);
+  const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [payMethod, setPayMethod] = React.useState<PaymentMethod>('cash');
   const [payNote, setPayNote] = React.useState('');
   const [payError, setPayError] = React.useState<string | null>(null);
@@ -138,6 +142,29 @@ export default function SessionScreen() {
     scrollRef.current?.scrollTo({ y: payY, animated: true });
   };
 
+  const cancelReservation = async () => {
+    setCancelError(null);
+    setEnding(true);
+    try {
+      const { data, error: e } = await supabase.rpc('cancel_reservation_session', {
+        p_session_id: id,
+        p_reason: cancelReason.trim() || null,
+      });
+      if (e || data?.error) {
+        setCancelError(e?.message || walkInErrorMessage(data.error));
+        setConfirmCancel(false);
+        await load();
+        return;
+      }
+      router.dismissTo({
+        pathname: '/staff/sessions',
+        params: { locationId: d.session.location_id, cancelled: d.session.plate },
+      });
+    } finally {
+      setEnding(false);
+    }
+  };
+
   const end = async (withWaiver: boolean) => {
     setEndError(null);
     setEnding(true);
@@ -182,6 +209,8 @@ export default function SessionScreen() {
 
   const s = d.session;
   const ended = s.status === 'ended';
+  // A future start is a reservation (0049): cancelled, not ended, before it starts.
+  const reservation = !ended && !!s.reservation;
   return (
     <ScrollView
       ref={scrollRef}
@@ -196,23 +225,29 @@ export default function SessionScreen() {
         <Text style={styles.headerMeta}>
           {VEHICLE_TYPE_LABELS[s.vehicle_type as VehicleType] || s.vehicle_type} · {s.location_name}{' '}
           ·{' '}
-          {s.status === 'overdue'
-            ? 'Overdue'
-            : ended
-              ? `Ended ${formatLocalDateTime(s.ended_at)}`
-              : 'Active'}
+          {reservation
+            ? `Reservation · starts ${formatLocalDateTime(s.started_at)} (${startsIn(s.started_at)})`
+            : s.status === 'overdue'
+              ? 'Overdue'
+              : ended && s.cancelled_at
+                ? `Reservation cancelled ${formatLocalDateTime(s.cancelled_at)}`
+                : ended
+                  ? `Ended ${formatLocalDateTime(s.ended_at)}`
+                  : 'Active'}
         </Text>
       </View>
 
       <View style={styles.section} testID="session-balance-box">
         <Text style={styles.row}>
-          Parking: {formatPeso(d.parking)}
+          {reservation ? 'Planned stay' : 'Parking'}: {formatPeso(d.parking)}
           {d.price?.rate_name ? ` · ${d.price.rate_name}` : ''}
         </Text>
-        <Text style={styles.meta}>
-          {d.price?.until_now
-            ? `Up to now (${formatLocalDateTime(d.price.until)})`
-            : `To ${formatLocalDateTime(d.price?.until)}`}
+        <Text style={styles.meta} testID="session-price-detail">
+          {reservation && !s.end_at
+            ? `From ${formatLocalDateTime(s.started_at)} · minimum charge until an End is set`
+            : d.price?.until_now
+              ? `Up to now (${formatLocalDateTime(d.price.until)})`
+              : `To ${formatLocalDateTime(d.price?.until)}`}
         </Text>
         {Number(d.extra_fees) ? (
           <Text style={styles.row} testID="session-extra">
@@ -347,7 +382,54 @@ export default function SessionScreen() {
         ) : null}
       </View>
 
-      {!ended ? (
+      {reservation ? (
+        <View style={styles.section} testID="reservation-cancel-box">
+          <Text style={styles.heading}>Cancel reservation</Text>
+          <Text style={styles.meta}>
+            This reservation hasn't started, so it can't be ended yet. Cancelling closes it with no
+            parking fee. Payments already applied stay recorded (refund them outside the app).
+          </Text>
+          <TextInput
+            style={[styles.input, { marginTop: theme.spacing.sm }]}
+            value={cancelReason}
+            onChangeText={setCancelReason}
+            placeholder="Reason (optional)"
+            testID="cancel-reason"
+          />
+          {cancelError ? (
+            <Text style={styles.error} testID="cancel-error">
+              {cancelError}
+            </Text>
+          ) : null}
+          {confirmCancel ? (
+            <View style={styles.confirmRow}>
+              <Button
+                title="Yes, cancel reservation"
+                variant="danger"
+                onPress={cancelReservation}
+                loading={ending}
+                testID="cancel-yes"
+              />
+              <Button
+                title="Keep it"
+                variant="outline"
+                onPress={() => setConfirmCancel(false)}
+                testID="cancel-no"
+              />
+            </View>
+          ) : (
+            <Button
+              title="Cancel reservation"
+              variant="danger"
+              onPress={() => setConfirmCancel(true)}
+              testID="reservation-cancel"
+              style={{ marginTop: theme.spacing.sm }}
+            />
+          )}
+        </View>
+      ) : null}
+
+      {!ended && !reservation ? (
         <View style={styles.section} testID="session-end-box">
           <Text style={styles.heading}>End session</Text>
           <Text style={styles.meta}>
@@ -409,6 +491,12 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  confirmRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
   centered: { alignItems: 'center', justifyContent: 'center', padding: theme.spacing.lg },
   header: { padding: theme.spacing.lg, backgroundColor: theme.colors.primary },
   plate: { ...theme.typography.h2, color: '#fff' },

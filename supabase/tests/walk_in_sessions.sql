@@ -40,7 +40,7 @@ BEGIN
   -- Validation
   ASSERT start_walk_in(SR, 'car', '  ')->>'error' = 'plate_required', 'plate';
   ASSERT start_walk_in(SR, 'car', 'ZZW 0001', NULL, now() - interval '3 hours', now() - interval '2 hours')->>'error' = 'end_before_start', 'end<start';
-  ASSERT start_walk_in(SR, 'car', 'ZZW 0001', NULL, NULL, now() + interval '1 hour')->>'error' = 'start_in_future', 'future';
+  -- 0049: a future start is allowed (a reservation); see future_start_reservations.sql
   ASSERT start_walk_in(SR, 'car', 'ZZW 0001', NULL, NULL, NULL, monthly)->>'error' = 'rate_not_applicable', 'monthly n/a';
 
   -- Start 2h30m ago, no end, Automatic: 3 started hours × ₱50 = ₱150 so far

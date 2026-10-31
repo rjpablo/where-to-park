@@ -45,7 +45,11 @@ export default function CheckInScreen() {
     if (data?.error) return walkInErrorMessage(data.error);
     router.replace({
       pathname: '/staff/sessions',
-      params: { locationId, checkedIn: v.plate.toUpperCase() },
+      params: {
+        locationId,
+        checkedIn: v.plate.toUpperCase(),
+        ...(new Date(v.startAt).getTime() > Date.now() ? { reserved: '1' } : {}),
+      },
     });
     return null;
   };
@@ -57,7 +61,13 @@ export default function CheckInScreen() {
       </View>
       <View style={styles.form}>
         {locationId ? (
-          <WalkInForm locationId={locationId} showNote submitLabel="Check In" onSubmit={checkIn} />
+          <WalkInForm
+            locationId={locationId}
+            showNote
+            submitLabel="Check In"
+            reservationSubmitLabel="Save reservation"
+            onSubmit={checkIn}
+          />
         ) : (
           <Text testID="checkin-error">Pick a listing from My listings</Text>
         )}

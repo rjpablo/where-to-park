@@ -9,7 +9,7 @@ import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { deliverReturnedPush } from '../../src/lib/push';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
-import { sessionWaived } from '../../src/lib/walkIn';
+import { isReservation, sessionWaived, startsIn } from '../../src/lib/walkIn';
 
 export default function SessionsScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
@@ -18,10 +18,14 @@ export default function SessionsScreen() {
   const sp = useLocalSearchParams<{
     locationId?: string | string[];
     checkedIn?: string | string[];
+    reserved?: string | string[];
+    cancelled?: string | string[];
     ended?: string | string[];
   }>();
   const locationId = firstParam(sp.locationId);
   const checkedIn = firstParam(sp.checkedIn);
+  const reserved = firstParam(sp.reserved) === '1';
+  const cancelled = firstParam(sp.cancelled);
   const ended = firstParam(sp.ended);
   const [sessions, setSessions] = useState<any[]>([]);
   const [showEnded, setShowEnded] = useState(false);
@@ -140,7 +144,7 @@ export default function SessionsScreen() {
     let query = supabase
       .from('parking_sessions')
       .select(
-        'id, plate, vehicle_type, started_at, ended_at, location_id, folios(folio_charges(amount, type, voided_at))'
+        'id, plate, vehicle_type, started_at, ended_at, cancelled_at, location_id, folios(folio_charges(amount, type, voided_at))'
       )
       .eq('status', 'ended')
       .gte('ended_at', new Date(Date.now() - 7 * 24 * 3600_000).toISOString())
@@ -178,6 +182,7 @@ export default function SessionsScreen() {
     const parkingSoFar = Number(preview?.parking_so_far ?? 0);
     const extraFees = Number(preview?.extra_fees ?? 0);
     const isOverdue = item.status === 'overdue';
+    const reservation = isReservation(item);
     const overdueMin = Number(
       item.overdue_minutes ||
         (item.scheduled_end_at
@@ -198,6 +203,11 @@ export default function SessionsScreen() {
             <Text style={styles.sessionPlate}>{item.plate || 'Unknown'}</Text>
             <Text style={styles.sessionType}>{item.vehicle_type || 'car'}</Text>
           </View>
+          {reservation ? (
+            <View style={styles.reservationBadge} testID={`reservation-badge-${item.plate}`}>
+              <Text style={styles.reservationBadgeText}>Reservation</Text>
+            </View>
+          ) : null}
           {isOverdue && (
             <View style={styles.overdueBadge} testID={`overdue-badge-${item.plate}`}>
               <Text style={styles.overdueBadgeText}>OVERDUE</Text>
@@ -211,8 +221,10 @@ export default function SessionsScreen() {
         </View>
 
         <View style={styles.sessionDetails}>
-          <Text style={styles.sessionTime}>
-            Started: {formatLocalDateTime(item.started_at)} ({formatRelativeTime(item.started_at)})
+          <Text style={styles.sessionTime} testID={`session-start-${item.plate}`}>
+            {reservation
+              ? `Starts: ${formatLocalDateTime(item.started_at)} (${startsIn(item.started_at)})`
+              : `Started: ${formatLocalDateTime(item.started_at)} (${formatRelativeTime(item.started_at)})`}
           </Text>
           {item.scheduled_end_at ? (
             <Text style={styles.sessionTime} testID={`scheduled-end-${item.plate}`}>
@@ -221,7 +233,7 @@ export default function SessionsScreen() {
           ) : null}
           <Text style={styles.sessionLocation}>{item.locations?.name}</Text>
           <Text style={styles.sessionTime} testID={`parking-so-far-${item.plate}`}>
-            Parking so far: {formatPeso(parkingSoFar)}
+            {reservation ? 'Planned stay' : 'Parking so far'}: {formatPeso(parkingSoFar)}
           </Text>
           {extraFees ? (
             <Text style={styles.sessionTime} testID={`extra-fees-${item.plate}`}>
@@ -490,7 +502,12 @@ export default function SessionsScreen() {
 
       {checkedIn ? (
         <Text style={styles.successBanner} testID="checkin-success">
-          Checked in {checkedIn}
+          {reserved ? 'Reservation saved for' : 'Checked in'} {checkedIn}
+        </Text>
+      ) : null}
+      {cancelled ? (
+        <Text style={styles.successBanner} testID="reservation-cancelled">
+          Reservation cancelled: {cancelled}
         </Text>
       ) : null}
       {ended ? (
@@ -543,9 +560,14 @@ export default function SessionsScreen() {
                       <View>
                         <Text style={styles.sessionPlate}>{e.plate}</Text>
                         <Text style={styles.sessionType}>
-                          Ended {formatLocalDateTime(e.ended_at)}
+                          {e.cancelled_at ? 'Cancelled' : 'Ended'} {formatLocalDateTime(e.ended_at)}
                         </Text>
                       </View>
+                      {e.cancelled_at ? (
+                        <View style={styles.cancelledBadge} testID={`cancelled-${e.plate}`}>
+                          <Text style={styles.cancelledBadgeText}>Reservation cancelled</Text>
+                        </View>
+                      ) : null}
                       {sessionWaived(e) > 0 ? (
                         <View style={styles.waivedBadge} testID={`waived-${e.plate}`}>
                           <Text style={styles.waivedBadgeText}>
@@ -628,6 +650,20 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textTransform: 'uppercase',
   },
+  reservationBadge: {
+    backgroundColor: '#dbeafe',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  reservationBadgeText: { color: '#1e3a8a', fontWeight: '700', fontSize: 12 },
+  cancelledBadge: {
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  cancelledBadgeText: { color: '#374151', fontWeight: '700', fontSize: 12 },
   waivedBadge: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
