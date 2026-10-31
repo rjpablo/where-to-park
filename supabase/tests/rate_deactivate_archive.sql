@@ -17,6 +17,9 @@ DECLARE
   promo uuid := (SELECT id FROM rates WHERE name = 'T Promo');
   r jsonb; sid uuid; fut uuid;
 BEGIN
+  -- 0050: other open Automatic sessions could use an all-vehicle rate; end them first.
+  UPDATE parking_sessions SET status = 'ended', ended_at = now()
+   WHERE location_id = SR AND status IN ('active', 'overdue');
   -- Staff can't deactivate (admins only)
   PERFORM pg_temp.act('+639170000003');
   ASSERT set_rate_active(promo, false)->>'error' = 'Permission denied', 'staff';
