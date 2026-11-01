@@ -57,8 +57,15 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   // One session: back to that listing's Active Sessions.
   'staff/session': (p) => {
     const id = one(p, 'locationId');
-    return id ? `/staff/sessions?locationId=${encodeURIComponent(id)}` : LISTINGS;
+    if (!id) return LISTINGS;
+    // Opened from the Availability Sessions tab: back there.
+    return one(p, 'from') === 'availability'
+      ? `/operator/availability?locationId=${encodeURIComponent(id)}`
+      : `/staff/sessions?locationId=${encodeURIComponent(id)}`;
   },
+  // Edit details / Apply payment (rj t131u): back to that session's page.
+  'staff/session-edit': (p) => sessionParent(p),
+  'staff/session-pay': (p) => sessionParent(p),
   // Messages: from a listing's page back to it; from the sidebar back to search.
   'operator/inbox': (p) => {
     const id = one(p, 'locationId');
@@ -70,6 +77,17 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'admin/contact': () => SEARCH,
   'admin/contact-item': () => '/admin/contact',
 };
+
+function sessionParent(p: RouteParams | undefined): string {
+  const id = one(p, 'id');
+  if (!id) return LISTINGS;
+  const q = [`id=${encodeURIComponent(id)}`];
+  const loc = one(p, 'locationId');
+  if (loc) q.push(`locationId=${encodeURIComponent(loc)}`);
+  const from = one(p, 'from');
+  if (from) q.push(`from=${encodeURIComponent(from)}`);
+  return `/staff/session?${q.join('&')}`;
+}
 
 export function backFallback(routeName: string, params?: RouteParams): string | null {
   const parent = PARENTS[routeName];

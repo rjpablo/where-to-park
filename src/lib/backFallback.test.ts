@@ -76,3 +76,19 @@ test('Shortcuts falls back to Search', async () => {
   const { backFallback } = await import('./backFallback.ts');
   assert.equal(backFallback('shortcuts', {}), '/search');
 });
+
+test('session edit / pay go back to their session page; session from Availability', () => {
+  assert.equal(
+    backFallback('staff/session-edit', { id: 's1', locationId: 'L' }),
+    '/staff/session?id=s1&locationId=L'
+  );
+  assert.equal(
+    backFallback('staff/session-pay', { id: 's1', locationId: 'L', from: 'availability' }),
+    '/staff/session?id=s1&locationId=L&from=availability'
+  );
+  assert.equal(backFallback('staff/session-pay', {}), '/operator/listings');
+  assert.equal(
+    backFallback('staff/session', { id: 's', locationId: 'L', from: 'availability' }),
+    '/operator/availability?locationId=L'
+  );
+});

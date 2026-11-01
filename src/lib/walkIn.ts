@@ -297,3 +297,26 @@ export function plateConflict(
   if (data?.error !== 'plate_active' || typeof data.session_id !== 'string') return null;
   return { id: data.session_id, plate: typeof data.plate === 'string' ? data.plate : '' };
 }
+
+/** Session page actions (rj t131u): edit only while not ended/cancelled. */
+export function canEditSession(s: { status?: string | null } | null | undefined): boolean {
+  return !!s && (s.status === 'active' || s.status === 'overdue');
+}
+
+/** 'Apply payment' only while the session is open and there is a balance to pay. */
+export function canApplyPayment(
+  s: { status?: string | null } | null | undefined,
+  balance: unknown
+): boolean {
+  return canEditSession(s) && balanceToSettle(balance) > 0;
+}
+
+/** Payment screen amount: the requested amount (e.g. from 'Apply payment of ₱X') when valid,
+ *  else the whole balance; '' when nothing is owed. Never more than the balance. */
+export function paymentPrefill(requested: string | null | undefined, balance: unknown): string {
+  const owed = balanceToSettle(balance);
+  if (!owed) return '';
+  const n = Number(requested);
+  if (requested && Number.isFinite(n) && n > 0) return Math.min(n, owed).toFixed(2);
+  return owed.toFixed(2);
+}

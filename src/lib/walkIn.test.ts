@@ -4,6 +4,9 @@ import {
   autoOptionLabel,
   filterByPlate,
   normalizePlate,
+  canApplyPayment,
+  canEditSession,
+  paymentPrefill,
   plateActiveMessage,
   plateConflict,
   sessionReturnRoute,
@@ -240,4 +243,20 @@ test('plate_active: friendly message naming the plate, and the session to open',
   });
   assert.equal(plateConflict({ error: 'other', session_id: 's1' }), null);
   assert.equal(plateConflict(null), null);
+});
+
+test('session page actions: edit while open; pay only with a balance; prefill', () => {
+  assert.equal(canEditSession({ status: 'active' }), true);
+  assert.equal(canEditSession({ status: 'overdue' }), true);
+  assert.equal(canEditSession({ status: 'ended' }), false);
+  assert.equal(canEditSession(null), false);
+  assert.equal(canApplyPayment({ status: 'active' }, '50.00'), true);
+  assert.equal(canApplyPayment({ status: 'active' }, 0), false);
+  assert.equal(canApplyPayment({ status: 'active' }, -20), false);
+  assert.equal(canApplyPayment({ status: 'ended' }, 50), false);
+  assert.equal(paymentPrefill(undefined, '120.5'), '120.50');
+  assert.equal(paymentPrefill('40', 120), '40.00');
+  assert.equal(paymentPrefill('500', 120), '120.00');
+  assert.equal(paymentPrefill('abc', 120), '120.00');
+  assert.equal(paymentPrefill('40', 0), '');
 });

@@ -15,17 +15,15 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
-import { WalkInForm, type WalkInValues } from '../../src/components/WalkInForm';
 import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   balanceToSettle,
   isNegativeBalance,
-  paymentAmountError,
+  canApplyPayment,
+  canEditSession,
   refundAmountError,
   startsIn,
-  plateActiveMessage,
-  plateConflict,
   sessionReturnRoute,
   walkInErrorMessage,
   type PaymentMethod,
@@ -35,23 +33,31 @@ import {
 import { VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import { formatLocalDateTime, formatPeso } from '../../src/utils/formatters';
 
-// One active session (opened from Active Sessions): edit start, end, vehicle, plate
-// and rate; see the amount due and balance; apply fees and payments; end it once the
-// balance is settled (server-enforced).
+// One session (opened from Active Sessions or the Availability Sessions tab): see the amount
+// due and balance; Edit details and Apply payment open their own screens (rj t131u) and this
+// page reloads when you come back; apply fees; end it once the balance is settled
+// (server-enforced).
 export default function SessionScreen() {
   const bottomInset = useBottomInset(theme.spacing.lg);
-  const params = useLocalSearchParams<{ id?: string | string[]; from?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    id?: string | string[];
+    from?: string | string[];
+    notice?: string | string[];
+  }>();
   const id = firstParam(params.id);
   // Opened from the Availability Sessions tab: end / cancel return there instead.
   const from = firstParam(params.from);
   const [d, setD] = React.useState<any>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [notice, setNotice] = React.useState<string | null>(null);
-  const [conflict, setConflict] = React.useState<{ id: string; plate: string } | null>(null);
-  const [formKey, setFormKey] = React.useState(0);
+  // 'Session saved' / 'Payment … recorded' handed back by the Edit / Pay screens.
+  const returnedNotice = firstParam(params.notice) || null;
+  const [localNotice, setLocalNotice] = React.useState<string | null>(null);
+  const notice = localNotice ?? returnedNotice;
   const router = useRouter();
-  const scrollRef = React.useRef<ScrollView>(null);
-  const [payY, setPayY] = React.useState(0);
+  const setNotice = (text: string | null) => {
+    setLocalNotice(text);
+    if (returnedNotice) router.setParams({ notice: undefined });
+  };
   const [presets, setPresets] = React.useState<any[]>([]);
   const [payAmount, setPayAmount] = React.useState('');
   const [cancelReason, setCancelReason] = React.useState('');
@@ -82,32 +88,12 @@ export default function SessionScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
+      // Back from Edit details / Apply payment: show their notice, drop a stale 'settle first'.
+      setLocalNotice(null);
+      setEndError(null);
       load();
     }, [load])
   );
-
-  const save = async (v: WalkInValues): Promise<string | null> => {
-    setNotice(null);
-    const { data, error: e } = await supabase.rpc('update_walk_in_session', {
-      p_session_id: id,
-      p_started_at: v.startAt,
-      p_end_at: v.endAt,
-      p_vehicle_type: v.vehicleType,
-      p_plate: v.plate,
-      p_rate_id: v.rateId,
-    });
-    setConflict(null);
-    if (e) return e.message;
-    if (data?.error === 'plate_active') {
-      setConflict(plateConflict(data));
-      return plateActiveMessage(data.plate);
-    }
-    if (data?.error) return walkInErrorMessage(data.error);
-    setNotice('Session saved');
-    await load();
-    setFormKey((k) => k + 1);
-    return null;
-  };
 
   const applyPreset = async (preset: any) => {
     setNotice(null);
@@ -121,33 +107,6 @@ export default function SessionScreen() {
     }
     setNotice(`Applied ${preset.name} ${formatPeso(data.amount)}`);
     await load();
-    setFormKey((k) => k + 1);
-  };
-
-  const pay = async () => {
-    setPayError(null);
-    const bad = paymentAmountError(payAmount, Number(d.balance));
-    if (bad) return setPayError(bad);
-    setPaying(true);
-    try {
-      const { data, error: e } = await supabase.rpc('record_session_payment', {
-        p_session_id: id,
-        p_amount: Number(payAmount),
-        p_method: payMethod,
-        p_note: payNote.trim() || null,
-      });
-      if (e || data?.error) {
-        setPayError(e?.message || walkInErrorMessage(data?.error));
-        return;
-      }
-      setNotice(`Payment of ${formatPeso(Number(payAmount))} recorded`);
-      setPayAmount('');
-      setPayNote('');
-      setEndError(null);
-      await load();
-    } finally {
-      setPaying(false);
-    }
   };
 
   // Refund on an ended session (0052): a cancelled reservation's deposits or an overpaid credit.
@@ -176,12 +135,19 @@ export default function SessionScreen() {
     }
   };
 
-  // Shortcut from the 'settle first' message: prefill the balance and jump to Payments.
-  const payBalance = (balance: number) => {
-    setPayAmount(balance.toFixed(2));
-    setPayError(null);
-    scrollRef.current?.scrollTo({ y: payY, animated: true });
-  };
+  const sessionParams = (extra?: Record<string, string>) => ({
+    id: id!,
+    locationId: d.session.location_id,
+    ...(from ? { from } : {}),
+    ...extra,
+  });
+  const openEdit = () => router.push({ pathname: '/staff/session-edit', params: sessionParams() });
+  // 'Apply payment of ₱X' passes X; the plain button prefills the whole balance.
+  const openPay = (amount?: number) =>
+    router.push({
+      pathname: '/staff/session-pay',
+      params: sessionParams(amount ? { amount: amount.toFixed(2) } : undefined),
+    });
 
   const cancelReservation = async () => {
     setCancelError(null);
@@ -254,12 +220,7 @@ export default function SessionScreen() {
   // A future start is a reservation (0049): cancelled, not ended, before it starts.
   const reservation = !ended && !!s.reservation;
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={styles.container}
-      contentContainerStyle={bottomInset}
-      testID="session-ready"
-    >
+    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="session-ready">
       <View style={styles.header}>
         <Text style={styles.plate} testID="session-plate">
           {s.plate}
@@ -332,42 +293,32 @@ export default function SessionScreen() {
         </Text>
       </View>
 
-      {!ended ? (
-        <View style={styles.section}>
-          <Text style={styles.heading}>Edit session</Text>
-          <WalkInForm
-            key={formKey}
-            locationId={s.location_id}
-            initial={{
-              vehicleType: s.vehicle_type,
-              plate: s.plate,
-              startAt: s.started_at,
-              endAt: s.end_at,
-              rateId: s.rate_auto ? null : s.rate_id,
-            }}
-            submitLabel="Save changes"
-            onSubmit={save}
+      {canEditSession(s) ? (
+        <View style={styles.actions} testID="session-actions">
+          <Button
+            title="Edit details"
+            variant="outline"
+            onPress={openEdit}
+            testID="session-edit"
+            style={styles.action}
           />
-          {conflict ? (
+          {canApplyPayment(s, d.balance) ? (
             <Button
-              title={`Open session ${conflict.plate}`}
-              variant="outline"
-              style={{ marginTop: theme.spacing.md }}
-              onPress={() =>
-                router.push({
-                  pathname: '/staff/session',
-                  params: { id: conflict.id, locationId: s.location_id, ...(from ? { from } : {}) },
-                })
-              }
-              testID="plate-conflict-open"
+              title="Apply payment"
+              onPress={() => openPay()}
+              testID="session-pay"
+              style={styles.action}
             />
           ) : null}
-          {notice ? (
-            <Text style={styles.notice} testID="session-notice">
-              {notice}
-            </Text>
-          ) : null}
         </View>
+      ) : null}
+      {notice ? (
+        <Text
+          style={[styles.notice, { marginHorizontal: theme.spacing.md }]}
+          testID="session-notice"
+        >
+          {notice}
+        </Text>
       ) : null}
       {!ended && presets.length ? (
         <View style={styles.section}>
@@ -392,11 +343,7 @@ export default function SessionScreen() {
         </View>
       ) : null}
 
-      <View
-        style={styles.section}
-        onLayout={(e) => setPayY(e.nativeEvent.layout.y)}
-        testID="session-payments"
-      >
+      <View style={styles.section} testID="session-payments">
         <Text style={styles.heading}>Payments</Text>
         {d.payments.length ? (
           d.payments.map((p: any, i: number) => (
@@ -415,54 +362,6 @@ export default function SessionScreen() {
         ) : (
           <Text style={styles.meta}>No payments yet</Text>
         )}
-        {!ended ? (
-          <>
-            <Text style={styles.label}>Amount (₱)</Text>
-            <TextInput
-              style={styles.input}
-              value={payAmount}
-              onChangeText={setPayAmount}
-              keyboardType="decimal-pad"
-              placeholder={balanceToSettle(d.balance) ? Number(d.balance).toFixed(2) : '0.00'}
-              testID="pay-amount"
-            />
-            <View style={styles.chips}>
-              {PAYMENT_METHODS.map((m) => (
-                <TouchableOpacity
-                  key={m}
-                  onPress={() => setPayMethod(m)}
-                  style={[styles.chip, payMethod === m && styles.chipOn]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: payMethod === m }}
-                  testID={`pay-method-${m}`}
-                >
-                  <Text style={[styles.chipText, payMethod === m && styles.chipTextOn]}>
-                    {PAYMENT_METHOD_LABELS[m]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput
-              style={[styles.input, { marginTop: theme.spacing.sm }]}
-              value={payNote}
-              onChangeText={setPayNote}
-              placeholder="Note (optional), e.g. GCash ref"
-              testID="pay-note"
-            />
-            {payError ? (
-              <Text style={styles.error} testID="pay-error">
-                {payError}
-              </Text>
-            ) : null}
-            <Button
-              title="Apply payment"
-              onPress={pay}
-              loading={paying}
-              testID="pay-submit"
-              style={{ marginTop: theme.spacing.sm }}
-            />
-          </>
-        ) : null}
         {ended && Number(d.refundable) > 0 ? (
           <View testID="refund-box">
             <Text style={styles.label}>
@@ -578,7 +477,7 @@ export default function SessionScreen() {
                 <Button
                   title={`Apply payment of ${formatPeso(endError.balance)}`}
                   size="small"
-                  onPress={() => payBalance(endError.balance)}
+                  onPress={() => openPay(endError.balance)}
                   testID="end-pay-shortcut"
                 />
               ) : null}
@@ -627,6 +526,13 @@ export default function SessionScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   refundRow: { color: theme.colors.danger },
+  actions: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+  },
+  action: { flex: 1 },
   confirmRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
