@@ -139,6 +139,71 @@ export function Sidebar({ hasWorkspace }: Props) {
   const admin = items.filter((i) => i.section === 'admin');
   const signOutItem = items.find((i) => i.key === 'sign_out');
 
+  // Sections in order (navigation, then Shortcuts, then Admin), with a divider between
+  // each adjacent pair; the header and the Sign out footer carry their own dividers.
+  const sections: { key: string; node: React.ReactNode }[] = [];
+  if (account.length) {
+    sections.push({
+      key: 'nav',
+      node: (
+        <View testID="sidebar-nav">
+          {account.map((it) => (
+            <Row key={it.key} item={it} busy={busy === it.key} onPress={() => onItem(it)} />
+          ))}
+        </View>
+      ),
+    });
+  }
+  // Shortcuts (first 3; the section shows once there is at least one).
+  if (shortcuts.length) {
+    sections.push({
+      key: 'shortcuts',
+      node: (
+        <View testID="sidebar-shortcuts">
+          <View style={styles.sectionRow}>
+            <Text style={[styles.section, styles.sectionInRow]}>Shortcuts</Text>
+            <TouchableOpacity
+              onPress={() => go('/shortcuts')}
+              accessibilityRole="link"
+              accessibilityLabel="View all shortcuts"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              testID="sidebar-shortcuts-all"
+            >
+              <Text style={styles.viewAll}>View all</Text>
+            </TouchableOpacity>
+          </View>
+          {shortcuts.map((sc) => (
+            <TouchableOpacity
+              key={sc.locationId}
+              style={styles.row}
+              onPress={() => go(`/location/${encodeURIComponent(sc.locationId)}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Shortcut: ${shortcutLabel(sc)}`}
+              testID={`sidebar-shortcut-${sc.locationId}`}
+            >
+              <Text style={[styles.rowLabel, !sc.available && styles.rowMuted]} numberOfLines={1}>
+                {shortcutLabel(sc)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ),
+    });
+  }
+  if (admin.length) {
+    sections.push({
+      key: 'admin',
+      node: (
+        <View testID="sidebar-admin">
+          <Text style={styles.section}>Admin</Text>
+          {admin.map((it) => (
+            <Row key={it.key} item={it} busy={busy === it.key} onPress={() => onItem(it)} />
+          ))}
+        </View>
+      ),
+    });
+  }
+
   return (
     <Modal visible transparent animationType="none" onRequestClose={close} statusBarTranslucent>
       <View style={styles.root} testID="sidebar">
@@ -184,56 +249,23 @@ export function Sidebar({ hasWorkspace }: Props) {
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.list}>
-            {/* Shortcuts (first 3; the section shows once there is at least one). */}
-            {shortcuts.length ? (
-              <View testID="sidebar-shortcuts">
-                <View style={styles.sectionRow}>
-                  <Text style={[styles.section, styles.sectionInRow]}>Shortcuts</Text>
-                  <TouchableOpacity
-                    onPress={() => go('/shortcuts')}
-                    accessibilityRole="link"
-                    accessibilityLabel="View all shortcuts"
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    testID="sidebar-shortcuts-all"
-                  >
-                    <Text style={styles.viewAll}>View all</Text>
-                  </TouchableOpacity>
-                </View>
-                {shortcuts.map((sc) => (
-                  <TouchableOpacity
-                    key={sc.locationId}
-                    style={styles.row}
-                    onPress={() => go(`/location/${encodeURIComponent(sc.locationId)}`)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Shortcut: ${shortcutLabel(sc)}`}
-                    testID={`sidebar-shortcut-${sc.locationId}`}
-                  >
-                    <Text
-                      style={[styles.rowLabel, !sc.available && styles.rowMuted]}
-                      numberOfLines={1}
-                    >
-                      {shortcutLabel(sc)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : null}
-            {account.map((it) => (
-              <Row key={it.key} item={it} busy={busy === it.key} onPress={() => onItem(it)} />
-            ))}
-            {admin.length ? <Text style={styles.section}>Admin</Text> : null}
-            {admin.map((it) => (
-              <Row key={it.key} item={it} busy={busy === it.key} onPress={() => onItem(it)} />
+            {sections.map((sec, i) => (
+              <React.Fragment key={sec.key}>
+                {i > 0 ? <View style={styles.divider} testID="sidebar-divider" /> : null}
+                {sec.node}
+              </React.Fragment>
             ))}
             {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           </ScrollView>
           {signOutItem ? (
-            <Row
-              item={signOutItem}
-              busy={busy === 'sign_out'}
-              onPress={() => onItem(signOutItem)}
-              muted
-            />
+            <View style={styles.footer} testID="sidebar-footer">
+              <Row
+                item={signOutItem}
+                busy={busy === 'sign_out'}
+                onPress={() => onItem(signOutItem)}
+                muted
+              />
+            </View>
           ) : null}
         </Animated.View>
       </View>
@@ -325,6 +357,13 @@ const styles = StyleSheet.create({
   sub: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 2 },
   close: { fontSize: 18, color: theme.colors.text.secondary },
   list: { paddingVertical: theme.spacing.sm },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.border,
+    marginHorizontal: theme.spacing.lg,
+    marginVertical: theme.spacing.sm,
+  },
+  footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border },
   section: {
     ...theme.typography.caption,
     color: theme.colors.text.tertiary,
