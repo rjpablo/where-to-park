@@ -13,6 +13,16 @@ export function availableSlots(listing: SlotCountable): number {
   return Math.max(0, Math.floor(Number(listing.available_count) || 0));
 }
 
+/** A listing's free spaces from the one server source (0064: the free_spaces computed field /
+ *  location_free_spaces); falls back to the cached available_count when not selected. */
+export function freeSpaces(loc: {
+  free_spaces?: number | null;
+  available_count?: number | null;
+}): number {
+  const n = loc.free_spaces ?? loc.available_count;
+  return Math.max(0, Math.floor(Number(n) || 0));
+}
+
 export function totalAvailableSlots(listings: SlotCountable[]): number {
   return listings.reduce((sum, l) => sum + availableSlots(l), 0);
 }

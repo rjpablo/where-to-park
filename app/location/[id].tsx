@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
+import { freeSpaces } from '../../src/lib/availability';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
@@ -236,6 +237,7 @@ export default function LocationDetailScreen() {
         .select(
           `
           *,
+          free_spaces,
           location_photos(*),
           location_policies(*),
           rates(*),
@@ -487,7 +489,7 @@ export default function LocationDetailScreen() {
           <View style={styles.availability}>
             <AvailabilityBadge
               trackingMode={location.tracking_mode}
-              availableCount={location.available_count}
+              availableCount={freeSpaces(location)}
               openStatus={location.open_status}
               updatedAt={location.availability_updated_at}
               staleThresholdMin={location.stale_after_min}

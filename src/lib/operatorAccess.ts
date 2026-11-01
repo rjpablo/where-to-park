@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { freeSpaces } from './availability';
 
 export type OperatorRole = 'owner' | 'manager' | 'staff';
 
@@ -16,6 +17,7 @@ export type ManagedLocation = {
   published: boolean;
   tracking_mode: 'count' | 'open_full' | 'slots';
   available_count: number;
+  free_spaces?: number | null;
   capacity: number;
   open_status: boolean | null;
   operator_id: string;
@@ -66,7 +68,7 @@ export async function loadManagedLocations(userId: string): Promise<ManagedLocat
   const { data, error } = await supabase
     .from('locations')
     .select(
-      'id, name, verification_status, published, tracking_mode, available_count, capacity, open_status, operator_id, availability_updated_at, rejected_at, rejection_reason'
+      'id, name, verification_status, published, tracking_mode, available_count, free_spaces, capacity, open_status, operator_id, availability_updated_at, rejected_at, rejection_reason'
     )
     .in('operator_id', operatorIds)
     .is('deleted_at', null)
@@ -84,8 +86,9 @@ export function availabilityLabel(loc: {
   tracking_mode: string;
   open_status: boolean | null;
   available_count: number;
+  free_spaces?: number | null;
   capacity: number;
 }): string {
   if (loc.tracking_mode === 'open_full') return loc.open_status ? 'Open' : 'Full';
-  return `${loc.available_count} / ${loc.capacity} open`;
+  return `${freeSpaces(loc)} / ${loc.capacity} open`;
 }

@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { availableSlots, searchSummary, spotsLabel, totalAvailableSlots } from './availability.ts';
+import {
+  availableSlots,
+  freeSpaces,
+  searchSummary,
+  spotsLabel,
+  totalAvailableSlots,
+} from './availability.ts';
 
 test('count listings contribute their free slots; open/full contribute 0', () => {
   assert.equal(availableSlots({ tracking_mode: 'count', available_count: 7 }), 7);
@@ -47,4 +53,12 @@ test('spotsLabel: free count only, singular for 1, Unknown when missing', () => 
   assert.equal(spotsLabel(undefined), 'Unknown');
   assert.equal(spotsLabel(NaN), 'Unknown');
   assert.equal(spotsLabel(-1), 'Unknown');
+});
+
+test('freeSpaces: the server free_spaces first, else the cached count; never below 0', () => {
+  assert.equal(freeSpaces({ free_spaces: 9, available_count: 10 }), 9);
+  assert.equal(freeSpaces({ free_spaces: 0, available_count: 10 }), 0);
+  assert.equal(freeSpaces({ available_count: 7 }), 7);
+  assert.equal(freeSpaces({ free_spaces: null, available_count: null }), 0);
+  assert.equal(freeSpaces({ free_spaces: -2 }), 0);
 });

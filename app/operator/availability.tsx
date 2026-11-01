@@ -26,8 +26,9 @@ export default function AvailabilityScreen() {
   const reservedSaved = firstParam(sp.reserved) === '1';
   const endedPlate = firstParam(sp.ended);
   const cancelledPlate = firstParam(sp.cancelled);
-  // Tabs: Sessions (first, default; rj) shows the count and the active sessions; Count and
-  // Open/Full are the tracking modes (tapping one switches the listing to it, as before).
+  // Tabs (rj t136u: sessions only, Count tab and -/+ removed): Sessions (first, default)
+  // shows free spaces from the one server source (free_spaces), Reserved/Unavailable and
+  // the active sessions; Open/Full switches the listing to the Open/Full toggle.
   const [tab, setTab] = useState<'sessions' | 'mode'>('sessions');
   const [sessions, setSessions] = useState<any[]>([]);
   const [previews, setPreviews] = useState<Record<string, any>>({});
@@ -74,10 +75,11 @@ export default function AvailabilityScreen() {
     }
   };
 
-  const chooseMode = (mode: 'count' | 'open_full') => {
-    setTab('mode');
-    const current = location?.tracking_mode === 'open_full' ? 'open_full' : 'count';
-    if (current !== mode) setMode(mode);
+  // Opening the tab no longer switches the listing by itself: it offers the switch.
+  const chooseOpenFull = () => setTab('mode');
+  const countBySessions = async () => {
+    await setMode('count');
+    setTab('sessions');
   };
 
   const loadLocationData = async () => {
@@ -90,7 +92,7 @@ export default function AvailabilityScreen() {
       }
       const { data: locations, error: locError } = await supabase
         .from('locations')
-        .select('*')
+        .select('*, free_spaces')
         .eq('id', locationId)
         .single();
 
@@ -112,31 +114,6 @@ export default function AvailabilityScreen() {
     } catch (err: any) {
       console.error('Load error:', err);
       setError(err.message || 'Failed to load location data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const adjustAvailability = async (delta: number) => {
-    if (!location) return;
-
-    setLoading(true);
-    try {
-      const { data, error: rpcError } = await supabase.rpc('adjust_availability', {
-        p_location_id: location.id,
-        p_delta: delta,
-      });
-
-      if (rpcError) throw rpcError;
-
-      if (data?.available_count !== undefined) {
-        setLocation({ ...location, available_count: data.available_count });
-      }
-
-      await loadLocationData();
-    } catch (err: any) {
-      console.error('Adjust availability error:', err);
-      setError(err.message || 'Adjust failed');
     } finally {
       setLoading(false);
     }
@@ -190,6 +167,7 @@ export default function AvailabilityScreen() {
     setLocation({
       ...location,
       available_count: data.available_count,
+      free_spaces: data.available_count,
       manual_reserved_count: data.manual_reserved_count,
       unavailable_count: data.unavailable_count,
     });
@@ -225,8 +203,8 @@ export default function AvailabilityScreen() {
   const reserved = Number(location.manual_reserved_count || 0);
   const unavailable = Number(location.unavailable_count || 0);
   const onSessions = tab === 'sessions';
-  const countOn = !onSessions && location.tracking_mode !== 'open_full';
-  const openFullOn = !onSessions && location.tracking_mode === 'open_full';
+  const openFullOn = !onSessions;
+  const isOpenFull = location.tracking_mode === 'open_full';
   const shownSessions = filterByPlate(sessions, plateQuery);
 
   return (
@@ -250,15 +228,8 @@ export default function AvailabilityScreen() {
           <Text style={[styles.modeChipText, onSessions && styles.modeChipTextOn]}>Sessions</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.modeChip, countOn && styles.modeChipOn]}
-          onPress={() => chooseMode('count')}
-          testID="mode-count"
-        >
-          <Text style={[styles.modeChipText, countOn && styles.modeChipTextOn]}>Count</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.modeChip, openFullOn && styles.modeChipOn]}
-          onPress={() => chooseMode('open_full')}
+          onPress={chooseOpenFull}
           testID="mode-open-full"
         >
           <Text style={[styles.modeChipText, openFullOn && styles.modeChipTextOn]}>Open/Full</Text>
@@ -274,7 +245,7 @@ export default function AvailabilityScreen() {
             ? location.open_status
               ? 'Open'
               : 'Full'
-            : `${location.available_count} / ${location.capacity}`}
+            : `${location.free_spaces ?? location.available_count} / ${location.capacity}`}
         </Text>
         <Text style={styles.countUpdated}>
           Updated {formatLocalDateTime(location.availability_updated_at)}
@@ -283,6 +254,67 @@ export default function AvailabilityScreen() {
 
       {onSessions ? (
         <View style={styles.section} testID="sessions-tab">
+          {!isOpenFull ? (
+            <View style={styles.heldBox} testID="held-spaces">
+              <Text style={styles.heldTitle}>Spaces held (not free)</Text>
+
+              <View style={styles.manualRow}>
+                <View style={styles.manualItem}>
+                  <Text style={styles.manualLabel}>Reserved</Text>
+                  <View style={styles.stepper}>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved - 1, unavailable)}
+                      disabled={reserved <= 0}
+                      testID="reserved-minus"
+                    >
+                      <Text>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.stepperValue} testID="reserved-value">
+                      {reserved}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved + 1, unavailable)}
+                      testID="reserved-plus"
+                    >
+                      <Text>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.manualItem}>
+                  <Text style={styles.manualLabel}>Unavailable</Text>
+                  <View style={styles.stepper}>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved, unavailable - 1)}
+                      disabled={unavailable <= 0}
+                      testID="unavailable-minus"
+                    >
+                      <Text>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.stepperValue} testID="unavailable-value">
+                      {unavailable}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved, unavailable + 1)}
+                      testID="unavailable-plus"
+                    >
+                      <Text>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+              {notice ? (
+                <Text style={styles.errorText} testID="manual-notice">
+                  {notice}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
           {checkedIn ? (
             <Text style={styles.successText} testID="availability-checked-in">
               {reservedSaved ? 'Reservation saved for' : 'Checked in'} {checkedIn}
@@ -359,7 +391,7 @@ export default function AvailabilityScreen() {
         </View>
       ) : (
         <>
-          {location.tracking_mode === 'open_full' ? (
+          {isOpenFull ? (
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 style={[styles.adjustButton, styles.incrementButton]}
@@ -376,91 +408,24 @@ export default function AvailabilityScreen() {
                 <Text style={styles.adjustButtonText}>Full</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.adjustButton, styles.decrementButton]}
-                onPress={() => adjustAvailability(-1)}
-                disabled={loading || location.available_count === 0}
-              >
-                <Text style={styles.adjustButtonText}>-1</Text>
-              </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            style={styles.modeSwitch}
+            onPress={isOpenFull ? countBySessions : () => setMode('open_full')}
+            testID={isOpenFull ? 'mode-count-sessions' : 'mode-use-open-full'}
+          >
+            <Text style={styles.modeSwitchText}>
+              {isOpenFull
+                ? 'Count free spaces from sessions instead'
+                : 'Use the Open/Full toggle for this listing'}
+            </Text>
+          </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.adjustButton, styles.incrementButton]}
-                onPress={() => adjustAvailability(1)}
-                disabled={loading || location.available_count >= location.capacity}
-              >
-                <Text style={styles.adjustButtonText}>+1</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {location.tracking_mode !== 'open_full' ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Manual Adjustments</Text>
-
-              <View style={styles.manualRow}>
-                <View style={styles.manualItem}>
-                  <Text style={styles.manualLabel}>Reserved</Text>
-                  <View style={styles.stepper}>
-                    <TouchableOpacity
-                      style={styles.stepperButton}
-                      onPress={() => setManual(reserved - 1, unavailable)}
-                      disabled={reserved <= 0}
-                      testID="reserved-minus"
-                    >
-                      <Text>-</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.stepperValue} testID="reserved-value">
-                      {reserved}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.stepperButton}
-                      onPress={() => setManual(reserved + 1, unavailable)}
-                      testID="reserved-plus"
-                    >
-                      <Text>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View style={styles.manualItem}>
-                  <Text style={styles.manualLabel}>Unavailable</Text>
-                  <View style={styles.stepper}>
-                    <TouchableOpacity
-                      style={styles.stepperButton}
-                      onPress={() => setManual(reserved, unavailable - 1)}
-                      disabled={unavailable <= 0}
-                      testID="unavailable-minus"
-                    >
-                      <Text>-</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.stepperValue} testID="unavailable-value">
-                      {unavailable}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.stepperButton}
-                      onPress={() => setManual(reserved, unavailable + 1)}
-                      testID="unavailable-plus"
-                    >
-                      <Text>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-              {notice ? (
-                <Text style={styles.errorText} testID="manual-notice">
-                  {notice}
-                </Text>
-              ) : null}
-            </View>
-          ) : notice ? (
+          {notice ? (
             <Text style={styles.errorText} testID="manual-notice">
               {notice}
             </Text>
           ) : null}
-
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
             {recentActivity.length > 0 ? (
@@ -507,6 +472,29 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.md,
+  },
+  modeSwitch: {
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.sm,
+  },
+  modeSwitchText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.primary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  heldBox: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.md,
+  },
+  heldTitle: {
+    ...theme.typography.bodySmall,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
   },
   modeChip: {
     paddingHorizontal: theme.spacing.md,
