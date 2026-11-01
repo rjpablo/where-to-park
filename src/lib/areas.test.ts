@@ -6,6 +6,7 @@ import {
   areaStatusText,
   defaultAreaId,
   listingAvailability,
+  listingPinLabel,
   sortAreas,
   vehicleTypesLabel,
 } from './areas.ts';
@@ -81,4 +82,12 @@ test('area error messages', () => {
   assert.match(areaErrorMessage('capacity_below_in_use', { in_use: 4 }), /\(4\)/);
   assert.match(areaErrorMessage('vehicle_not_allowed', { area: 'Rooftop' }), /Rooftop/);
   assert.equal(areaErrorMessage('weird'), 'weird');
+});
+
+test('map pin labels', () => {
+  assert.equal(listingPinLabel(12, true), '12');
+  assert.equal(listingPinLabel(null, true), 'Open');
+  assert.equal(listingPinLabel(0, true), 'Open');
+  assert.equal(listingPinLabel(0, false), '0');
+  assert.equal(listingPinLabel(null, false), 'Full');
 });

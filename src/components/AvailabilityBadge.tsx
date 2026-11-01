@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../lib/theme';
 import { formatRelativeTime, isStale } from '../utils/formatters';
-import { spotsLabel } from '../lib/availability';
+import { listingAvailability } from '../lib/areas';
 
 interface AvailabilityBadgeProps {
   trackingMode: 'count' | 'open_full' | 'slots';
-  availableCount: number;
+  /** Free spaces over the monitored areas; null when no area is monitored (0067). */
+  availableCount: number | null;
   openStatus?: boolean | null;
   updatedAt: string;
   staleThresholdMin: number;
@@ -29,15 +30,11 @@ export function AvailabilityBadge({
     }
 
     if (trackingMode === 'count' || trackingMode === 'slots') {
-      // Free count only ('n spots'; rj): capacity is no longer shown here.
-      const text = spotsLabel(availableCount);
-      const color =
-        text === 'Unknown'
-          ? theme.colors.text.secondary
-          : availableCount > 0
-            ? theme.colors.available
-            : theme.colors.full;
-      return { text, color };
+      // Free count only ('n spots'; rj): capacity is no longer shown here. 0067 (areas):
+      // 'Available' when no area is monitored or only an unmonitored one is open; 'Full'
+      // / '0 spots' only when every area is full.
+      const a = listingAvailability(availableCount, openStatus ?? (availableCount ?? 0) > 0);
+      return { text: a.text, color: a.full ? theme.colors.full : theme.colors.available };
     }
 
     return { text: 'Unknown', color: theme.colors.text.secondary };

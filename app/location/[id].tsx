@@ -14,6 +14,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
 import { freeSpaces } from '../../src/lib/availability';
+import { listingAvailability, sortAreas, vehicleTypesLabel, type Area } from '../../src/lib/areas';
+import { VEHICLE_TYPE_LABELS } from '../../src/lib/searchFilters';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
@@ -238,6 +240,8 @@ export default function LocationDetailScreen() {
           `
           *,
           free_spaces,
+          listing_full,
+          areas(id, name, is_main, sort_order, vehicle_types, monitored, marked_full, area_free, area_full),
           location_photos(*),
           location_policies(*),
           rates(*),
@@ -489,12 +493,32 @@ export default function LocationDetailScreen() {
           <View style={styles.availability}>
             <AvailabilityBadge
               trackingMode={location.tracking_mode}
-              availableCount={freeSpaces(location)}
-              openStatus={location.open_status}
+              availableCount={location.free_spaces === null ? null : freeSpaces(location)}
+              openStatus={location.listing_full == null ? undefined : !location.listing_full}
               updatedAt={location.availability_updated_at}
               staleThresholdMin={location.stale_after_min}
             />
           </View>
+          {/* rj t139u: with several areas, each one's availability and vehicle types. */}
+          {(location.areas || []).length > 1 ? (
+            <View style={styles.areaList} testID="location-areas">
+              {sortAreas(location.areas as Area[]).map((a) => (
+                <Text key={a.id} style={styles.areaLine} testID={`location-area-${a.name}`}>
+                  {a.name}:{' '}
+                  {a.monitored
+                    ? a.area_full
+                      ? 'Full'
+                      : listingAvailability(a.area_free, true).text
+                    : a.marked_full
+                      ? 'Full'
+                      : 'Available'}
+                  {a.vehicle_types?.length
+                    ? ` · ${vehicleTypesLabel(a.vehicle_types, VEHICLE_TYPE_LABELS)} only`
+                    : ''}
+                </Text>
+              ))}
+            </View>
+          ) : null}
 
           {/* Listing actions: shortcut for everyone; Manage listing for its operator team. */}
           <View style={styles.listingActions}>
@@ -967,6 +991,8 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.md,
   },
+  areaList: { marginTop: theme.spacing.xs, gap: 2 },
+  areaLine: { ...theme.typography.bodySmall, color: theme.colors.text.secondary },
   availability: {
     marginTop: theme.spacing.sm,
   },

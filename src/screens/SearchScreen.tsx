@@ -59,6 +59,7 @@ import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 import { useBottomInset } from '../hooks/useBottomInset';
+import { listingAvailability, listingPinLabel } from '../lib/areas';
 
 // Results sheet, three modes (snap points, drag the handle between them):
 // - Minimized: fits its top part (title, summary, one row of filters, distance slider);
@@ -211,21 +212,15 @@ export function SearchScreen() {
         },
         availableCount: result.available_count || 0,
         availableSlots: availableSlots(result),
-        pinLabel:
-          result.tracking_mode === 'open_full'
-            ? result.open_status
-              ? 'Open'
-              : 'Full'
-            : String(result.available_count ?? 0),
+        // 0067 (areas): the monitored free total, 'Available' with no monitored count,
+        // 'Full' only when every area is full.
+        pinLabel: listingPinLabel(result.available_count, result.open_status),
         isStale:
           result.stale_after_min && result.availability_updated_at
             ? new Date().getTime() - new Date(result.availability_updated_at).getTime() >
               result.stale_after_min * 60 * 1000
             : false,
-        isFull:
-          result.tracking_mode === 'open_full'
-            ? !result.open_status
-            : (result.available_count || 0) <= 0,
+        isFull: listingAvailability(result.available_count, result.open_status).full,
         title: result.name,
       })),
     [results]

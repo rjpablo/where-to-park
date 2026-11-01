@@ -132,3 +132,13 @@ export function areaErrorMessage(
       return c || 'Something went wrong';
   }
 }
+
+/** Short map-pin text for the same rule: the number, 'Open' (no monitored count) or 'Full'. */
+export function listingPinLabel(
+  count: number | null | undefined,
+  open: boolean | null | undefined
+): string {
+  const a = listingAvailability(count, open);
+  if (a.full) return a.count == null ? 'Full' : '0';
+  return a.count != null && a.count > 0 ? String(a.count) : 'Open';
+}
