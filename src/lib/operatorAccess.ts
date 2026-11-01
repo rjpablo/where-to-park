@@ -91,7 +91,11 @@ export function availabilityLabel(loc: {
   marked_full?: boolean | null;
   capacity: number;
 }): string {
-  if (loc.marked_full) return 'Marked FULL';
-  if (loc.tracking_mode === 'open_full') return loc.open_status ? 'Open' : 'Full';
-  return `${freeSpaces(loc)} / ${loc.capacity} open`;
+  // 0067: marked_full caches 'the listing is Full' (every area full); free_spaces is the
+  // monitored areas' total (null when no area is monitored).
+  if (loc.marked_full) return 'Full';
+  if (loc.free_spaces === null) return 'Available';
+  const free = freeSpaces(loc);
+  if (free === 0) return 'Available';
+  return `${free} / ${loc.capacity} open`;
 }

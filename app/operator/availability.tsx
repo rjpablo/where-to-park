@@ -17,6 +17,16 @@ import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { SessionSummary, sessionCardStyles } from '../../src/components/SessionSummary';
 import { fetchActiveSessions } from '../../src/lib/activeSessions';
 import { filterByPlate } from '../../src/lib/walkIn';
+import { FilterDropdown } from '../../src/components/FilterDropdown';
+import {
+  AREA_SELECT,
+  areaErrorMessage,
+  areaStatusText,
+  defaultAreaId,
+  listingAvailability,
+  sortAreas,
+  type Area,
+} from '../../src/lib/areas';
 
 export default function AvailabilityScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
@@ -29,6 +39,7 @@ export default function AvailabilityScreen() {
     ended?: string | string[];
     cancelled?: string | string[];
     slots?: string | string[];
+    areaId?: string | string[];
   }>();
   const locationId = firstParam(sp.locationId);
   const checkedIn = firstParam(sp.checkedIn);
@@ -36,6 +47,7 @@ export default function AvailabilityScreen() {
   const endedPlate = firstParam(sp.ended);
   const cancelledPlate = firstParam(sp.cancelled);
   const slotsSaved = firstParam(sp.slots) === 'saved';
+  const areaParam = firstParam(sp.areaId);
   // Sessions only (rj t136u/t137u): the count from sessions (counted_spaces), the pencil to
   // the Available slots editor, the Full switch and the active sessions. No tabs.
   const [sessions, setSessions] = useState<any[]>([]);
@@ -44,10 +56,19 @@ export default function AvailabilityScreen() {
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [plateQuery, setPlateQuery] = useState('');
   const [location, setLocation] = useState<any>(null);
+  // rj t139u: availability is managed per area; the dropdown picks which (Main by default,
+  // the only choice when Main is the only area).
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [areaId, setAreaId] = useState<string | null>(areaParam ?? null);
   const [savingFull, setSavingFull] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Coming back with an area (check-in, slots editor): show that one.
+  useEffect(() => {
+    if (areaParam) setAreaId(areaParam);
+  }, [areaParam]);
 
   useEffect(() => {
     loadLocationData();
@@ -91,13 +112,21 @@ export default function AvailabilityScreen() {
       if (!locationId) {
         throw new Error('Pick a listing from My listings');
       }
-      const { data: locations, error: locError } = await supabase
-        .from('locations')
-        .select('*, free_spaces, counted_spaces')
-        .eq('id', locationId)
-        .single();
+      const [{ data: locations, error: locError }, { data: areaRows, error: areaError }] =
+        await Promise.all([
+          supabase
+            .from('locations')
+            .select('*, free_spaces, counted_spaces, listing_full')
+            .eq('id', locationId)
+            .single(),
+          supabase.from('areas').select(AREA_SELECT).eq('location_id', locationId),
+        ]);
 
       if (locError) throw locError;
+      if (areaError) throw areaError;
+      const sorted = sortAreas((areaRows || []) as unknown as Area[]);
+      setAreas(sorted);
+      setAreaId((cur) => defaultAreaId(sorted, cur));
 
       if (locations) {
         setLocation(locations);
@@ -110,21 +139,22 @@ export default function AvailabilityScreen() {
     }
   };
 
-  // Full switch (rj t137u, 0066): Full for drivers regardless of the count.
+  // Full switch (rj t137u) / Available-Full toggle (unmonitored), per area (0067).
   const setFull = async (full: boolean) => {
-    if (!location) return;
+    const target = areas.find((x) => x.id === areaId);
+    if (!target) return;
     setNotice(null);
     setSavingFull(true);
-    const prev = location;
-    setLocation({ ...location, marked_full: full });
+    const prev = areas;
+    setAreas(areas.map((x) => (x.id === target.id ? { ...x, marked_full: full } : x)));
     try {
-      const { data, error: rpcError } = await supabase.rpc('set_listing_full', {
-        p_location_id: location.id,
+      const { data, error: rpcError } = await supabase.rpc('set_area_full', {
+        p_area_id: target.id,
         p_full: full,
       });
       if (rpcError || data?.error) {
-        setLocation(prev);
-        setNotice(rpcError?.message || String(data?.error));
+        setAreas(prev);
+        setNotice(rpcError?.message || areaErrorMessage(data?.error));
         return;
       }
       await loadLocationData();
@@ -160,8 +190,12 @@ export default function AvailabilityScreen() {
     );
   }
 
-  const full = !!location.marked_full;
-  const shownSessions = filterByPlate(sessions, plateQuery);
+  const area = areas.find((x) => x.id === areaId) || null;
+  const full = !!area?.marked_full;
+  const monitored = area ? area.monitored : true;
+  const areaSessions = area ? sessions.filter((x) => x.area_id === area.id) : sessions;
+  const shownSessions = filterByPlate(areaSessions, plateQuery);
+  const listing = listingAvailability(location.free_spaces, !location.listing_full);
 
   return (
     <ScrollView
@@ -173,52 +207,107 @@ export default function AvailabilityScreen() {
         <Text style={styles.subtitle}>{location.name}</Text>
       </View>
 
+      <View style={styles.areaBar}>
+        <Text style={styles.areaBarLabel}>Area</Text>
+        <FilterDropdown<string>
+          label="Area"
+          showLabel={false}
+          value={areaId}
+          options={areas.map((x) => ({ value: x.id, label: x.name }))}
+          onChange={(v) => v && setAreaId(v)}
+          highlightActive={false}
+          style={styles.areaDropdown}
+          testID="availability-area"
+        />
+      </View>
+      {areas.length > 1 ? (
+        <Text style={styles.listingTotal} testID="availability-listing-total">
+          Whole listing: {listing.full ? 'Full' : listing.text}
+          {listing.full ? ' (every area is full)' : ''}
+        </Text>
+      ) : null}
+
       <View style={styles.countDisplay}>
         {full ? (
           <Text style={styles.fullText} testID="availability-full">
             Mark as FULL
           </Text>
         ) : null}
-        <Text style={styles.countLabel}>Available Spaces</Text>
-        <View style={styles.countRow}>
-          <Text style={styles.countNumber} testID="availability-status">
-            {`${location.counted_spaces ?? location.free_spaces ?? location.available_count} / ${location.capacity}`}
-          </Text>
-          <TouchableOpacity
-            style={styles.pencil}
-            onPress={() =>
-              router.push({
-                pathname: '/operator/slots-editor',
-                params: { locationId: location.id },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel="Edit reserved and unavailable spaces"
-            hitSlop={8}
-            testID="slots-edit"
-          >
-            <Text style={styles.pencilText}>✎</Text>
-          </TouchableOpacity>
-        </View>
-        {full ? (
-          <Text style={styles.fullNote} testID="availability-full-note">
-            Drivers see this listing as Full (0 spots)
-          </Text>
-        ) : null}
+        {monitored ? (
+          <>
+            <Text style={styles.countLabel}>Available Spaces</Text>
+            <View style={styles.countRow}>
+              <Text style={styles.countNumber} testID="availability-status">
+                {area ? areaStatusText(area) : '-'}
+              </Text>
+              <TouchableOpacity
+                style={styles.pencil}
+                onPress={() =>
+                  area &&
+                  router.push({
+                    pathname: '/operator/slots-editor',
+                    params: { locationId: location.id, areaId: area.id },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Edit reserved and unavailable spaces"
+                hitSlop={8}
+                testID="slots-edit"
+              >
+                <Text style={styles.pencilText}>✎</Text>
+              </TouchableOpacity>
+            </View>
+            {full ? (
+              <Text style={styles.fullNote} testID="availability-full-note">
+                Drivers see this area as Full (0 spots)
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {/* Not monitored (rj t139u): no number, staff switch Available / Full. */}
+            <Text style={styles.countLabel}>Spots not monitored</Text>
+            <View style={styles.statusToggle} testID="availability-status-toggle">
+              {[
+                { key: 'available', label: 'Available', on: !full, value: false },
+                { key: 'full', label: 'Full', on: full, value: true },
+              ].map((o) => (
+                <TouchableOpacity
+                  key={o.key}
+                  style={[
+                    styles.statusOption,
+                    o.on && (o.value ? styles.statusOptionFull : styles.statusOptionOpen),
+                  ]}
+                  onPress={() => !o.on && setFull(o.value)}
+                  disabled={savingFull}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: o.on }}
+                  testID={`availability-status-${o.key}`}
+                >
+                  <Text style={[styles.statusOptionText, o.on && styles.statusOptionTextOn]}>
+                    {o.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
         <Text style={styles.countUpdated}>
           Updated {formatLocalDateTime(location.availability_updated_at)}
         </Text>
-        <View style={styles.fullRow}>
-          <Text style={styles.fullLabel}>Full</Text>
-          <Switch
-            value={full}
-            onValueChange={setFull}
-            disabled={savingFull}
-            trackColor={{ true: theme.colors.danger, false: theme.colors.border }}
-            accessibilityLabel="Mark this listing as full"
-            testID="full-switch"
-          />
-        </View>
+        {monitored ? (
+          <View style={styles.fullRow}>
+            <Text style={styles.fullLabel}>Full</Text>
+            <Switch
+              value={full}
+              onValueChange={setFull}
+              disabled={savingFull || !area}
+              trackColor={{ true: theme.colors.danger, false: theme.colors.border }}
+              accessibilityLabel="Mark this area as full"
+              testID="full-switch"
+            />
+          </View>
+        ) : null}
         {notice ? (
           <Text style={styles.errorText} testID="full-error">
             {notice}
@@ -249,14 +338,18 @@ export default function AvailabilityScreen() {
         ) : null}
         <View style={styles.sessionsHead}>
           <Text style={[styles.sectionTitle, styles.sessionsTitle]} testID="sessions-count">
-            Active sessions ({sessions.length})
+            Active sessions ({areaSessions.length})
           </Text>
           <TouchableOpacity
             style={styles.addButton}
             onPress={() =>
               router.push({
                 pathname: '/staff/checkin',
-                params: { locationId: location.id, from: 'availability' },
+                params: {
+                  locationId: location.id,
+                  from: 'availability',
+                  ...(area ? { areaId: area.id } : {}),
+                },
               })
             }
             accessibilityRole="button"
@@ -302,7 +395,7 @@ export default function AvailabilityScreen() {
           ))
         ) : (
           <Text style={styles.activityText} testID="sessions-empty">
-            {sessions.length ? 'No sessions match this plate' : 'No active sessions'}
+            {areaSessions.length ? 'No sessions match this plate' : 'No active sessions'}
           </Text>
         )}
       </View>
@@ -331,6 +424,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.md,
   },
+  areaBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+  },
+  areaBarLabel: { ...theme.typography.body, fontWeight: '700' },
+  areaDropdown: { flex: 1 },
+  listingTotal: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.xs,
+  },
+  statusToggle: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.full,
+    overflow: 'hidden',
+    marginVertical: theme.spacing.md,
+  },
+  statusOption: { paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm },
+  statusOptionOpen: { backgroundColor: theme.colors.available },
+  statusOptionFull: { backgroundColor: theme.colors.danger },
+  statusOptionText: { ...theme.typography.body, fontWeight: '700' },
+  statusOptionTextOn: { color: '#fff' },
   fullText: {
     color: theme.colors.danger,
     fontWeight: '800',

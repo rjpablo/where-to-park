@@ -13,17 +13,23 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
-import { freeSpaces, heldPreview, manualCountsError } from '../../src/lib/availability';
+import { freeSpaces, heldPreview } from '../../src/lib/availability';
+import { AREA_SELECT, areaErrorMessage, defaultAreaId, type Area } from '../../src/lib/areas';
 
 // Available slots editor (rj t137u): opened from the pencil beside the count on the
-// Availability › Sessions tab. Edits the spaces held out of the free count (Reserved,
-// Unavailable). Built as a list of sections so 'Total spaces' can be added later.
+// Availability screen. Edits the spaces held out of the free count (Reserved,
+// Unavailable) of one area (rj t139u; Main when none is given). Built as a list of
+// sections so 'Total spaces' can be added later.
 export default function SlotsEditorScreen() {
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
-  const sp = useLocalSearchParams<{ locationId?: string | string[] }>();
+  const sp = useLocalSearchParams<{
+    locationId?: string | string[];
+    areaId?: string | string[];
+  }>();
   const locationId = firstParam(sp.locationId);
-  const [loc, setLoc] = React.useState<any>(null);
+  const areaParam = firstParam(sp.areaId);
+  const [loc, setLoc] = React.useState<(Area & { listingName: string }) | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [reserved, setReserved] = React.useState(0);
   const [unavailable, setUnavailable] = React.useState(0);
@@ -32,20 +38,19 @@ export default function SlotsEditorScreen() {
 
   React.useEffect(() => {
     if (!locationId) return;
-    supabase
-      .from('locations')
-      .select(
-        'id, name, capacity, manual_reserved_count, unavailable_count, free_spaces, counted_spaces'
-      )
-      .eq('id', locationId)
-      .single()
-      .then(({ data, error: e }) => {
-        if (e || !data) return setLoadError(e?.message || 'Listing not found');
-        setLoc(data);
-        setReserved(Number(data.manual_reserved_count || 0));
-        setUnavailable(Number(data.unavailable_count || 0));
-      });
-  }, [locationId]);
+    Promise.all([
+      supabase.from('locations').select('name').eq('id', locationId).single(),
+      supabase.from('areas').select(AREA_SELECT).eq('location_id', locationId),
+    ]).then(([l, a]) => {
+      if (l.error || a.error) return setLoadError((l.error || a.error)?.message || 'Not found');
+      const rows = (a.data || []) as unknown as Area[];
+      const area = rows.find((x) => x.id === defaultAreaId(rows, areaParam));
+      if (!area) return setLoadError('Area not found');
+      setLoc({ ...area, listingName: l.data?.name || 'Listing' });
+      setReserved(Number(area.manual_reserved_count || 0));
+      setUnavailable(Number(area.unavailable_count || 0));
+    });
+  }, [locationId, areaParam]);
 
   if (!loc) {
     return (
@@ -57,7 +62,7 @@ export default function SlotsEditorScreen() {
 
   const oldHeld = Number(loc.manual_reserved_count || 0) + Number(loc.unavailable_count || 0);
   // The real count (not 0 when the Full switch is on).
-  const free = freeSpaces({ free_spaces: loc.counted_spaces ?? loc.free_spaces });
+  const free = freeSpaces({ free_spaces: loc.area_counted });
   const preview = heldPreview(free, oldHeld, reserved + unavailable);
   const changed =
     reserved !== Number(loc.manual_reserved_count || 0) ||
@@ -67,18 +72,18 @@ export default function SlotsEditorScreen() {
     setError(null);
     setSaving(true);
     try {
-      const { data, error: e } = await supabase.rpc('set_manual_counts', {
-        p_location_id: loc.id,
+      const { data, error: e } = await supabase.rpc('set_area_counts', {
+        p_area_id: loc.id,
         p_reserved: reserved,
         p_unavailable: unavailable,
       });
       if (e || data?.error) {
-        setError(e?.message || manualCountsError(data?.error));
+        setError(e?.message || areaErrorMessage(data?.error));
         return;
       }
       router.dismissTo({
         pathname: '/operator/availability',
-        params: { locationId: loc.id, slots: 'saved' },
+        params: { locationId: locationId!, areaId: loc.id, slots: 'saved' },
       });
     } finally {
       setSaving(false);
@@ -104,7 +109,10 @@ export default function SlotsEditorScreen() {
       contentContainerStyle={[styles.content, bottomInset]}
       testID="slots-editor-ready"
     >
-      <Text style={styles.title}>{loc.name}</Text>
+      <Text style={styles.title}>{loc.listingName}</Text>
+      <Text style={styles.meta} testID="slots-editor-area">
+        Area: {loc.name}
+      </Text>
       <Text style={styles.meta} testID="slots-editor-total">
         Total spaces: {loc.capacity}
       </Text>
