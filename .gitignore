@@ -41,3 +41,5 @@ public/maplibre-gl-csp-worker.js
 
 # EAS local credentials (never commit)
 credentials.json
+*.keystore
+storepass.txt

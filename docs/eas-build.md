@@ -98,11 +98,16 @@ is unset, so the map uses OpenFreeMap liberty.
 | Ref | `ckspplijrygjlencrduw` | `pvxtdvyrqviuhhclbije` |
 | URL | https://ckspplijrygjlencrduw.supabase.co | https://pvxtdvyrqviuhhclbije.supabase.co |
 | Region | ap-southeast-2 | ap-northeast-1 |
-| EAS profile | `preview` (internal APK) | `production` (app bundle; not built yet) |
+| EAS profile | `preview` (internal APK) and 🟧 `production` (AAB, closed testing) | `production` after closed testing |
 | Web | https://where-to-park.expo.app | — |
 | Management API token (env) | `SUPABASE_STAGING_ACCESS_TOKEN` | `SUPABASE_ACCESS_TOKEN` |
 
-The anon keys are in `eas.json` (`build.preview.env` = staging, `build.production.env` = prod).
+The anon keys are in `eas.json` (`build.preview.env` = staging). 🟧 **`build.production.env` points at
+staging too for now (rj, 1.0.11: "use staging for now. we'll switch to prod db once closed testing
+is done")**: the production AAB for Play closed testing talks to staging. **After closed testing,
+switch `build.production.env` back to prod** (URL `https://pvxtdvyrqviuhhclbije.supabase.co` and
+the prod anon key), apply the pending migrations and auth config to prod (see
+`docs/google-sign-in.md`), and bump the version before the next production build.
 
 - **All testing and test writes go to staging** (preview APKs, the web deploy, local web runs).
   Prod is only touched for releases.
@@ -110,9 +115,10 @@ The anon keys are in `eas.json` (`build.preview.env` = staging, `build.productio
   **except `20241029000007_auth_uid.sql`, which must never be applied to a hosted project**.
   Apply new migrations to staging first, then prod.
 - Edge functions: `get-etas` (the same set prod has; `notify` isn't deployed on either).
-- Auth: phone OTP on, with the same test numbers as prod (+639170000001 to +639170000004,
-  code 123456, valid until 30 Apr 2027). Site URL and redirect URLs are the defaults; sign-in
-  is phone only, so no redirect URL is needed.
+- Auth: 🟧 email + password (auto-confirm, min 8) and Google; phone provider **off** since 1.0.11
+  (it had test numbers +639170000001 to +639170000004). The 4 demo users have test emails
+  (`sarah@`, `juan@`, `ana@`, `rj.admin@wheretopark.test`) with one shared password kept off the repo.
+  Redirect URLs: see `docs/google-sign-in.md`.
 - Demo data: a copy of prod's demo data (the same 4 test users with the same ids, operators,
   9 listings, rates, areas, policies, reviews, chat threads, notifications and the 2 listing
   photos), without agent test rows. The one chat image wasn't copied.
