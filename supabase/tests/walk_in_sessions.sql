@@ -139,9 +139,16 @@ DO $$
 BEGIN
   ASSERT EXISTS (SELECT 1 FROM walk_in_rates('30000000-0000-0000-0000-000000000002', 'car', '2026-11-07 10:00+08') WHERE name = 'ZZ Sat'), 'Sat applies';
   ASSERT NOT EXISTS (SELECT 1 FROM walk_in_rates('30000000-0000-0000-0000-000000000002', 'car', '2026-11-09 10:00+08') WHERE name = 'ZZ Sat'), 'Mon not';
-  -- Chosen rate prices the whole stay at that rate: Sat 22:00 for 4 h at ₱70 = ₱280
-  ASSERT (session_price('30000000-0000-0000-0000-000000000002', 'car', '2026-11-07 22:00+08', '2026-11-08 02:00+08',
-          (SELECT id FROM rates WHERE name = 'ZZ Sat' AND location_id = '30000000-0000-0000-0000-000000000002'))->>'amount')::numeric = 280, 'chosen rate whole stay';
+  -- 0057: a chosen rate prices the hours it applies to; the rest go by priority. Here
+  -- every other hourly rate is inactive (only the monthly default is active), so Sunday's
+  -- hours have no rate, and the quote fails like the preview does ('No rate found')
+  ASSERT (SELECT q->>'error' = 'No rate found' AND (q->>'uncovered_from')::timestamptz = '2026-11-08 00:00+08'
+            FROM session_price('30000000-0000-0000-0000-000000000002', 'car', '2026-11-07 22:00+08', '2026-11-08 02:00+08',
+                 (SELECT id FROM rates WHERE name = 'ZZ Sat' AND location_id = '30000000-0000-0000-0000-000000000002')) q),
+         'chosen rate where it applies; uncovered hours fail';
+  ASSERT (session_price('30000000-0000-0000-0000-000000000002', 'car', '2026-11-07 20:00+08', '2026-11-07 22:00+08',
+          (SELECT id FROM rates WHERE name = 'ZZ Sat' AND location_id = '30000000-0000-0000-0000-000000000002'))->>'amount')::numeric = 140,
+         'chosen rate for all its hours';
 END $$;
 
 ROLLBACK;

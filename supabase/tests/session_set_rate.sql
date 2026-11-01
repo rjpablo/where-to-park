@@ -1,4 +1,5 @@
--- A session keeps one set rate; Automatic resolves at check-in/edit (migration 0054). Rolls back.
+-- A session keeps one set rate; Automatic resolves at check-in/edit (migration 0054);
+-- pricing splits per hour over active rates again (0057). Rolls back.
 BEGIN;
 CREATE FUNCTION pg_temp.act(p_phone text) RETURNS void LANGUAGE plpgsql AS $$
 DECLARE v uuid := (SELECT id FROM profiles WHERE phone = p_phone);
@@ -24,13 +25,15 @@ BEGIN
   -- Dropdown: Automatic says which rate it resolves to
   ASSERT walk_in_rate_options(SR, 'suv', '2026-11-07 10:00+08')->'auto'->>'rate_name' = 'T SUV Sat', 'auto Sat';
   ASSERT walk_in_rate_options(SR, 'suv', '2026-11-06 10:00+08')->'auto'->>'rate_name' = 'Standard Rate', 'auto Fri';
-  -- Automatic check-in Fri 22:00 -> Sat 02:00: stores the default; priced all at it (no split)
+  -- Automatic check-in Fri 22:00 -> Sat 02:00: stores the default; 0057: priced per hour
+  -- by priority (Fri 2h default ₱50 + Sat 2h T SUV Sat ₱80 = ₱260)
   r := start_walk_in(SR, 'suv', 'ZZS 0001', NULL, '2026-11-07 02:00+08', '2026-11-06 22:00+08');
   ASSERT r->>'success' = 'true', 'start: ' || r::text;
   sid := (r->>'session_id')::uuid;
   ASSERT (SELECT rate_id FROM parking_sessions WHERE id = sid) = dflt, 'stored default';
   d := session_details(sid);
-  ASSERT d->'price'->>'rate_name' = 'Standard Rate' AND jsonb_array_length(d->'price'->'breakdown') = 1, 'one rate: ' || d::text;
+  ASSERT d->'session'->>'set_rate_name' = 'Standard Rate' AND d->'session'->>'rate_auto' = 'true'
+     AND jsonb_array_length(d->'price'->'breakdown') = 2 AND (d->>'parking')::numeric = 260, 'split: ' || d::text;
   -- Only the stored rate is blocked by it
   ASSERT rate_open_session_count(sat) = b_sat, 'Sat rate not used';
   ASSERT rate_open_session_count(dflt) = b_dflt + 1, 'default used';

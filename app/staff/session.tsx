@@ -26,6 +26,8 @@ import {
   startsIn,
   walkInErrorMessage,
   type PaymentMethod,
+  priceBreakdownLines,
+  setRateLabel,
 } from '../../src/lib/walkIn';
 import { VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import { formatLocalDateTime, formatPeso } from '../../src/utils/formatters';
@@ -268,12 +270,21 @@ export default function SessionScreen() {
       <View style={styles.section} testID="session-balance-box">
         <Text style={styles.row}>
           {reservation ? 'Planned stay' : 'Parking'}: {formatPeso(d.parking)}
-          {d.price?.rate_name ? ` · ${d.price.rate_name}` : ''}
         </Text>
+        {setRateLabel(s) ? (
+          <Text style={styles.meta} testID="session-set-rate">
+            Set rate: {setRateLabel(s)}
+          </Text>
+        ) : null}
+        {priceBreakdownLines(d.price, s.set_rate_name).map((line, i) => (
+          <Text key={i} style={styles.meta} testID={`session-part-${i}`}>
+            {line}
+          </Text>
+        ))}
         {s.rate_changed_from?.name ? (
           <Text style={styles.rateChanged} testID="session-rate-changed">
-            Rate changed from {s.rate_changed_from.name} (deactivated). The whole session is now
-            priced at {d.price?.rate_name ?? 'the new rate'}.
+            Rate changed from {s.rate_changed_from.name} (deactivated). Its hours are now priced by
+            the active rates in effect.
           </Text>
         ) : null}
         <Text style={styles.meta} testID="session-price-detail">
@@ -320,7 +331,7 @@ export default function SessionScreen() {
               plate: s.plate,
               startAt: s.started_at,
               endAt: s.end_at,
-              rateId: s.rate_id,
+              rateId: s.rate_auto ? null : s.rate_id,
             }}
             submitLabel="Save changes"
             onSubmit={save}

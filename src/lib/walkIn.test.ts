@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   autoOptionLabel,
+  priceBreakdownLines,
+  setRateLabel,
   balanceToSettle,
   keepRateChoice,
   manilaDateTime,
@@ -165,4 +167,32 @@ test('negative balances and ended balance', async () => {
     }),
     0
   );
+});
+
+test('session set rate label and split breakdown lines (0057)', () => {
+  assert.equal(
+    setRateLabel({ set_rate_name: 'Standard Rate', rate_auto: true }),
+    'Automatic (Standard Rate)'
+  );
+  assert.equal(setRateLabel({ set_rate_name: 'QA Weekend', rate_auto: false }), 'QA Weekend');
+  assert.equal(setRateLabel({}), '');
+  const split = {
+    breakdown: [
+      { rate_name: 'Standard Rate', hours: 2, amount: 100 },
+      { rate_name: 'Weekend', hours: 2, amount: 160 },
+    ],
+  };
+  assert.deepEqual(priceBreakdownLines(split, 'Standard Rate'), [
+    'Standard Rate: 2h · ₱100.00',
+    'Weekend: 2h · ₱160.00',
+  ]);
+  const one = { breakdown: [{ rate_name: 'Standard Rate', hours: 3, amount: 150 }] };
+  assert.deepEqual(priceBreakdownLines(one, 'Standard Rate'), []);
+  // all hours fell back to another rate (e.g. the set rate doesn't apply): show it
+  assert.deepEqual(priceBreakdownLines(one, 'Weekend'), ['Standard Rate: 3h · ₱150.00']);
+  assert.deepEqual(
+    priceBreakdownLines({ breakdown: [{ rate_name: 'M', months: 2, amount: 8000 }] }, 'X'),
+    ['M: 2 mo · ₱8000.00']
+  );
+  assert.deepEqual(priceBreakdownLines(null), []);
 });

@@ -82,7 +82,8 @@ export function rateOptionLabel(r: RateOption): string {
 /** First dropdown option: what Automatic does right now. */
 export function autoOptionLabel(auto: { mode: string; rate_name?: string } | null): string {
   if (!auto) return 'Automatic (no rate applies)';
-  // 0054: Automatic resolves to one rate (stored on the session when saved).
+  // 0054: Automatic resolves to one rate (stored on the session when saved); 0057: the
+  // hours are then priced by the active rates in effect (split), like the preview.
   if (auto.mode === 'monthly') return `Automatic (${auto.rate_name}, monthly)`;
   return auto.rate_name ? `Automatic (${auto.rate_name})` : 'Automatic';
 }
@@ -224,4 +225,30 @@ export function endedBalance(
     0
   );
   return Math.round((charges - paid) * 100) / 100;
+}
+
+/** Session page: the stored set rate (0057 keeps it for display/history). */
+export function setRateLabel(s: {
+  set_rate_name?: string | null;
+  rate_auto?: boolean | null;
+}): string {
+  if (!s.set_rate_name) return s.rate_auto ? 'Automatic' : '';
+  return s.rate_auto ? `Automatic (${s.set_rate_name})` : s.set_rate_name;
+}
+
+/**
+ * Per-rate lines of a session's split price (0057, session_price 'breakdown'), e.g.
+ * 'Standard Rate: 2h · ₱100.00'. Empty when one part is all at the set rate (nothing to break down).
+ */
+export function priceBreakdownLines(
+  price: { breakdown?: unknown } | null | undefined,
+  setRateName?: string | null
+): string[] {
+  const parts: any[] = Array.isArray(price?.breakdown) ? (price!.breakdown as any[]) : [];
+  if (parts.length === 0) return [];
+  if (parts.length === 1 && (!setRateName || parts[0].rate_name === setRateName)) return [];
+  return parts.map((p) => {
+    const qty = p.months ? `${p.months} mo` : `${p.hours}h`;
+    return `${p.rate_name}: ${qty} · ₱${Number(p.amount || 0).toFixed(2)}`;
+  });
 }
