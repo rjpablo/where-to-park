@@ -73,6 +73,39 @@ BEGIN
   ASSERT pg_temp.fails(format('SELECT pg_temp.google_identity(%L, %L, %L, true)', ANA, 'sub-qa-victim', 'qa.victim@example.com'),
     'oauth_link_target_unverified'), 'unconfirmed target rejected';
 
+  -- 6b. The real GoTrue sequence for a brand-new Google user (rj t150u): user row with
+  --     the email UNCONFIRMED and Google's claims as metadata, then the identity, then
+  --     email_confirmed_at. Must succeed (0069 refused it).
+  INSERT INTO auth.users (id, instance_id, aud, role, email, email_confirmed_at, raw_user_meta_data, raw_app_meta_data, created_at, updated_at)
+  VALUES ('a0000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'qa.google.real@example.com', NULL,
+    '{"iss":"https://accounts.google.com","sub":"1098","name":"QA Real","email":"qa.google.real@example.com","picture":"https://lh3.googleusercontent.com/a/real","full_name":"QA Real","avatar_url":"https://lh3.googleusercontent.com/a/real","provider_id":"1098","email_verified":true,"phone_verified":false}',
+    '{"provider":"google","providers":["google"]}', now(), now());
+  INSERT INTO auth.identities (id, provider_id, user_id, provider, identity_data, created_at, updated_at)
+  VALUES (gen_random_uuid(), '1098', 'a0000000-0000-0000-0000-0000000000a3', 'google',
+    '{"iss":"https://accounts.google.com","sub":"1098","name":"QA Real","email":"qa.google.real@example.com","picture":"https://lh3.googleusercontent.com/a/real","full_name":"QA Real","avatar_url":"https://lh3.googleusercontent.com/a/real","provider_id":"1098","email_verified":true,"phone_verified":false}',
+    now(), now());
+  UPDATE auth.users SET email_confirmed_at = now() WHERE id = 'a0000000-0000-0000-0000-0000000000a3';
+  ASSERT (SELECT display_name = 'QA Real' AND avatar_url = 'https://lh3.googleusercontent.com/a/real' AND phone IS NULL
+            FROM profiles WHERE id = 'a0000000-0000-0000-0000-0000000000a3'), 'real Google signup profile';
+  -- ...and the same shape with email_verified false is still refused.
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
+  VALUES ('a0000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'qa.google.unv@example.com', '{"email_verified":false}', now(), now());
+  ASSERT pg_temp.fails($q$INSERT INTO auth.identities (id, provider_id, user_id, provider, identity_data, created_at, updated_at)
+    VALUES (gen_random_uuid(), '2001', 'a0000000-0000-0000-0000-0000000000a4', 'google',
+      '{"sub":"2001","email":"qa.google.unv@example.com","email_verified":false}', now(), now())$q$,
+    'oauth_email_not_verified'), 'new unverified Google user refused';
+  -- ...and an email-signup account holding the address unconfirmed can't receive it.
+  INSERT INTO auth.users (id, instance_id, aud, role, email, created_at, updated_at)
+  VALUES ('a0000000-0000-0000-0000-0000000000a5', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'qa.squat@example.com', now(), now());
+  INSERT INTO auth.identities (id, provider_id, user_id, provider, identity_data, created_at, updated_at)
+  VALUES (gen_random_uuid(), 'a0000000-0000-0000-0000-0000000000a5', 'a0000000-0000-0000-0000-0000000000a5', 'email',
+    '{"sub":"a0000000-0000-0000-0000-0000000000a5","email":"qa.squat@example.com","email_verified":false}', now(), now());
+  ASSERT pg_temp.fails($q$SELECT pg_temp.google_identity('a0000000-0000-0000-0000-0000000000a5', 'sub-qa-squat', 'qa.squat@example.com', true)$q$,
+    'oauth_link_target_unverified'), 'squatted unconfirmed email refused';
+
   -- 7. Phone sign-ups are unchanged (profile named after the phone, onboarding asked).
   INSERT INTO auth.users (id, instance_id, aud, role, phone, created_at, updated_at)
   VALUES ('a0000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', '639179990001', now(), now());

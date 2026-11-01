@@ -591,6 +591,6 @@ Public broadcast channel (no sign-in needed). Event `changed`, payload `{ id: UU
 
 - `profiles.avatar_url text` (Google picture, https only) and `profiles.onboarded boolean` (false for new accounts until `complete_profile`, which now sets it true).
 - `handle_new_auth_user` (auth.users insert): Google sign-ups get `display_name` from `full_name`/`name`, `avatar_url` from `avatar_url`/`picture`, `phone` null. Never the email.
-- `guard_oauth_identity` (BEFORE INSERT / UPDATE OF identity_data on `auth.identities`, non-phone/email providers). Errors: `oauth_email_not_verified`, `oauth_email_belongs_to_another_account`, `oauth_link_target_unverified`. GoTrue reports them to the app as a sign-in error ('Database error …').
+- `guard_oauth_identity` (BEFORE INSERT / UPDATE OF identity_data on `auth.identities`, non-phone/email providers). Errors: `oauth_email_not_verified`, `oauth_email_belongs_to_another_account`, `oauth_link_target_unverified` (🟧 0070: only when the target account already has another identity; GoTrue confirms a new OAuth user's email after inserting its identity). GoTrue reports them to the app as a sign-in error ('Database error …').
 - `oauth_identity_linked` (AFTER INSERT): fills a missing `profiles.avatar_url` when Google is linked to an existing account.
 - Not client-callable: all three trigger functions have EXECUTE revoked.
