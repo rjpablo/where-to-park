@@ -12,11 +12,13 @@ import {
   shortcutsToMerge,
 } from '../lib/shortcuts';
 import { useAuthStore } from '../stores/authStore';
+import { askedKeyFor } from '../lib/accounts';
 import { loadShortcuts } from '../stores/shortcutsStore';
 
 // After a guest with shortcuts on this device signs in, ask once: add them to the
 // account or not. The device list itself is kept for signed-out use; the answered
-// set is remembered so the same set isn't offered again.
+// set is remembered per account (account switching), so switching back to an account
+// that already answered doesn't ask again, while another account is asked once.
 export function ShortcutsMergePrompt() {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [ask, setAsk] = React.useState<{ ids: string[]; key: string } | null>(null);
@@ -31,7 +33,11 @@ export function ShortcutsMergePrompt() {
       const device = parseGuestShortcuts(await AsyncStorage.getItem(GUEST_SHORTCUTS_KEY));
       const ids = device.map((d) => d.locationId);
       const key = shortcutSetKey(ids);
-      if (!key || (await AsyncStorage.getItem(GUEST_SHORTCUTS_ASKED_KEY)) === key) return;
+      if (
+        !key ||
+        (await AsyncStorage.getItem(askedKeyFor(GUEST_SHORTCUTS_ASKED_KEY, userId))) === key
+      )
+        return;
       const { data } = await supabase.from('location_shortcuts').select('location_id');
       const missing = shortcutsToMerge(
         (data || []).map((r: any) => r.location_id),
@@ -39,7 +45,7 @@ export function ShortcutsMergePrompt() {
       );
       if (cancelled) return;
       if (!missing.length) {
-        await AsyncStorage.setItem(GUEST_SHORTCUTS_ASKED_KEY, key);
+        await AsyncStorage.setItem(askedKeyFor(GUEST_SHORTCUTS_ASKED_KEY, userId), key);
         return;
       }
       setAsk({ ids: missing, key });
@@ -65,7 +71,8 @@ export function ShortcutsMergePrompt() {
         }
         await loadShortcuts(userId);
       }
-      await AsyncStorage.setItem(GUEST_SHORTCUTS_ASKED_KEY, ask.key);
+      if (userId)
+        await AsyncStorage.setItem(askedKeyFor(GUEST_SHORTCUTS_ASKED_KEY, userId), ask.key);
       setAsk(null);
     } catch (err: any) {
       setError(err?.message || 'Could not add the shortcuts');

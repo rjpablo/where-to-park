@@ -274,9 +274,8 @@ export function SearchScreen() {
       setHasWorkspace(false);
       return;
     }
-    if (authUser.is_admin || authUser.account_type === 'operator') {
-      setHasWorkspace(true);
-    }
+    // Account switch: don't keep the previous account's workspace while loading.
+    setHasWorkspace(!!authUser.is_admin || authUser.account_type === 'operator');
     loadMyMemberships(authUser.id)
       .then((rows) => {
         setHasWorkspace(

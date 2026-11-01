@@ -21,6 +21,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useSidebarStore } from '../stores/sidebarStore';
 import { loadShortcuts, useShortcutsStore } from '../stores/shortcutsStore';
 import { shortcutLabel, sidebarShortcuts } from '../lib/shortcuts';
+import { accountLabel, accountSubLabel, otherAccounts } from '../lib/accounts';
 
 const MAX_WIDTH = 320;
 /** App version from the app config (app.json 'version'), shown at the bottom. */
@@ -68,6 +69,9 @@ export function Sidebar({ hasWorkspace }: Props) {
   const [visible, setVisible] = React.useState(open);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [accountsOpen, setAccountsOpen] = React.useState(false);
+  const accounts = useAuthStore((s) => s.accounts);
+  const switchAccount = useAuthStore((s) => s.switchAccount);
   const progress = React.useRef(new Animated.Value(0)).current;
   const shortcuts = sidebarShortcuts(useShortcutsStore((s) => s.items));
   const userId = user?.id ?? null;
@@ -80,6 +84,8 @@ export function Sidebar({ hasWorkspace }: Props) {
     if (open) {
       setVisible(true);
       setNotice(null);
+      setAccountsOpen(false);
+      useAuthStore.getState().loadAccounts();
       refresh();
       Animated.timing(progress, { toValue: 1, duration: ANIM_MS, useNativeDriver: true }).start();
     } else {
@@ -106,7 +112,9 @@ export function Sidebar({ hasWorkspace }: Props) {
       try {
         await signOut();
         useSidebarStore.getState().reset();
-        router.replace('/search');
+        // Signed out of the current account: it's removed from the device; pick another.
+        close();
+        router.replace('/accounts');
       } finally {
         setBusy(null);
       }
@@ -230,18 +238,25 @@ export function Sidebar({ hasWorkspace }: Props) {
           ]}
         >
           <View style={styles.header}>
-            <View style={styles.headerText}>
+            <TouchableOpacity
+              style={styles.headerText}
+              onPress={() => setAccountsOpen((o) => !o)}
+              accessibilityRole="button"
+              accessibilityLabel="Switch account"
+              accessibilityState={{ expanded: accountsOpen }}
+              testID="sidebar-account-toggle"
+            >
               <Text style={styles.name} numberOfLines={1} testID="sidebar-user">
-                {user ? user.display_name : 'Where To Park'}
+                {user ? user.display_name : 'Where To Park'} {accountsOpen ? '▴' : '▾'}
               </Text>
               <Text style={styles.sub} numberOfLines={1}>
                 {user
                   ? [user.is_admin ? 'Admin' : user.account_type || 'driver', user.phone]
                       .filter(Boolean)
                       .join(' · ')
-                  : 'Sign in to save vehicles, message and list spaces'}
+                  : 'Guest · sign in to save vehicles, message and list spaces'}
               </Text>
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={close}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -251,6 +266,59 @@ export function Sidebar({ hasWorkspace }: Props) {
               <Text style={styles.close}>✕</Text>
             </TouchableOpacity>
           </View>
+          {accountsOpen ? (
+            <View style={styles.accounts} testID="sidebar-accounts">
+              {otherAccounts(accounts, user?.id ?? null).map((a) => (
+                <TouchableOpacity
+                  key={a.userId}
+                  style={styles.accountRow}
+                  disabled={!!busy}
+                  onPress={async () => {
+                    if (a.status === 'signed_out') {
+                      go(`/auth?phone=${encodeURIComponent(a.phone || '')}`);
+                      return;
+                    }
+                    setBusy(`acct-${a.userId}`);
+                    const res = await switchAccount(a.userId);
+                    setBusy(null);
+                    if (res.error) {
+                      setNotice(
+                        res.error === 'signed_out'
+                          ? `${accountLabel(a)} is signed out. Sign in again from Manage accounts.`
+                          : 'Could not switch. Try again.'
+                      );
+                      return;
+                    }
+                    close();
+                    router.replace('/search');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Switch to ${accountLabel(a)}`}
+                  testID={`sidebar-account-${a.userId}`}
+                >
+                  <Text style={styles.accountName} numberOfLines={1}>
+                    {busy === `acct-${a.userId}` ? `${accountLabel(a)}…` : accountLabel(a)}
+                  </Text>
+                  {accountSubLabel(a) ? (
+                    <Text
+                      style={[styles.sub, a.status === 'signed_out' && styles.signedOut]}
+                      numberOfLines={1}
+                    >
+                      {a.status === 'signed_out' ? 'Signed out' : accountSubLabel(a)}
+                    </Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.accountRow}
+                onPress={() => go('/accounts')}
+                accessibilityRole="link"
+                testID="sidebar-manage-accounts"
+              >
+                <Text style={styles.manage}>Manage accounts</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
           <ScrollView contentContainerStyle={styles.list}>
             {sections.map((sec, i) => (
               <React.Fragment key={sec.key}>
@@ -361,6 +429,15 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
   },
   headerText: { flex: 1, minWidth: 0 },
+  accounts: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  accountRow: { paddingHorizontal: theme.spacing.lg, paddingVertical: 10 },
+  accountName: { ...theme.typography.body, fontWeight: '600' },
+  manage: { ...theme.typography.body, color: theme.colors.primary, fontWeight: '600' },
+  signedOut: { color: theme.colors.danger },
   name: { ...theme.typography.h3 },
   sub: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 2 },
   close: { fontSize: 18, color: theme.colors.text.secondary },

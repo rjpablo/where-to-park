@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../stores/authStore';
 import { isLocalSupabaseUrl } from '../lib/env';
@@ -13,7 +13,10 @@ export function AuthScreen() {
   const router = useRouter();
   const { requestOtp, verifyOtp, completeProfile, loading } = useAuthStore();
   const [step, setStep] = React.useState<'phone' | 'code' | 'profile'>('phone');
-  const [phone, setPhone] = React.useState('+639183333333');
+  // Accounts page: 'Add account' / signing a saved account in again (phone prefilled).
+  const params = useLocalSearchParams<{ phone?: string; add?: string }>();
+  const presetPhone = typeof params.phone === 'string' ? params.phone : '';
+  const [phone, setPhone] = React.useState(presetPhone || '+639183333333');
   const [code, setCode] = React.useState('');
   const [displayName, setDisplayName] = React.useState('');
   const [accountType, setAccountType] = React.useState<'driver' | 'operator'>('driver');
@@ -56,7 +59,14 @@ export function AuthScreen() {
   return (
     <View style={[styles.container, bottomInset]} testID="auth-ready">
       <Text style={styles.title}>Where To Park</Text>
-      <Text style={styles.subtitle}>Sign in with your phone</Text>
+      <Text style={styles.subtitle}>
+        {params.add ? 'Add an account: sign in with its phone' : 'Sign in with your phone'}
+      </Text>
+      {params.add ? (
+        <Text style={styles.subtitle} testID="auth-add-note">
+          Your other accounts stay signed in on this device.
+        </Text>
+      ) : null}
 
       {step === 'phone' && (
         <View>

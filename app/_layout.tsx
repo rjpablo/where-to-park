@@ -101,6 +101,7 @@ export default function RootLayout() {
           <Stack.Screen name="admin/contact" options={{ title: 'Contact messages' }} />
           <Stack.Screen name="admin/contact-item" options={{ title: 'Contact message' }} />
           <Stack.Screen name="contact" options={{ title: 'Contact Us' }} />
+          <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
         </Stack>
       </KeyboardAvoidingView>
       <Toast />

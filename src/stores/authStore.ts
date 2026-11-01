@@ -1,6 +1,19 @@
 import { create } from 'zustand';
+import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../lib/supabase';
+import { getSupabaseUrl } from '../lib/env';
+import type { SavedAccount } from '../lib/accounts';
+import {
+  forgetAccount,
+  markAccountSignedOut,
+  readAccounts,
+  readTokens,
+  saveAccountInfo,
+  saveTokens,
+} from '../lib/accountVault';
+import { useSidebarStore } from './sidebarStore';
+import { useShortcutsStore } from './shortcutsStore';
 
 interface AuthState {
   user: Profile | null;
@@ -12,8 +25,18 @@ interface AuthState {
   completeProfile: (displayName: string, accountType: 'driver' | 'operator') => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  /** Sign out of the CURRENT account: revokes its session and removes it from the device. */
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
+  /** Accounts saved on this device (account switching). */
+  accounts: SavedAccount[];
+  loadAccounts: () => Promise<void>;
+  /** Switch instantly to a saved account; 'signed_out' when its session no longer works. */
+  switchAccount: (userId: string) => Promise<{ error?: 'signed_out' | 'failed' }>;
+  /** Guest mode without removing saved accounts. */
+  continueAsGuest: () => Promise<void>;
+  /** Remove another (not current) account from the device and revoke its session. */
+  signOutAccount: (userId: string) => Promise<void>;
 }
 
 function digits(value: string | null | undefined): string {
@@ -40,11 +63,80 @@ async function loadProfile(userId: string): Promise<Profile | null> {
 }
 
 let authListenerAttached = false;
+/** User id of the session the client holds right now (guards late profile loads). */
+let currentAuthUserId: string | null = null;
+const supabaseUserIs = (id: string) => currentAuthUserId === id;
+
+/** Remember the current session's tokens for switching back later (never logged). */
+function rememberSession(
+  session: { user?: { id: string } | null; access_token?: string; refresh_token?: string } | null
+) {
+  if (!session?.user?.id || !session.refresh_token) return;
+  saveTokens(session.user.id, {
+    access_token: session.access_token || '',
+    refresh_token: session.refresh_token,
+  }).catch(() => {});
+}
+
+async function saveCurrentSession() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.user && session.refresh_token) {
+    await saveTokens(session.user.id, {
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+  }
+}
+
+/** Drop the current session from this client only (no server call, so it stays usable). */
+async function clearLocalSession() {
+  const auth = supabase.auth as any;
+  if (typeof auth._removeSession === 'function') {
+    await auth._removeSession();
+    return;
+  }
+  await supabase.auth.signOut({ scope: 'local' });
+}
+
+/** Per-account state that must not leak across accounts. */
+function resetPerAccount(userId: string | null) {
+  useSidebarStore.getState().reset();
+  useSidebarStore.getState().refresh();
+  useShortcutsStore.setState({ items: [], loaded: false, userId });
+  useShortcutsStore.getState().load(userId);
+}
+
+/** Best-effort server revoke of a saved session that isn't the current one. */
+async function revokeSaved(refreshToken: string) {
+  const base = getSupabaseUrl();
+  const key =
+    Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+  if (!base || !key) return;
+  try {
+    const r = await fetch(`${base}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { apikey: key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!r.ok) return;
+    const t = await r.json();
+    if (!t?.access_token) return;
+    await fetch(`${base}/auth/v1/logout?scope=local`, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${t.access_token}` },
+    });
+  } catch {
+    // Offline: the tokens are deleted from the device anyway.
+  }
+}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: false,
   initialized: false,
+  accounts: [],
 
   initialize: async () => {
     if (!authListenerAttached) {
@@ -52,6 +144,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Keep the store in sync with token refreshes and sign-outs (including a
       // refresh token that was revoked or expired while the app was closed).
       supabase.auth.onAuthStateChange((event, session) => {
+        currentAuthUserId = session?.user?.id ?? null;
+        if (session?.user) rememberSession(session);
         if (event === 'SIGNED_OUT' || !session?.user) {
           set({ user: null });
           return;
@@ -62,17 +156,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           // Defer the query: supabase-js warns against awaiting inside this callback.
           setTimeout(() => {
             loadProfile(session.user.id).then((profile) => {
-              if (profile) set({ user: profile });
+              if (profile && supabaseUserIs(profile.id)) set({ user: profile });
             });
           }, 0);
         }
       });
     }
+    get().loadAccounts();
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      currentAuthUserId = session?.user?.id ?? null;
       if (session?.user) {
+        rememberSession(session);
         const profile = await loadProfile(session.user.id);
         // Keep a previously loaded profile if the network is briefly unavailable.
         set({ user: profile ?? get().user, loading: false, initialized: true });
@@ -99,6 +196,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   verifyOtp: async (phone: string, code: string) => {
     set({ loading: true });
     try {
+      // Adding another account: keep the current one's session for switching back.
+      await saveCurrentSession().catch(() => {});
       const { data, error } = await supabase.auth.verifyOtp({
         phone,
         token: code,
@@ -106,8 +205,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       if (error) throw error;
       if (!data.user) throw new Error('No session');
+      currentAuthUserId = data.user.id;
+      if (data.session) rememberSession(data.session);
       const profile = await loadProfile(data.user.id);
       set({ user: profile });
+      resetPerAccount(data.user.id);
       const isNew = isNewOnboardingProfile(
         profile,
         phone,
@@ -149,7 +251,89 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    const id = get().user?.id ?? currentAuthUserId;
+    await supabase.auth.signOut({ scope: 'local' });
+    currentAuthUserId = null;
+    if (id) await forgetAccount(id);
+    set({ user: null, accounts: await readAccounts() });
+    resetPerAccount(null);
+  },
+
+  loadAccounts: async () => {
+    set({ accounts: await readAccounts() });
+  },
+
+  switchAccount: async (userId) => {
+    const prevId = get().user?.id ?? null;
+    if (prevId === userId) return {};
+    await saveCurrentSession().catch(() => {});
+    const prevTokens = prevId ? await readTokens(prevId) : null;
+    const tokens = await readTokens(userId);
+    const fail = async (code: 'signed_out' | 'failed') => {
+      if (code === 'signed_out') await markAccountSignedOut(userId);
+      // Put the previous account (or guest mode) back.
+      if (prevTokens) {
+        const back = await supabase.auth.setSession(prevTokens);
+        if (back.error) await clearLocalSession();
+      } else {
+        await clearLocalSession();
+      }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      currentAuthUserId = session?.user?.id ?? null;
+      const profile = session?.user ? await loadProfile(session.user.id) : null;
+      set({ user: profile, accounts: await readAccounts() });
+      resetPerAccount(profile?.id ?? null);
+      return { error: code };
+    };
+    if (!tokens) return fail('signed_out');
+    set({ loading: true });
+    try {
+      const { data, error } = await supabase.auth.setSession(tokens);
+      if (error || !data.session?.user || data.session.user.id !== userId) {
+        const msg = String(error?.message || '');
+        // Network trouble: don't drop the account, just report it.
+        return fail(/fetch|network/i.test(msg) ? 'failed' : 'signed_out');
+      }
+      currentAuthUserId = userId;
+      rememberSession(data.session);
+      const profile = await loadProfile(userId);
+      set({ user: profile });
+      resetPerAccount(userId);
+      return {};
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  continueAsGuest: async () => {
+    await saveCurrentSession().catch(() => {});
+    await clearLocalSession();
+    currentAuthUserId = null;
     set({ user: null });
+    resetPerAccount(null);
+  },
+
+  signOutAccount: async (userId) => {
+    if (userId === get().user?.id) return get().signOut();
+    const tokens = await readTokens(userId);
+    await forgetAccount(userId);
+    set({ accounts: await readAccounts() });
+    if (tokens?.refresh_token) await revokeSaved(tokens.refresh_token);
   },
 }));
+
+// Keep the saved-accounts list in step with whoever is signed in (name, phone, admin).
+useAuthStore.subscribe((state, prev) => {
+  const u = state.user;
+  if (!u || u === prev.user) return;
+  saveAccountInfo({
+    userId: u.id,
+    displayName: u.display_name,
+    phone: u.phone,
+    isAdmin: !!u.is_admin,
+  })
+    .then((accounts) => useAuthStore.setState({ accounts }))
+    .catch(() => {});
+});
