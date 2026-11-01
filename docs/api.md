@@ -586,3 +586,11 @@ See `supabase/tests/*.sql` for pgTAP examples.
 ## 🟧 Realtime: `listing-availability` broadcast (0068)
 
 Public broadcast channel (no sign-in needed). Event `changed`, payload `{ id: UUID, lat: number, lng: number }`, sent by a trigger on `locations` whenever a published, non-deleted listing's availability caches change (sessions, area settings, Reserved/Unavailable, Full) or it is published/unpublished/deleted. Carries no counts: clients re-read through `search_nearby` / `free_spaces`. Clients only listen; `realtime.send` and the trigger function aren't callable by clients.
+
+## 🟧 Google sign-in and linking (0069)
+
+- `profiles.avatar_url text` (Google picture, https only) and `profiles.onboarded boolean` (false for new accounts until `complete_profile`, which now sets it true).
+- `handle_new_auth_user` (auth.users insert): Google sign-ups get `display_name` from `full_name`/`name`, `avatar_url` from `avatar_url`/`picture`, `phone` null. Never the email.
+- `guard_oauth_identity` (BEFORE INSERT / UPDATE OF identity_data on `auth.identities`, non-phone/email providers). Errors: `oauth_email_not_verified`, `oauth_email_belongs_to_another_account`, `oauth_link_target_unverified`. GoTrue reports them to the app as a sign-in error ('Database error …').
+- `oauth_identity_linked` (AFTER INSERT): fills a missing `profiles.avatar_url` when Google is linked to an existing account.
+- Not client-callable: all three trigger functions have EXECUTE revoked.
