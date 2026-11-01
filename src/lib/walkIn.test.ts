@@ -294,3 +294,9 @@ test('fees and payments in the balance box (t132u)', () => {
     'This session has ended, so its fees can no longer be changed.'
   );
 });
+
+test('area errors (0067) have plain messages', () => {
+  assert.match(walkInErrorMessage('vehicle_not_allowed'), /isn't allowed in this area/);
+  assert.match(walkInErrorMessage('no_longer_available_area'), /in this area/);
+  assert.match(walkInErrorMessage('area_not_found'), /Pick another area/);
+});

@@ -262,8 +262,8 @@ export default function SessionScreen() {
           {s.plate}
         </Text>
         <Text style={styles.headerMeta}>
-          {VEHICLE_TYPE_LABELS[s.vehicle_type as VehicleType] || s.vehicle_type} · {s.location_name}{' '}
-          ·{' '}
+          {VEHICLE_TYPE_LABELS[s.vehicle_type as VehicleType] || s.vehicle_type} · {s.location_name}
+          {s.area_name ? ` (${s.area_name})` : ''} ·{' '}
           {reservation
             ? `Reservation · starts ${formatLocalDateTime(s.started_at)} (${startsIn(s.started_at)})`
             : s.status === 'overdue'

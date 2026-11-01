@@ -19,25 +19,28 @@ import {
 export default function CheckInScreen() {
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
-  const sp = useLocalSearchParams<{ locationId?: string | string[]; from?: string | string[] }>();
+  const sp = useLocalSearchParams<{
+    locationId?: string | string[];
+    from?: string | string[];
+    areaId?: string | string[];
+  }>();
   const locationId = firstParam(sp.locationId);
+  // rj t139u: the area picker starts on the area selected on the Availability screen.
+  const areaParam = firstParam(sp.areaId);
   // Opened from the Availability Sessions tab (+): saving returns there.
   const from = firstParam(sp.from);
   const [locationName, setLocationName] = useState('Listing');
-  // Full switch on (0066): check-ins are still allowed (manual override), with a warning.
-  const [markedFull, setMarkedFull] = useState(false);
   const [conflict, setConflict] = useState<{ id: string; plate: string } | null>(null);
 
   useEffect(() => {
     if (!locationId) return;
     supabase
       .from('locations')
-      .select('name, marked_full')
+      .select('name')
       .eq('id', locationId)
       .single()
       .then(({ data }) => {
         if (data?.name) setLocationName(data.name);
-        setMarkedFull(!!data?.marked_full);
       });
   }, [locationId]);
 
@@ -51,6 +54,7 @@ export default function CheckInScreen() {
       p_scheduled_end_at: v.endAt,
       p_started_at: v.startAt,
       p_rate_id: v.rateId,
+      p_area_id: v.areaId,
     });
     setConflict(null);
     if (error) return error.message;
@@ -58,10 +62,13 @@ export default function CheckInScreen() {
       setConflict(plateConflict(data));
       return plateActiveMessage(data.plate);
     }
+    if (data?.error === 'no_longer_available' && data?.area_id)
+      return walkInErrorMessage('no_longer_available_area');
     if (data?.error) return walkInErrorMessage(data.error);
     const back = sessionReturnRoute(from, {
       locationId,
       checkedIn: v.plate.toUpperCase(),
+      ...(v.areaId ? { areaId: v.areaId } : {}),
       ...(new Date(v.startAt).getTime() > Date.now() ? { reserved: '1' } : {}),
     });
     if (from === 'availability') router.dismissTo(back);
@@ -77,18 +84,15 @@ export default function CheckInScreen() {
       <View style={styles.form}>
         {locationId ? (
           <>
-            {markedFull ? (
-              <Text style={styles.fullWarning} testID="checkin-full-warning">
-                This listing is marked FULL. You can still check this car in; drivers keep seeing it
-                as Full until the Full switch is turned off.
-              </Text>
-            ) : null}
+            {/* Full switch on: still allowed (manual override); the form warns per area. */}
             <WalkInForm
               locationId={locationId}
               showNote
               submitLabel="Check In"
               reservationSubmitLabel="Save reservation"
               onSubmit={checkIn}
+              initial={areaParam ? { areaId: areaParam } : undefined}
+              warnFull
             />
             {conflict ? (
               <Button
@@ -114,14 +118,6 @@ export default function CheckInScreen() {
 }
 
 const styles = StyleSheet.create({
-  fullWarning: {
-    color: '#991b1b',
-    backgroundColor: '#fee2e2',
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    marginBottom: theme.spacing.md,
-    fontWeight: '600',
-  },
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: { padding: theme.spacing.lg, backgroundColor: theme.colors.primary },
   subtitle: { ...theme.typography.body, color: '#fff', opacity: 0.9, marginTop: theme.spacing.xs },

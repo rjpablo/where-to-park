@@ -15,6 +15,7 @@ import {
   type RateOption,
 } from '../lib/walkIn';
 import { formatLocalDateTime, formatPeso } from '../utils/formatters';
+import { AREA_SELECT, areaAllowsVehicle, defaultAreaId, sortAreas, type Area } from '../lib/areas';
 
 export type WalkInValues = {
   vehicleType: VehicleType;
@@ -23,6 +24,8 @@ export type WalkInValues = {
   endAt: string | null;
   rateId: string | null;
   note: string;
+  /** 0067: the session's area (Main by default). */
+  areaId: string | null;
 };
 
 type Props = {
@@ -36,6 +39,8 @@ type Props = {
   onSubmit: (v: WalkInValues) => Promise<string | null>;
   /** Bump to reload rate options and the amount (e.g. after a save elsewhere). */
   refreshKey?: number;
+  /** Check-in: warn when the chosen area is switched Full (still allowed). */
+  warnFull?: boolean;
 };
 
 /**
@@ -51,6 +56,7 @@ export function WalkInForm({
   reservationSubmitLabel,
   onSubmit,
   refreshKey,
+  warnFull,
 }: Props) {
   const start0 = manilaDateTime(initial?.startAt || new Date().toISOString());
   const end0 = manilaDateTime(initial?.endAt);
@@ -69,6 +75,29 @@ export function WalkInForm({
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [tick, setTick] = React.useState(0);
+  // rj t139u: area picker, defaulting to the given area (the one selected on the
+  // Availability screen, or the session's), else Main.
+  const [areas, setAreas] = React.useState<Area[]>([]);
+  const [areaId, setAreaId] = React.useState<string | null>(initial?.areaId ?? null);
+
+  React.useEffect(() => {
+    let live = true;
+    supabase
+      .from('areas')
+      .select(AREA_SELECT)
+      .eq('location_id', locationId)
+      .then(({ data }) => {
+        if (!live) return;
+        const sorted = sortAreas((data || []) as unknown as Area[]);
+        setAreas(sorted);
+        setAreaId((cur) => defaultAreaId(sorted, cur));
+      });
+    return () => {
+      live = false;
+    };
+  }, [locationId, refreshKey]);
+  const area = areas.find((a) => a.id === areaId) || null;
+  const vehicleBlocked = !!area && !areaAllowsVehicle(area, vehicle);
 
   const times = sessionTimes(startDate, startTime, endDate, endTime);
   const startAt = 'error' in times ? null : times.startAt;
@@ -158,6 +187,7 @@ export function WalkInForm({
         endAt: times.endAt,
         rateId,
         note: note.trim(),
+        areaId,
       });
       setError(msg);
     } finally {
@@ -190,6 +220,30 @@ export function WalkInForm({
           </TouchableOpacity>
         ))}
       </View>
+
+      {vehicleBlocked ? (
+        <Text style={styles.warning} testID="walkin-vehicle-blocked">
+          {area?.name} doesn&apos;t take this vehicle type.
+        </Text>
+      ) : null}
+
+      <Text style={styles.label}>Area</Text>
+      <FilterDropdown<string>
+        label="Area"
+        showLabel={false}
+        value={areaId}
+        options={areas.map((a) => ({ value: a.id, label: a.name }))}
+        onChange={(v) => v && setAreaId(v)}
+        highlightActive={false}
+        style={styles.dropdown}
+        testID="walkin-area"
+      />
+      {warnFull && area?.marked_full ? (
+        <Text style={styles.warning} testID="checkin-full-warning">
+          {area.name} is marked FULL. You can still check this car in; drivers keep seeing it as
+          Full until it is switched back.
+        </Text>
+      ) : null}
 
       <Text style={styles.label}>Plate number *</Text>
       <TextInput
@@ -341,6 +395,14 @@ export function WalkInForm({
 }
 
 const styles = StyleSheet.create({
+  warning: {
+    color: '#991b1b',
+    backgroundColor: '#fee2e2',
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginTop: theme.spacing.sm,
+    fontWeight: '600',
+  },
   label: {
     ...theme.typography.body,
     fontWeight: '600',

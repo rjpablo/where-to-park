@@ -145,6 +145,10 @@ const ERRORS: Record<string, string> = {
     'No rate applies to this vehicle at this start time. Add a rate for it under Rates first.',
   rate_not_applicable: "The selected rate doesn't apply to this vehicle or start. Pick another.",
   no_longer_available: 'No space available right now',
+  // 0067 (areas)
+  no_longer_available_area: 'No space available in this area right now',
+  vehicle_not_allowed: "This vehicle type isn't allowed in this area. Pick another area.",
+  area_not_found: 'That area no longer exists. Pick another area.',
   'Permission denied': "You don't have access to this listing's sessions.",
   session_not_active: 'This session has already ended.',
   folio_not_open: 'This session has already ended.',

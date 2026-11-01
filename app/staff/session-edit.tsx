@@ -47,12 +47,15 @@ export default function SessionEditScreen() {
       p_vehicle_type: v.vehicleType,
       p_plate: v.plate,
       p_rate_id: v.rateId,
+      p_area_id: v.areaId,
     });
     if (e) return e.message;
     if (data?.error === 'plate_active') {
       setConflict(plateConflict(data));
       return plateActiveMessage(data.plate);
     }
+    if (data?.error === 'no_longer_available' && data?.area_id)
+      return walkInErrorMessage('no_longer_available_area');
     if (data?.error) return walkInErrorMessage(data.error);
     // Back to this session's page (already under us); it reloads on focus.
     router.dismissTo({
@@ -101,6 +104,7 @@ export default function SessionEditScreen() {
               startAt: s.started_at,
               endAt: s.end_at,
               rateId: s.rate_auto ? null : s.rate_id,
+              areaId: s.area_id,
             }}
             submitLabel="Save changes"
             onSubmit={save}
