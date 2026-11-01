@@ -101,6 +101,8 @@ export type SearchResult = {
   verification_status: 'unverified' | 'verified';
   cover_photo_url: string | null;
   starting_rate: number | null;
+  /** 0061: the rate a card shows when there is no hourly one (null when none). */
+  starting_rate_info?: import('./rates').RateAmounts | null;
   avg_rating: number | null;
   review_count: number;
   has_monthly: boolean;

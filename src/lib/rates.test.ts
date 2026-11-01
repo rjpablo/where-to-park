@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultRateParams, validateDefaultRate, type DefaultRateInput } from './rates.ts';
+import {
+  cardRateText,
+  defaultRateParams,
+  rateSummary,
+  validateDefaultRate,
+  type DefaultRateInput,
+} from './rates.ts';
+import { formatPeso } from '../utils/formatters.ts';
 
 const base: DefaultRateInput = {
   rateType: 'hourly',
@@ -85,4 +92,59 @@ test('rate status errors: in-use count, default, archive (0048)', async () => {
     /can't be deactivated/
   );
   assert.match(rateErrorMessage('archive_needs_inactive'), /Deactivate the rate/);
+});
+
+test('rateSummary: Rates screen wording for every type; null only when amounts are missing', () => {
+  const s = (r: any) => rateSummary(r, formatPeso);
+  assert.equal(
+    s({
+      rate_type: 'flat_then_hourly',
+      first_hours: 3,
+      first_amount: '100.00',
+      succeeding_hourly_amount: '40.00',
+    }),
+    '₱100.00 first 3h then ₱40.00/h'
+  );
+  assert.equal(s({ rate_type: 'hourly', hourly_amount: 50 }), '₱50.00/h');
+  assert.equal(s({ rate_type: 'hourly', hourly_amount: 0 }), '₱0.00/h');
+  assert.equal(s({ rate_type: 'daily', daily_amount: '300' }), '₱300.00/day');
+  assert.equal(s({ rate_type: 'monthly', monthly_amount: 3000 }), '₱3,000.00/mo');
+  assert.equal(s({ rate_type: 'flat_then_hourly', first_hours: 3, first_amount: 100 }), null);
+  assert.equal(
+    s({
+      rate_type: 'flat_then_hourly',
+      first_hours: null,
+      first_amount: 1,
+      succeeding_hourly_amount: 2,
+    }),
+    null
+  );
+  assert.equal(s({ rate_type: 'hourly', hourly_amount: null }), null);
+  assert.equal(s({ rate_type: 'daily', daily_amount: '' }), null);
+  assert.equal(s({ rate_type: 'weird' }), null);
+});
+
+test('cardRateText: hourly first, then the other rate, else See rates', () => {
+  const c = (i: any) => cardRateText(i, formatPeso);
+  assert.equal(
+    c({ starting_rate: '20.00', starting_rate_info: { rate_type: 'daily', daily_amount: 1 } }),
+    '₱20.00/h'
+  );
+  assert.equal(
+    c({
+      starting_rate: null,
+      starting_rate_info: {
+        rate_type: 'flat_then_hourly',
+        first_hours: 3,
+        first_amount: 100,
+        succeeding_hourly_amount: 40,
+      },
+    }),
+    '₱100.00 first 3h then ₱40.00/h'
+  );
+  assert.equal(
+    c({ starting_rate: null, starting_rate_info: { rate_type: 'monthly', monthly_amount: null } }),
+    'See rates'
+  );
+  assert.equal(c({}), 'See rates');
 });

@@ -6,7 +6,12 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
-import { canBeDefault, rateErrorMessage, rateStatusErrorMessage } from '../../src/lib/rates';
+import {
+  canBeDefault,
+  rateErrorMessage,
+  rateStatusErrorMessage,
+  rateSummary,
+} from '../../src/lib/rates';
 import { daysLabel } from '../../src/lib/rateForm';
 import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import {
@@ -20,20 +25,8 @@ import {
 } from '../../src/lib/quotePreview';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 
-function rateSummary(rate: any): string {
-  switch (rate.rate_type) {
-    case 'hourly':
-      return `${formatPeso(rate.hourly_amount)}/h`;
-    case 'daily':
-      return `${formatPeso(rate.daily_amount)}/day`;
-    case 'monthly':
-      return `${formatPeso(rate.monthly_amount)}/mo`;
-    case 'flat_then_hourly':
-      return `${formatPeso(rate.first_amount)} first ${rate.first_hours}h then ${formatPeso(rate.succeeding_hourly_amount)}/h`;
-    default:
-      return rate.rate_type;
-  }
-}
+// Shared with the public listing page and result cards (src/lib/rates.ts).
+const summary = (rate: any): string => rateSummary(rate, formatPeso) ?? rate.rate_type;
 
 // A listing's rates and price preview (areas are on their own page, /operator/areas).
 export default function RatesScreen() {
@@ -338,7 +331,7 @@ export default function RatesScreen() {
             ) : null}
           </View>
           <Text style={styles.meta}>
-            {rate.rate_type} · {rateSummary(rate)}
+            {rate.rate_type} · {summary(rate)}
           </Text>
           <Text style={styles.meta} testID={`rate-days-${rate.name}`}>
             {daysLabel(rate.days_of_week)}
@@ -447,8 +440,7 @@ export default function RatesScreen() {
             <View key={rate.id} style={styles.card} testID={`archived-row-${rate.name}`}>
               <Text style={styles.rowTitle}>{rate.name}</Text>
               <Text style={styles.meta}>
-                {rate.rate_type} · {rateSummary(rate)} · archived{' '}
-                {formatLocalDate(rate.archived_at)}
+                {rate.rate_type} · {summary(rate)} · archived {formatLocalDate(rate.archived_at)}
               </Text>
               {rowError?.id === rate.id ? (
                 <Text style={styles.error}>{rowError?.message}</Text>

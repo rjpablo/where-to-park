@@ -158,3 +158,54 @@ export function rateErrorMessage(code: unknown): string {
   const key = String(code ?? '').trim();
   return RATE_ERRORS[key] ?? (key || 'Something went wrong. Try again.');
 }
+
+/** A rate's amount fields as stored (numeric columns may arrive as strings). */
+export type RateAmounts = {
+  rate_type: string;
+  hourly_amount?: number | string | null;
+  daily_amount?: number | string | null;
+  monthly_amount?: number | string | null;
+  first_hours?: number | string | null;
+  first_amount?: number | string | null;
+  succeeding_hourly_amount?: number | string | null;
+};
+
+const present = (v: unknown) => v != null && v !== '' && Number.isFinite(Number(v));
+
+/**
+ * Short price of a rate, the wording used on the Rates screen, e.g. '₱50.00/h',
+ * '₱300.00/day', '₱3,000.00/mo', '₱100.00 first 3h then ₱40.00/h'. Null when the
+ * amounts for its type are missing (callers then show 'Contact for rates').
+ * `peso` formats an amount (formatPeso in the app).
+ */
+export function rateSummary(
+  rate: RateAmounts,
+  peso: (n: number | string) => string
+): string | null {
+  switch (rate.rate_type) {
+    case 'hourly':
+      return present(rate.hourly_amount) ? `${peso(rate.hourly_amount!)}/h` : null;
+    case 'daily':
+      return present(rate.daily_amount) ? `${peso(rate.daily_amount!)}/day` : null;
+    case 'monthly':
+      return present(rate.monthly_amount) ? `${peso(rate.monthly_amount!)}/mo` : null;
+    case 'flat_then_hourly':
+      return present(rate.first_hours) &&
+        present(rate.first_amount) &&
+        present(rate.succeeding_hourly_amount)
+        ? `${peso(rate.first_amount!)} first ${Number(rate.first_hours)}h then ${peso(rate.succeeding_hourly_amount!)}/h`
+        : null;
+    default:
+      return null;
+  }
+}
+
+/** Result card price: the hourly starting rate as before, else the listing's other rate
+ *  (search_nearby.starting_rate_info, 0061: flat then hourly, daily, monthly), else 'See rates'. */
+export function cardRateText(
+  item: { starting_rate?: number | string | null; starting_rate_info?: RateAmounts | null },
+  peso: (n: number | string) => string
+): string {
+  if (present(item.starting_rate)) return `${peso(item.starting_rate!)}/h`;
+  return (item.starting_rate_info && rateSummary(item.starting_rate_info, peso)) || 'See rates';
+}

@@ -16,6 +16,7 @@ import { AvailabilityBadge } from '../../src/components/AvailabilityBadge';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
+import { rateSummary } from '../../src/lib/rates';
 import {
   deleteReviewPhoto,
   locationPhotoPublicUrl,
@@ -608,13 +609,7 @@ export default function LocationDetailScreen() {
                         {rate.vehicle_type && `(${rate.vehicle_type})`}
                       </Text>
                       <Text style={styles.ratePrice}>
-                        {rate.rate_type === 'hourly' && rate.hourly_amount
-                          ? `${formatPeso(rate.hourly_amount)}/h`
-                          : rate.rate_type === 'daily' && rate.daily_amount
-                            ? `${formatPeso(rate.daily_amount)}/day`
-                            : rate.rate_type === 'monthly' && rate.monthly_amount
-                              ? `${formatPeso(rate.monthly_amount)}/mo`
-                              : 'Contact for rates'}
+                        {rateSummary(rate, formatPeso) ?? 'Contact for rates'}
                       </Text>
                     </View>
                   ))

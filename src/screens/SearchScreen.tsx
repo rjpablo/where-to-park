@@ -46,7 +46,7 @@ import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
 import { FilterDropdown } from '../components/FilterDropdown';
-import { isRateType, RATE_FILTER_OPTIONS } from '../lib/rates';
+import { cardRateText, isRateType, RATE_FILTER_OPTIONS } from '../lib/rates';
 import {
   defaultVehicleFilter,
   isVehicleType,
@@ -389,7 +389,7 @@ export function SearchScreen() {
             {formatDistance(item.distance_m)}
             {etas[item.id] ? ` · ${etaText(etas[item.id], formatDuration)}` : ''}
             {' · '}
-            {item.starting_rate ? formatPeso(item.starting_rate) + '/h' : 'See rates'}
+            {cardRateText(item, formatPeso)}
           </Text>
 
           {item.has_monthly && (
