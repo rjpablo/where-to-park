@@ -36,7 +36,6 @@ export function AuthScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.display_name]);
-  const [accountType, setAccountType] = React.useState<'driver' | 'operator'>('driver');
   const [error, setError] = React.useState<string | null>(null);
 
   const send = async () => {
@@ -86,7 +85,13 @@ export function AuthScreen() {
   const finishProfile = async () => {
     setError(null);
     try {
-      await completeProfile(displayName.trim(), accountType);
+      // rj: no Driver/Operator choice here. Everyone starts as a driver ('List your parking
+      // space' in the sidebar switches to operator); an account that is already an operator
+      // (finishing onboarding again) keeps its type.
+      await completeProfile(
+        displayName.trim(),
+        useAuthStore.getState().user?.account_type === 'operator' ? 'operator' : 'driver'
+      );
       router.replace('/search');
     } catch (err: any) {
       setError(err.message || 'Could not save profile');
@@ -98,7 +103,7 @@ export function AuthScreen() {
       <Text style={styles.title}>Where To Park</Text>
       <Text style={styles.subtitle}>
         {params.complete
-          ? 'Almost done: confirm your name and account type'
+          ? 'Almost done: confirm your name'
           : params.add
             ? 'Add an account: sign in with its phone or Google'
             : 'Sign in with your phone or Google'}
@@ -161,23 +166,6 @@ export function AuthScreen() {
             onChangeText={setDisplayName}
             testID="auth-display-name"
           />
-          <Text style={styles.label}>Account type</Text>
-          <View style={styles.row}>
-            <Button
-              title="Driver"
-              variant={accountType === 'driver' ? 'primary' : 'outline'}
-              size="small"
-              onPress={() => setAccountType('driver')}
-              testID="auth-type-driver"
-            />
-            <Button
-              title="Operator"
-              variant={accountType === 'operator' ? 'primary' : 'outline'}
-              size="small"
-              onPress={() => setAccountType('operator')}
-              testID="auth-type-operator"
-            />
-          </View>
           <Button
             title="Save profile"
             onPress={finishProfile}

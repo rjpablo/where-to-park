@@ -47,6 +47,15 @@ BEGIN
   r := complete_profile('QA Google New', 'operator');
   ASSERT (SELECT onboarded AND account_type = 'operator' FROM profiles WHERE id = G), 'onboarded: ' || r::text;
 
+  -- 1b. Onboarding no longer asks for an account type (rj): the one-argument call (what the
+  --     app sends for a new account) makes a driver; the parameter still works.
+  UPDATE profiles SET account_type = 'operator', onboarded = false WHERE id = G;
+  r := complete_profile('QA Google Driver');
+  ASSERT (SELECT account_type = 'driver' AND onboarded AND display_name = 'QA Google Driver' FROM profiles WHERE id = G),
+    'default driver: ' || r::text;
+  r := complete_profile('QA Google New', 'operator');
+  ASSERT (SELECT account_type = 'operator' FROM profiles WHERE id = G), 'parameter kept';
+
   -- 2. Automatic linking (GoTrue: same verified email -> identity on that user) is allowed.
   PERFORM pg_temp.google_identity(G, 'sub-qa-new-2', 'qa.google.new@example.com', true);
 

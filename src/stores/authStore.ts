@@ -24,7 +24,8 @@ interface AuthState {
   initialized: boolean;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, code: string) => Promise<{ isNew: boolean }>;
-  completeProfile: (displayName: string, accountType: 'driver' | 'operator') => Promise<void>;
+  /** accountType defaults to 'driver' (onboarding no longer asks; rj). */
+  completeProfile: (displayName: string, accountType?: 'driver' | 'operator') => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   /**
    * Google sign-in (also from Add account) or linking Google to the current account.
@@ -233,7 +234,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  completeProfile: async (displayName, accountType) => {
+  completeProfile: async (displayName, accountType = 'driver') => {
     set({ loading: true });
     try {
       const { data, error } = await supabase.rpc('complete_profile', {
