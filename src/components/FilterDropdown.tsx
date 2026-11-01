@@ -40,7 +40,8 @@ export function FilterDropdown<T extends string>({
   style,
 }: Props<T>) {
   const [open, setOpen] = React.useState(false);
-  const current = options.find((o) => o.value === value) ?? options[0];
+  // No options yet (still loading): an empty chip instead of a crash.
+  const current = options.find((o) => o.value === value) ?? options[0] ?? { label: '' };
   const active = highlightActive && value !== null;
   return (
     <>

@@ -228,16 +228,20 @@ export function WalkInForm({
       ) : null}
 
       <Text style={styles.label}>Area</Text>
-      <FilterDropdown<string>
-        label="Area"
-        showLabel={false}
-        value={areaId}
-        options={areas.map((a) => ({ value: a.id, label: a.name }))}
-        onChange={(v) => v && setAreaId(v)}
-        highlightActive={false}
-        style={styles.dropdown}
-        testID="walkin-area"
-      />
+      {areas.length ? (
+        <FilterDropdown<string>
+          label="Area"
+          showLabel={false}
+          value={areaId}
+          options={areas.map((a) => ({ value: a.id, label: a.name }))}
+          onChange={(v) => v && setAreaId(v)}
+          highlightActive={false}
+          style={styles.dropdown}
+          testID="walkin-area"
+        />
+      ) : (
+        <Text style={styles.meta}>Loading areas…</Text>
+      )}
       {warnFull && area?.marked_full ? (
         <Text style={styles.warning} testID="checkin-full-warning">
           {area.name} is marked FULL. You can still check this car in; drivers keep seeing it as
