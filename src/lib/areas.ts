@@ -45,6 +45,27 @@ export function defaultAreaId(
 }
 
 /** Whether an area takes a vehicle type (no list = every type). */
+/** The vehicle types an area takes, in the given order (no restriction = all of them). */
+export function allowedVehicleTypes<T extends string>(
+  area: Pick<Area, 'vehicle_types'> | null | undefined,
+  all: readonly T[]
+): T[] {
+  if (!area) return [...all];
+  return all.filter((t) => areaAllowsVehicle(area, t));
+}
+
+/**
+ * Vehicle after the area changes (rj): keep it if the area takes it; otherwise select the
+ * only allowed type when there is exactly one, else clear it (staff pick one).
+ */
+export function vehicleForArea<T extends string>(
+  current: T | null,
+  allowed: readonly T[]
+): T | null {
+  if (current && allowed.includes(current)) return current;
+  return allowed.length === 1 ? allowed[0] : null;
+}
+
 export function areaAllowsVehicle(
   area: Pick<Area, 'vehicle_types'>,
   vehicle: string | null | undefined

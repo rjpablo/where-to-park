@@ -15,7 +15,15 @@ import {
   type RateOption,
 } from '../lib/walkIn';
 import { formatLocalDateTime, formatPeso } from '../utils/formatters';
-import { AREA_SELECT, areaAllowsVehicle, defaultAreaId, sortAreas, type Area } from '../lib/areas';
+import {
+  AREA_SELECT,
+  allowedVehicleTypes,
+  areaAllowsVehicle,
+  defaultAreaId,
+  sortAreas,
+  vehicleForArea,
+  type Area,
+} from '../lib/areas';
 
 export type WalkInValues = {
   vehicleType: VehicleType;
@@ -60,7 +68,7 @@ export function WalkInForm({
 }: Props) {
   const start0 = manilaDateTime(initial?.startAt || new Date().toISOString());
   const end0 = manilaDateTime(initial?.endAt);
-  const [vehicle, setVehicle] = React.useState<VehicleType>(initial?.vehicleType || 'car');
+  const [vehicle, setVehicle] = React.useState<VehicleType | null>(initial?.vehicleType || 'car');
   const [plate, setPlate] = React.useState(initial?.plate || '');
   const [startDate, setStartDate] = React.useState(start0.date);
   const [startTime, setStartTime] = React.useState(start0.time);
@@ -97,7 +105,30 @@ export function WalkInForm({
     };
   }, [locationId, refreshKey]);
   const area = areas.find((a) => a.id === areaId) || null;
-  const vehicleBlocked = !!area && !areaAllowsVehicle(area, vehicle);
+  // rj: the vehicle chips show only the types the selected area takes. Legacy session (edit)
+  // whose stored type its own area no longer takes: that type stays as an extra chip, marked,
+  // while the area is unchanged (the server accepts an unchanged area + vehicle).
+  const legacyVehicle =
+    initial?.vehicleType &&
+    initial?.areaId &&
+    area?.id === initial.areaId &&
+    !areaAllowsVehicle(area, initial.vehicleType)
+      ? initial.vehicleType
+      : null;
+  const allowed = allowedVehicleTypes(area, VEHICLE_TYPES);
+  const vehicleChoices: VehicleType[] = legacyVehicle
+    ? VEHICLE_TYPES.filter((t) => t === legacyVehicle || allowed.includes(t))
+    : allowed;
+  // Area loaded or changed: keep the vehicle if allowed, else pick the only one, else clear.
+  React.useEffect(() => {
+    if (!area) return;
+    setVehicle((cur) =>
+      legacyVehicle && cur === legacyVehicle
+        ? cur
+        : vehicleForArea(cur, allowedVehicleTypes(area, VEHICLE_TYPES))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [area?.id, area?.vehicle_types?.join(',')]);
 
   const times = sessionTimes(startDate, startTime, endDate, endTime);
   const startAt = 'error' in times ? null : times.startAt;
@@ -106,6 +137,11 @@ export function WalkInForm({
   // Applicable rates for this vehicle and start; a choice that no longer applies → Automatic.
   React.useEffect(() => {
     if (!startAt) return;
+    if (!vehicle) {
+      setOptions([]);
+      setAuto(null);
+      return;
+    }
     let live = true;
     supabase
       .rpc('walk_in_rate_options', {
@@ -143,6 +179,11 @@ export function WalkInForm({
       setQuoteError(times.error);
       return;
     }
+    if (!vehicle) {
+      setQuote(null);
+      setQuoteError('Choose a vehicle type');
+      return;
+    }
     let live = true;
     const t = setTimeout(async () => {
       const { data, error: e } = await supabase.rpc('walk_in_quote', {
@@ -176,6 +217,7 @@ export function WalkInForm({
 
   const submit = async () => {
     setError(null);
+    if (!vehicle) return setError('Choose a vehicle type');
     if (!plate.trim()) return setError('Plate number is required');
     if ('error' in times) return setError(times.error);
     setSaving(true);
@@ -203,30 +245,6 @@ export function WalkInForm({
 
   return (
     <View testID="walkin-form">
-      <Text style={styles.label}>Vehicle type *</Text>
-      <View style={styles.row}>
-        {VEHICLE_TYPES.map((t) => (
-          <TouchableOpacity
-            key={t}
-            onPress={() => setVehicle(t)}
-            style={[styles.chip, vehicle === t && styles.chipOn]}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: vehicle === t }}
-            testID={`walkin-vehicle-${t}`}
-          >
-            <Text style={[styles.chipText, vehicle === t && styles.chipTextOn]}>
-              {VEHICLE_TYPE_LABELS[t]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {vehicleBlocked ? (
-        <Text style={styles.warning} testID="walkin-vehicle-blocked">
-          {area?.name} doesn&apos;t take this vehicle type.
-        </Text>
-      ) : null}
-
       <Text style={styles.label}>Area</Text>
       {areas.length ? (
         <FilterDropdown<string>
@@ -246,6 +264,31 @@ export function WalkInForm({
         <Text style={styles.warning} testID="checkin-full-warning">
           {area.name} is marked FULL. You can still check this car in; drivers keep seeing it as
           Full until it is switched back.
+        </Text>
+      ) : null}
+
+      <Text style={styles.label}>Vehicle type *</Text>
+      <View style={styles.row}>
+        {vehicleChoices.map((t) => (
+          <TouchableOpacity
+            key={t}
+            onPress={() => setVehicle(t)}
+            style={[styles.chip, vehicle === t && styles.chipOn]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: vehicle === t }}
+            testID={`walkin-vehicle-${t}`}
+          >
+            <Text style={[styles.chipText, vehicle === t && styles.chipTextOn]}>
+              {VEHICLE_TYPE_LABELS[t]}
+              {t === legacyVehicle ? ' (not allowed here)' : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {legacyVehicle ? (
+        <Text style={styles.meta} testID="walkin-vehicle-legacy">
+          {area?.name} no longer takes {VEHICLE_TYPE_LABELS[legacyVehicle]}. This session keeps it
+          unless you change the vehicle or the area.
         </Text>
       ) : null}
 

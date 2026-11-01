@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  allowedVehicleTypes,
+  vehicleForArea,
   areaAllowsVehicle,
   areaErrorMessage,
   areaStatusText,
@@ -107,4 +109,24 @@ test('Full listings only with Show Full', () => {
     ['a', 'd']
   );
   assert.equal(visibleResults(rows, true).length, 4);
+});
+
+const ALL = ['car', 'suv', 'van', 'motorcycle', 'truck'] as const;
+
+test("allowedVehicleTypes: the area's types in form order; none set = all", () => {
+  assert.deepEqual(allowedVehicleTypes({ vehicle_types: ['motorcycle', 'car'] }, ALL), [
+    'car',
+    'motorcycle',
+  ]);
+  assert.deepEqual(allowedVehicleTypes({ vehicle_types: [] }, ALL), [...ALL]);
+  assert.deepEqual(allowedVehicleTypes({ vehicle_types: null }, ALL), [...ALL]);
+  assert.deepEqual(allowedVehicleTypes(null, ALL), [...ALL]);
+});
+
+test('vehicleForArea: keep, select the only one, or clear', () => {
+  assert.equal(vehicleForArea('car', ['car', 'suv']), 'car');
+  assert.equal(vehicleForArea('car', ['motorcycle']), 'motorcycle');
+  assert.equal(vehicleForArea('car', ['suv', 'van']), null);
+  assert.equal(vehicleForArea(null, ['motorcycle']), 'motorcycle');
+  assert.equal(vehicleForArea(null, ['suv', 'van']), null);
 });

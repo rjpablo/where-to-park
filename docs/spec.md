@@ -200,6 +200,8 @@ Where To Park is a mobile app for drivers in the Philippines to find parking wit
 
 **Acceptance**: Nothing frees an active session's space automatically; ending session in count mode adds one back; fee preset can be reused; every charge/override in audit log; overdue time never raises amount due unless staff change end time or amount; closing with non-zero balance without note is blocked; after waiver folio balance is exactly ₱0.00 and waiver shows who and when
 
+- 🟧 **Area first, vehicle types follow the area (rj)**: on Check in (walk-in / new session) and **Edit details**, **Area** is the first field, and the **Vehicle type** chips show only the types the selected area takes (an area with no restriction shows all). When the area changes and the chosen vehicle isn't allowed there, the only allowed type is selected if there is just one, otherwise the vehicle is cleared and must be picked ('Choose a vehicle type'; no rates or amount until then). Check-in starts with Car when the area takes it. The old '<area> doesn't take this vehicle type' warning is gone (it can't happen); the server still refuses a vehicle the area doesn't take. **Legacy sessions**: when an existing session's vehicle is no longer allowed in its own area, Edit details keeps it as an extra chip marked '(not allowed here)', selected, with the note '<area> no longer takes <vehicle>. This session keeps it unless you change the vehicle or the area', and saving without changing them works (the server accepts an unchanged area + vehicle). Changing the area or picking another vehicle applies the normal rule.
+
 ### F6. Reservations (Phase 3)
 
 [Deferred to Phase 3 - see full spec in repo]
