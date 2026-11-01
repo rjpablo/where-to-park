@@ -18,6 +18,7 @@ export type ManagedLocation = {
   tracking_mode: 'count' | 'open_full' | 'slots';
   available_count: number;
   free_spaces?: number | null;
+  marked_full?: boolean | null;
   capacity: number;
   open_status: boolean | null;
   operator_id: string;
@@ -68,7 +69,7 @@ export async function loadManagedLocations(userId: string): Promise<ManagedLocat
   const { data, error } = await supabase
     .from('locations')
     .select(
-      'id, name, verification_status, published, tracking_mode, available_count, free_spaces, capacity, open_status, operator_id, availability_updated_at, rejected_at, rejection_reason'
+      'id, name, verification_status, published, tracking_mode, available_count, free_spaces, marked_full, capacity, open_status, operator_id, availability_updated_at, rejected_at, rejection_reason'
     )
     .in('operator_id', operatorIds)
     .is('deleted_at', null)
@@ -87,8 +88,10 @@ export function availabilityLabel(loc: {
   open_status: boolean | null;
   available_count: number;
   free_spaces?: number | null;
+  marked_full?: boolean | null;
   capacity: number;
 }): string {
+  if (loc.marked_full) return 'Marked FULL';
   if (loc.tracking_mode === 'open_full') return loc.open_status ? 'Open' : 'Full';
   return `${freeSpaces(loc)} / ${loc.capacity} open`;
 }

@@ -24,17 +24,20 @@ export default function CheckInScreen() {
   // Opened from the Availability Sessions tab (+): saving returns there.
   const from = firstParam(sp.from);
   const [locationName, setLocationName] = useState('Listing');
+  // Full switch on (0066): check-ins are still allowed (manual override), with a warning.
+  const [markedFull, setMarkedFull] = useState(false);
   const [conflict, setConflict] = useState<{ id: string; plate: string } | null>(null);
 
   useEffect(() => {
     if (!locationId) return;
     supabase
       .from('locations')
-      .select('name')
+      .select('name, marked_full')
       .eq('id', locationId)
       .single()
       .then(({ data }) => {
         if (data?.name) setLocationName(data.name);
+        setMarkedFull(!!data?.marked_full);
       });
   }, [locationId]);
 
@@ -74,6 +77,12 @@ export default function CheckInScreen() {
       <View style={styles.form}>
         {locationId ? (
           <>
+            {markedFull ? (
+              <Text style={styles.fullWarning} testID="checkin-full-warning">
+                This listing is marked FULL. You can still check this car in; drivers keep seeing it
+                as Full until the Full switch is turned off.
+              </Text>
+            ) : null}
             <WalkInForm
               locationId={locationId}
               showNote
@@ -105,6 +114,14 @@ export default function CheckInScreen() {
 }
 
 const styles = StyleSheet.create({
+  fullWarning: {
+    color: '#991b1b',
+    backgroundColor: '#fee2e2',
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginBottom: theme.spacing.md,
+    fontWeight: '600',
+  },
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: { padding: theme.spacing.lg, backgroundColor: theme.colors.primary },
   subtitle: { ...theme.typography.body, color: '#fff', opacity: 0.9, marginTop: theme.spacing.xs },

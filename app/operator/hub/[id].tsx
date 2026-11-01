@@ -46,7 +46,7 @@ export default function ListingHubScreen() {
           supabase
             .from('locations')
             .select(
-              'id, name, verification_status, published, tracking_mode, available_count, free_spaces, capacity, open_status, operator_id, availability_updated_at'
+              'id, name, verification_status, published, tracking_mode, available_count, free_spaces, marked_full, capacity, open_status, operator_id, availability_updated_at'
             )
             .eq('id', id)
             .is('deleted_at', null)

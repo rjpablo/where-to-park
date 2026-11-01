@@ -34,7 +34,9 @@ export default function SlotsEditorScreen() {
     if (!locationId) return;
     supabase
       .from('locations')
-      .select('id, name, capacity, manual_reserved_count, unavailable_count, free_spaces')
+      .select(
+        'id, name, capacity, manual_reserved_count, unavailable_count, free_spaces, counted_spaces'
+      )
       .eq('id', locationId)
       .single()
       .then(({ data, error: e }) => {
@@ -54,7 +56,8 @@ export default function SlotsEditorScreen() {
   }
 
   const oldHeld = Number(loc.manual_reserved_count || 0) + Number(loc.unavailable_count || 0);
-  const free = freeSpaces(loc);
+  // The real count (not 0 when the Full switch is on).
+  const free = freeSpaces({ free_spaces: loc.counted_spaces ?? loc.free_spaces });
   const preview = heldPreview(free, oldHeld, reserved + unavailable);
   const changed =
     reserved !== Number(loc.manual_reserved_count || 0) ||
