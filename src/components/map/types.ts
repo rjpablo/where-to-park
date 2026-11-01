@@ -70,5 +70,8 @@ export interface MapPinPickerProps {
   onCoordinateSelect: (coordinate: Coordinate) => void;
   /** The listing's saved pin (edit listing only): shows 'Restore saved pin' after a move. */
   savedCoordinate?: Coordinate | null;
+  /** True while a finger is on the map, false when the touch ends: the screen's ScrollView
+   *  turns scrolling off meanwhile so drags and pinches pan / zoom the map, not the page. */
+  onMapGestureChange?: (active: boolean) => void;
   style?: ViewStyle;
 }

@@ -15,8 +15,9 @@ import {
 } from '../components/map/types';
 import { PlaceSearchBox } from '../components/PlaceSearchBox';
 import { Sidebar } from '../components/Sidebar';
-import { useUserLocation } from '../hooks/useUserLocation';
-import { locationMessage, RECENTER_ZOOM, recenterAction } from '../lib/userLocation';
+import { useLocateMe } from '../hooks/useLocateMe';
+import { RECENTER_ZOOM } from '../lib/userLocation';
+import { LocateButton, LocationNotice } from '../components/map/LocateButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   maximizedHeight,
@@ -76,7 +77,6 @@ const SHEET_PEEK_MIN = 120;
 const SHEET_PEEK_MAX_FRACTION = 0.5;
 /** Above the map overlay layer (search box, 'Search this area', ◎: zIndex 10 / elevation 12). */
 const SHEET_LAYER = 30;
-const RECENTER_SIZE = 46;
 // Gap between the ◎ button and the top of the Minimized sheet.
 const RECENTER_GAP = 16;
 
@@ -173,50 +173,16 @@ export function SearchScreen() {
   }, []);
 
   // Current-location puck + recenter button.
-  const { permission, location: userLocation, request: requestLocation } = useUserLocation();
-  const [locationNotice, setLocationNotice] = useState<string | null>(null);
-  const pendingRecenter = useRef(false);
   const recenter = useCallback((coordinate: { latitude: number; longitude: number }) => {
     offerSearchAfterMove.current = true;
     mapRef.current?.focus({ coordinate, zoom: RECENTER_ZOOM });
   }, []);
-  const handleRecenter = async () => {
-    const action = recenterAction(permission, !!userLocation);
-    if (action === 'center' && userLocation) return recenter(userLocation.coordinate);
-    if (action === 'wait') {
-      pendingRecenter.current = true;
-      setLocationNotice('Finding your location…');
-      return;
-    }
-    if (action === 'request') {
-      const next = await requestLocation();
-      if (next === 'granted') {
-        pendingRecenter.current = true;
-        return;
-      }
-      setLocationNotice(locationMessage(next));
-      return;
-    }
-    setLocationNotice(locationMessage(permission));
-  };
-  // Center as soon as the first fix arrives after a recenter tap.
-  useEffect(() => {
-    if (pendingRecenter.current && userLocation) {
-      pendingRecenter.current = false;
-      setLocationNotice(null);
-      recenter(userLocation.coordinate);
-    }
-  }, [userLocation, recenter]);
-  // A denial at launch gets one short message; it fades after a few seconds.
-  useEffect(() => {
-    const msg = locationMessage(permission);
-    if (msg) setLocationNotice(msg);
-  }, [permission]);
-  useEffect(() => {
-    if (!locationNotice) return;
-    const timer = setTimeout(() => setLocationNotice(null), 4000);
-    return () => clearTimeout(timer);
-  }, [locationNotice]);
+  const {
+    permission,
+    location: userLocation,
+    notice: locationNotice,
+    locate: handleRecenter,
+  } = useLocateMe(recenter);
 
   const handlePlaceSelect = useCallback((place: PlaceSuggestion) => {
     setPlaceMarker(place.coordinate);
@@ -518,27 +484,11 @@ export function SearchScreen() {
           pointerEvents="box-none"
           testID="recenter-layer"
         >
-          {locationNotice ? (
-            <View style={styles.locationNotice} testID="location-notice">
-              <Text style={styles.locationNoticeText}>{locationNotice}</Text>
-            </View>
-          ) : null}
-          <TouchableOpacity
-            style={styles.recenterButton}
+          <LocationNotice text={locationNotice} />
+          <LocateButton
+            active={permission === 'granted' && !!userLocation}
             onPress={handleRecenter}
-            accessibilityRole="button"
-            accessibilityLabel="Center the map on my location"
-            testID="recenter-button"
-          >
-            <View
-              style={[
-                styles.recenterIcon,
-                permission === 'granted' && userLocation ? styles.recenterIconActive : null,
-              ]}
-            >
-              <View style={styles.recenterDot} />
-            </View>
-          </TouchableOpacity>
+          />
         </View>
       ) : null}
 
@@ -703,40 +653,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
     elevation: 12,
   },
-  recenterButton: {
-    width: RECENTER_SIZE,
-    height: RECENTER_SIZE,
-    borderRadius: RECENTER_SIZE / 2,
-    backgroundColor: theme.colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.md,
-  },
-  recenterIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: theme.colors.text.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recenterIconActive: { borderColor: theme.colors.primary },
-  recenterDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary,
-  },
-  locationNotice: {
-    marginBottom: theme.spacing.sm,
-    maxWidth: 260,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: 'rgba(17,24,39,0.88)',
-  },
-  locationNoticeText: { ...theme.typography.bodySmall, color: '#fff' },
   topOverlay: {
     position: 'absolute',
     top: theme.spacing.md,

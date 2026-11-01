@@ -20,6 +20,7 @@ export default function EditLocationScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
   const id = firstParam(useLocalSearchParams<{ id: string | string[] }>().id);
+  const [pageScroll, setPageScroll] = React.useState(true);
   const [name, setName] = React.useState('');
   const [address, setAddress] = React.useState('');
   const [rules, setRules] = React.useState('');
@@ -142,7 +143,15 @@ export default function EditLocationScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="edit-ready">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={bottomInset}
+      // Off while a finger is on the map pin picker, so the map pans / zooms (not the page).
+      scrollEnabled={pageScroll}
+      // Taps on place-search suggestions work with the keyboard open.
+      keyboardShouldPersistTaps="handled"
+      testID="edit-ready"
+    >
       <Text style={styles.label}>Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} testID="edit-name" />
 
@@ -188,6 +197,7 @@ export default function EditLocationScreen() {
       <MapPinPicker
         initialCoordinate={pin}
         onCoordinateSelect={setPin}
+        onMapGestureChange={(active) => setPageScroll(!active)}
         savedCoordinate={savedPin}
       />
 

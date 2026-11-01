@@ -30,6 +30,7 @@ export default function OnboardingScreen() {
   // Synchronous guard: state updates are async, so a fast double tap could
   // otherwise start two create_location calls before `submitting` re-renders.
   const submitLock = React.useRef(false);
+  const [pageScroll, setPageScroll] = React.useState(true);
   const [step, setStep] = React.useState(1);
   const [locationName, setLocationName] = React.useState('');
   const [address, setAddress] = React.useState('');
@@ -196,6 +197,10 @@ export default function OnboardingScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={bottomInset}
+      // Off while a finger is on the map pin picker, so the map pans / zooms (not the page).
+      scrollEnabled={pageScroll}
+      // Taps on place-search suggestions work with the keyboard open.
+      keyboardShouldPersistTaps="handled"
       testID="onboarding-ready"
     >
       <View style={styles.progress}>
@@ -251,7 +256,11 @@ export default function OnboardingScreen() {
         <View style={styles.stepContent} testID="onboarding-step-2">
           <Text style={styles.stepHeading}>Drop a pin</Text>
           <Text style={styles.help}>Tap the map to set the exact entrance.</Text>
-          <MapPinPicker initialCoordinate={pin} onCoordinateSelect={setPin} />
+          <MapPinPicker
+            initialCoordinate={pin}
+            onCoordinateSelect={setPin}
+            onMapGestureChange={(active) => setPageScroll(!active)}
+          />
         </View>
       )}
 
