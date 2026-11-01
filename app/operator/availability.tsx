@@ -230,7 +230,7 @@ export default function AvailabilityScreen() {
       <View style={styles.countDisplay}>
         {full ? (
           <Text style={styles.fullText} testID="availability-full">
-            Mark as FULL
+            Marked as FULL
           </Text>
         ) : null}
         {monitored ? (
