@@ -7,6 +7,7 @@ import {
   defaultAreaId,
   listingAvailability,
   listingPinLabel,
+  visibleResults,
   sortAreas,
   vehicleTypesLabel,
 } from './areas.ts';
@@ -84,10 +85,26 @@ test('area error messages', () => {
   assert.equal(areaErrorMessage('weird'), 'weird');
 });
 
-test('map pin labels', () => {
+test('map pin labels (rj t140u)', () => {
   assert.equal(listingPinLabel(12, true), '12');
-  assert.equal(listingPinLabel(null, true), 'Open');
-  assert.equal(listingPinLabel(0, true), 'Open');
+  // available, no monitored count: empty green pin
+  assert.equal(listingPinLabel(null, true), '');
+  assert.equal(listingPinLabel(0, true), '');
+  // full (monitored or unmonitored): grey pin with 0
   assert.equal(listingPinLabel(0, false), '0');
-  assert.equal(listingPinLabel(null, false), 'Full');
+  assert.equal(listingPinLabel(null, false), '0');
+});
+
+test('Full listings only with Show Full', () => {
+  const rows = [
+    { id: 'a', available_count: 3, open_status: true },
+    { id: 'b', available_count: 0, open_status: false },
+    { id: 'c', available_count: null, open_status: false },
+    { id: 'd', available_count: null, open_status: true },
+  ];
+  assert.deepEqual(
+    visibleResults(rows, false).map((r) => r.id),
+    ['a', 'd']
+  );
+  assert.equal(visibleResults(rows, true).length, 4);
 });

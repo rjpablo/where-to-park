@@ -59,7 +59,7 @@ import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 import { useBottomInset } from '../hooks/useBottomInset';
-import { listingAvailability, listingPinLabel } from '../lib/areas';
+import { listingAvailability, listingPinLabel, visibleResults } from '../lib/areas';
 
 // Results sheet, three modes (snap points, drag the handle between them):
 // - Minimized: fits its top part (title, summary, one row of filters, distance slider);
@@ -201,10 +201,16 @@ export function SearchScreen() {
     setSearchNonce((n) => n + 1);
   };
 
+  // rj t140u: Full listings are only shown (grey pin / row) while 'Show Full' is on.
+  const shown = useMemo(
+    () => visibleResults(results, filters.showFull),
+    [results, filters.showFull]
+  );
+
   // Convert search results to map pins
   const pins: LocationPin[] = useMemo(
     () =>
-      results.map((result) => ({
+      shown.map((result) => ({
         id: result.id,
         coordinate: {
           latitude: result.latitude,
@@ -212,8 +218,8 @@ export function SearchScreen() {
         },
         availableCount: result.available_count || 0,
         availableSlots: availableSlots(result),
-        // 0067 (areas): the monitored free total, 'Available' with no monitored count,
-        // 'Full' only when every area is full.
+        // The monitored free total; empty green pin when available with no number;
+        // grey '0' when Full (rj t140u).
         pinLabel: listingPinLabel(result.available_count, result.open_status),
         isStale:
           result.stale_after_min && result.availability_updated_at
@@ -223,7 +229,7 @@ export function SearchScreen() {
         isFull: listingAvailability(result.available_count, result.open_status).full,
         title: result.name,
       })),
-    [results]
+    [shown]
   );
 
   const handlePinPress = (locationId: string) => {
@@ -345,11 +351,11 @@ export function SearchScreen() {
   const listData = useMemo(
     () =>
       sortBy === 'eta'
-        ? [...results].sort(
+        ? [...shown].sort(
             (a, b) => (etas[a.id]?.duration_s || 99999) - (etas[b.id]?.duration_s || 99999)
           )
-        : results,
-    [sortBy, results, etas]
+        : shown,
+    [sortBy, shown, etas]
   );
   const renderListItem = useCallback(
     ({ item }: { item: (typeof results)[0] }) => (
@@ -539,7 +545,7 @@ export function SearchScreen() {
                     testID="search-summary"
                     accessibilityLiveRegion="polite"
                   >
-                    {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(results)}
+                    {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(shown)}
                   </Text>
                 </View>
               </View>

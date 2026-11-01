@@ -14,7 +14,7 @@ STROKE = 2.5           # white outline
 CY = 16                # bulb centre y
 COLORS = {
     'pin-open': '#10b981',
-    'pin-full': '#ef4444',
+    'pin-full': '#6b7280',
     'pin-stale': '#f59e0b',
     'pin-place': '#2563eb',
 }

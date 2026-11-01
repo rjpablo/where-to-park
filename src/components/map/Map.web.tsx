@@ -191,7 +191,8 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
         id: pin.id,
         availableCount: pin.availableCount,
         availableSlots: pin.availableSlots ?? Math.max(0, pin.availableCount || 0),
-        pinLabel: pin.pinLabel || String(pin.availableCount),
+        // '' = a plain pin with no number (rj t140u).
+        pinLabel: pin.pinLabel ?? String(pin.availableCount),
         isStale: pin.isStale ? 1 : 0,
         isFull: pin.isFull ? 1 : 0,
         title: pin.title,

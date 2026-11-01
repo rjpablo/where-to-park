@@ -11,7 +11,8 @@ export const PIN_CENTER_Y = 16;
 
 export const PIN_COLORS = {
   'pin-open': '#10b981',
-  'pin-full': '#ef4444',
+  // Grey (rj t140u): Full listings, shown only with 'Show Full'.
+  'pin-full': '#6b7280',
   'pin-stale': '#f59e0b',
   'pin-place': '#2563eb',
 } as const;
@@ -28,10 +29,11 @@ export const PIN_LABEL_OFFSET: [number, number] = [
 /** MapLibre expression choosing the pin image from the feature's status flags. */
 export const PIN_IMAGE_EXPRESSION = [
   'case',
-  ['==', ['to-boolean', ['get', 'isStale']], true],
-  'pin-stale',
+  // Full first (rj t140u: a Full listing is always the grey pin, even when stale).
   ['==', ['to-boolean', ['get', 'isFull']], true],
   'pin-full',
+  ['==', ['to-boolean', ['get', 'isStale']], true],
+  'pin-stale',
   'pin-open',
 ];
 

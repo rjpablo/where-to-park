@@ -133,12 +133,24 @@ export function areaErrorMessage(
   }
 }
 
-/** Short map-pin text for the same rule: the number, 'Open' (no monitored count) or 'Full'. */
+/** Map-pin text (rj t140u): the free number; '0' on a Full listing's grey pin (also
+ *  when no area is monitored); empty (a plain green pin) when available with no number. */
 export function listingPinLabel(
   count: number | null | undefined,
   open: boolean | null | undefined
 ): string {
   const a = listingAvailability(count, open);
-  if (a.full) return a.count == null ? 'Full' : '0';
-  return a.count != null && a.count > 0 ? String(a.count) : 'Open';
+  if (a.full) return '0';
+  return a.count != null && a.count > 0 ? String(a.count) : '';
+}
+
+/** Search results to show on the map and in the results sheet (rj t140u): Full listings
+ *  only while 'Show Full' is on. The server already leaves them out (p_hide_full); this
+ *  also drops them from rows still on screen until the new search comes back. */
+export function visibleResults<
+  T extends { available_count: number | null; open_status: boolean | null },
+>(results: T[], showFull: boolean): T[] {
+  return showFull
+    ? results
+    : results.filter((r) => !listingAvailability(r.available_count, r.open_status).full);
 }
