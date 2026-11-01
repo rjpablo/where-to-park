@@ -4,6 +4,8 @@ import {
   autoOptionLabel,
   filterByPlate,
   normalizePlate,
+  plateActiveMessage,
+  plateConflict,
   sessionReturnRoute,
   priceBreakdownLines,
   setRateLabel,
@@ -223,4 +225,19 @@ test('sessionReturnRoute: back to Availability when opened from its Sessions tab
   });
   assert.equal(sessionReturnRoute(undefined, {}).pathname, '/staff/sessions');
   assert.equal(sessionReturnRoute('other', {}).pathname, '/staff/sessions');
+});
+
+test('plate_active: friendly message naming the plate, and the session to open', () => {
+  assert.equal(
+    plateActiveMessage('QZ 7001'),
+    'QZ 7001 already has an active session at this listing. End it first, or open it below.'
+  );
+  assert.match(plateActiveMessage(''), /already has an active session/);
+  assert.equal(walkInErrorMessage('plate_active').includes('already has an active session'), true);
+  assert.deepEqual(plateConflict({ error: 'plate_active', session_id: 's1', plate: 'QZ 7001' }), {
+    id: 's1',
+    plate: 'QZ 7001',
+  });
+  assert.equal(plateConflict({ error: 'other', session_id: 's1' }), null);
+  assert.equal(plateConflict(null), null);
 });

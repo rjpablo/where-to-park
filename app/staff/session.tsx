@@ -24,6 +24,8 @@ import {
   paymentAmountError,
   refundAmountError,
   startsIn,
+  plateActiveMessage,
+  plateConflict,
   sessionReturnRoute,
   walkInErrorMessage,
   type PaymentMethod,
@@ -45,6 +47,7 @@ export default function SessionScreen() {
   const [d, setD] = React.useState<any>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [conflict, setConflict] = React.useState<{ id: string; plate: string } | null>(null);
   const [formKey, setFormKey] = React.useState(0);
   const router = useRouter();
   const scrollRef = React.useRef<ScrollView>(null);
@@ -93,7 +96,12 @@ export default function SessionScreen() {
       p_plate: v.plate,
       p_rate_id: v.rateId,
     });
+    setConflict(null);
     if (e) return e.message;
+    if (data?.error === 'plate_active') {
+      setConflict(plateConflict(data));
+      return plateActiveMessage(data.plate);
+    }
     if (data?.error) return walkInErrorMessage(data.error);
     setNotice('Session saved');
     await load();
@@ -340,6 +348,20 @@ export default function SessionScreen() {
             submitLabel="Save changes"
             onSubmit={save}
           />
+          {conflict ? (
+            <Button
+              title={`Open session ${conflict.plate}`}
+              variant="outline"
+              style={{ marginTop: theme.spacing.md }}
+              onPress={() =>
+                router.push({
+                  pathname: '/staff/session',
+                  params: { id: conflict.id, locationId: s.location_id, ...(from ? { from } : {}) },
+                })
+              }
+              testID="plate-conflict-open"
+            />
+          ) : null}
           {notice ? (
             <Text style={styles.notice} testID="session-notice">
               {notice}

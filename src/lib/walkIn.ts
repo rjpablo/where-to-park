@@ -128,6 +128,8 @@ export function balanceToSettle(balance: unknown): number {
 }
 
 const ERRORS: Record<string, string> = {
+  plate_active:
+    'This plate already has an active session at this listing. End it first, or open it.',
   plate_required: 'Plate number is required',
   vehicle_required: 'Select the vehicle type',
   start_required: 'Start date and time are required',
@@ -278,4 +280,20 @@ export function sessionReturnRoute(
     pathname: from === 'availability' ? '/operator/availability' : '/staff/sessions',
     params,
   };
+}
+
+/** 0062: the plate already has a started, open session at this listing. */
+export function plateActiveMessage(plate: string | null | undefined): string {
+  const p = (plate ?? '').trim();
+  return p
+    ? `${p} already has an active session at this listing. End it first, or open it below.`
+    : ERRORS.plate_active;
+}
+
+/** The existing session named by a 'plate_active' RPC result (to offer 'Open session'). */
+export function plateConflict(
+  data: { error?: unknown; session_id?: unknown; plate?: unknown } | null | undefined
+): { id: string; plate: string } | null {
+  if (data?.error !== 'plate_active' || typeof data.session_id !== 'string') return null;
+  return { id: data.session_id, plate: typeof data.plate === 'string' ? data.plate : '' };
 }

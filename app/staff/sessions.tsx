@@ -11,7 +11,12 @@ import { deliverReturnedPush } from '../../src/lib/push';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { SessionSummary } from '../../src/components/SessionSummary';
 import { fetchActiveSessions } from '../../src/lib/activeSessions';
-import { endedBalance, isNegativeBalance, sessionWaived } from '../../src/lib/walkIn';
+import {
+  endedBalance,
+  isNegativeBalance,
+  plateActiveMessage,
+  sessionWaived,
+} from '../../src/lib/walkIn';
 
 // folios is a one-to-one embed (object) or an array, depending on PostgREST's view.
 const embeddedFolio = (e: any) => (Array.isArray(e?.folios) ? e.folios[0] : e?.folios);
@@ -211,7 +216,12 @@ export default function SessionsScreen() {
                   p_reason: overrideReason.trim(),
                 });
                 if (rpcError || data?.error) {
-                  setOverrideNotice(rpcError?.message || String(data?.error));
+                  setOverrideNotice(
+                    rpcError?.message ||
+                      (data?.error === 'plate_active'
+                        ? plateActiveMessage(data.plate)
+                        : String(data?.error))
+                  );
                   return;
                 }
                 setOverrideNotice('Start time saved');

@@ -6,7 +6,13 @@ import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { WalkInForm, type WalkInValues } from '../../src/components/WalkInForm';
-import { sessionReturnRoute, walkInErrorMessage } from '../../src/lib/walkIn';
+import { Button } from '../../src/components/Button';
+import {
+  plateActiveMessage,
+  plateConflict,
+  sessionReturnRoute,
+  walkInErrorMessage,
+} from '../../src/lib/walkIn';
 
 // Walk-in check-in: vehicle, plate, start (now by default), optional end, rate
 // (Automatic or any applicable rate) and the amount due. Saving opens Active Sessions.
@@ -18,6 +24,7 @@ export default function CheckInScreen() {
   // Opened from the Availability Sessions tab (+): saving returns there.
   const from = firstParam(sp.from);
   const [locationName, setLocationName] = useState('Listing');
+  const [conflict, setConflict] = useState<{ id: string; plate: string } | null>(null);
 
   useEffect(() => {
     if (!locationId) return;
@@ -42,7 +49,12 @@ export default function CheckInScreen() {
       p_started_at: v.startAt,
       p_rate_id: v.rateId,
     });
+    setConflict(null);
     if (error) return error.message;
+    if (data?.error === 'plate_active') {
+      setConflict(plateConflict(data));
+      return plateActiveMessage(data.plate);
+    }
     if (data?.error) return walkInErrorMessage(data.error);
     const back = sessionReturnRoute(from, {
       locationId,
@@ -61,13 +73,29 @@ export default function CheckInScreen() {
       </View>
       <View style={styles.form}>
         {locationId ? (
-          <WalkInForm
-            locationId={locationId}
-            showNote
-            submitLabel="Check In"
-            reservationSubmitLabel="Save reservation"
-            onSubmit={checkIn}
-          />
+          <>
+            <WalkInForm
+              locationId={locationId}
+              showNote
+              submitLabel="Check In"
+              reservationSubmitLabel="Save reservation"
+              onSubmit={checkIn}
+            />
+            {conflict ? (
+              <Button
+                title={`Open session ${conflict.plate}`}
+                variant="outline"
+                style={styles.conflict}
+                onPress={() =>
+                  router.push({
+                    pathname: '/staff/session',
+                    params: { id: conflict.id, locationId, ...(from ? { from } : {}) },
+                  })
+                }
+                testID="plate-conflict-open"
+              />
+            ) : null}
+          </>
         ) : (
           <Text testID="checkin-error">Pick a listing from My listings</Text>
         )}
@@ -81,4 +109,5 @@ const styles = StyleSheet.create({
   header: { padding: theme.spacing.lg, backgroundColor: theme.colors.primary },
   subtitle: { ...theme.typography.body, color: '#fff', opacity: 0.9, marginTop: theme.spacing.xs },
   form: { padding: theme.spacing.lg },
+  conflict: { marginTop: theme.spacing.md },
 });
