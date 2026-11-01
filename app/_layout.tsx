@@ -98,6 +98,7 @@ export default function RootLayout() {
           <Stack.Screen name="staff/session" options={{ title: 'Session' }} />
           <Stack.Screen name="staff/session-edit" options={{ title: 'Edit details' }} />
           <Stack.Screen name="staff/session-pay" options={{ title: 'Apply payment' }} />
+          <Stack.Screen name="staff/session-fee" options={{ title: 'Add fee' }} />
           <Stack.Screen name="admin/verify" options={{ title: 'Verification Queue' }} />
           <Stack.Screen name="admin/reports" options={{ title: 'Moderation' }} />
           <Stack.Screen name="admin/contact" options={{ title: 'Contact messages' }} />

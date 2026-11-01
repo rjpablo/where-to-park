@@ -5,6 +5,9 @@ import {
   filterByPlate,
   normalizePlate,
   canApplyPayment,
+  paymentsDisplay,
+  presetsForLocation,
+  removableFees,
   canEditSession,
   paymentPrefill,
   plateActiveMessage,
@@ -259,4 +262,35 @@ test('session page actions: edit while open; pay only with a balance; prefill', 
   assert.equal(paymentPrefill('500', 120), '120.00');
   assert.equal(paymentPrefill('abc', 120), '120.00');
   assert.equal(paymentPrefill('40', 0), '');
+});
+
+test('fees and payments in the balance box (t132u)', () => {
+  const charges = [
+    { id: 'a', type: 'additional_fee' },
+    { id: 'b', type: 'adjustment' },
+    { id: 'c', type: 'additional_fee' },
+  ];
+  assert.deepEqual(
+    removableFees(charges).map((c) => c.id),
+    ['a', 'c']
+  );
+  assert.deepEqual(removableFees(null), []);
+  assert.equal(paymentsDisplay([]), 'none');
+  assert.equal(paymentsDisplay(undefined), 'none');
+  assert.equal(paymentsDisplay([{}]), 'single');
+  assert.equal(paymentsDisplay([{}, {}]), 'collapsible');
+  const presets = [
+    { id: 1, location_id: 'L', active: true },
+    { id: 2, location_id: 'X', active: true },
+    { id: 3, location_id: null, active: true },
+    { id: 4, location_id: 'L', active: false },
+  ];
+  assert.deepEqual(
+    presetsForLocation(presets, 'L').map((p) => p.id),
+    [1, 3]
+  );
+  assert.equal(
+    walkInErrorMessage('session_closed'),
+    'This session has ended, so its fees can no longer be changed.'
+  );
 });

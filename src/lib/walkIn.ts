@@ -153,6 +153,9 @@ const ERRORS: Record<string, string> = {
   waiver_not_allowed: 'Staff cannot waive at this operator. Settle the balance with payments.',
   'No rate found': 'No rate covers this stay.',
   not_found: 'Session not found.',
+  session_closed: 'This session has ended, so its fees can no longer be changed.',
+  fee_not_found: 'That fee was already removed.',
+  preset_not_found: 'That fee is no longer available.',
 };
 
 /** Plain message for a walk-in RPC error code. */
@@ -319,4 +322,30 @@ export function paymentPrefill(requested: string | null | undefined, balance: un
   const n = Number(requested);
   if (requested && Number.isFinite(n) && n > 0) return Math.min(n, owed).toFixed(2);
   return owed.toFixed(2);
+}
+
+/** Extra fees a person can remove from the Session page (rj t132u): applied additional fees
+ *  only (not parking, waivers or adjustments). */
+export function removableFees<T extends { type?: string | null }>(
+  charges: T[] | null | undefined
+): T[] {
+  return (charges || []).filter((c) => c.type === 'additional_fee');
+}
+
+/** Balance box payments line (rj t132u): more than one payment/refund row → a toggle that
+ *  is collapsed (total only) by default; one row → shown without a toggle; none → total only. */
+export function paymentsDisplay(
+  rows: unknown[] | null | undefined
+): 'none' | 'single' | 'collapsible' {
+  const n = (rows || []).length;
+  return n === 0 ? 'none' : n === 1 ? 'single' : 'collapsible';
+}
+
+/** 'Add fee' screen: the listing's own active presets plus operator-wide ones. */
+export function presetsForLocation<
+  T extends { location_id?: string | null; active?: boolean | null },
+>(presets: T[] | null | undefined, locationId: string): T[] {
+  return (presets || []).filter(
+    (p) => p.active !== false && (!p.location_id || p.location_id === locationId)
+  );
 }

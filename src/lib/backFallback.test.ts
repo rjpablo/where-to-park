@@ -92,3 +92,10 @@ test('session edit / pay go back to their session page; session from Availabilit
     '/operator/availability?locationId=L'
   );
 });
+
+test('Add fee goes back to its session page', () => {
+  assert.equal(
+    backFallback('staff/session-fee', { id: 's1', locationId: 'L' }),
+    '/staff/session?id=s1&locationId=L'
+  );
+});

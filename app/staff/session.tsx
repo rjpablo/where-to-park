@@ -22,6 +22,7 @@ import {
   isNegativeBalance,
   canApplyPayment,
   canEditSession,
+  paymentsDisplay,
   refundAmountError,
   startsIn,
   sessionReturnRoute,
@@ -58,7 +59,10 @@ export default function SessionScreen() {
     setLocalNotice(text);
     if (returnedNotice) router.setParams({ notice: undefined });
   };
-  const [presets, setPresets] = React.useState<any[]>([]);
+  const [showPayments, setShowPayments] = React.useState(false);
+  const [confirmFee, setConfirmFee] = React.useState<string | null>(null);
+  const [feeError, setFeeError] = React.useState<string | null>(null);
+  const [removing, setRemoving] = React.useState(false);
   const [payAmount, setPayAmount] = React.useState('');
   const [cancelReason, setCancelReason] = React.useState('');
   const [confirmCancel, setConfirmCancel] = React.useState(false);
@@ -80,33 +84,42 @@ export default function SessionScreen() {
     }
     setError(null);
     setD(data);
-    const { data: fp } = await supabase.from('fee_presets').select('*').eq('active', true);
-    setPresets(
-      (fp || []).filter((p: any) => !p.location_id || p.location_id === data.session.location_id)
-    );
   }, [id]);
 
   useFocusEffect(
     React.useCallback(() => {
-      // Back from Edit details / Apply payment: show their notice, drop a stale 'settle first'.
+      // Back from Edit details / Apply payment / Add fee: show their notice, drop a stale
+      // 'settle first' and any open fee confirmation.
       setLocalNotice(null);
       setEndError(null);
+      setConfirmFee(null);
+      setFeeError(null);
       load();
     }, [load])
   );
 
-  const applyPreset = async (preset: any) => {
-    setNotice(null);
-    const { data, error: e } = await supabase.rpc('apply_fee_preset', {
-      p_session_id: id,
-      p_preset_id: preset.id,
-    });
-    if (e || data?.error) {
-      setError(e?.message || walkInErrorMessage(data?.error));
-      return;
+  // × on an applied extra fee, after confirming (rj t132u, migration 0063). If payments
+  // then exceed what is due the balance goes negative (a credit, shown in red).
+  const removeFee = async (chargeId: string) => {
+    setFeeError(null);
+    setRemoving(true);
+    try {
+      const { data, error: e } = await supabase.rpc('remove_session_fee', {
+        p_session_id: id,
+        p_charge_id: chargeId,
+      });
+      if (e || data?.error) {
+        setFeeError(e?.message || walkInErrorMessage(data?.error));
+        await load();
+        return;
+      }
+      setConfirmFee(null);
+      setEndError(null);
+      setNotice(`Removed ${data.description} ${formatPeso(data.amount)}`);
+      await load();
+    } finally {
+      setRemoving(false);
     }
-    setNotice(`Applied ${preset.name} ${formatPeso(data.amount)}`);
-    await load();
   };
 
   // Refund on an ended session (0052): a cancelled reservation's deposits or an overpaid credit.
@@ -141,6 +154,7 @@ export default function SessionScreen() {
     ...(from ? { from } : {}),
     ...extra,
   });
+  const openFee = () => router.push({ pathname: '/staff/session-fee', params: sessionParams() });
   const openEdit = () => router.push({ pathname: '/staff/session-edit', params: sessionParams() });
   // 'Apply payment of ₱X' passes X; the plain button prefills the whole balance.
   const openPay = (amount?: number) =>
@@ -219,6 +233,28 @@ export default function SessionScreen() {
   const ended = s.status === 'ended';
   // A future start is a reservation (0049): cancelled, not ended, before it starts.
   const reservation = !ended && !!s.reservation;
+  const open = canEditSession(s);
+  // Apply payment (only with a balance) and Add fee: above End session (rj t134u); a
+  // reservation has no End, so they sit under Edit details there.
+  const moneyButtons = open ? (
+    <View style={styles.moneyRow} testID="session-money-actions">
+      {canApplyPayment(s, d.balance) ? (
+        <Button
+          title="Apply payment"
+          onPress={() => openPay()}
+          testID="session-pay"
+          style={styles.action}
+        />
+      ) : null}
+      <Button
+        title="Add fee"
+        variant="outline"
+        onPress={openFee}
+        testID="session-add-fee"
+        style={styles.action}
+      />
+    </View>
+  ) : null;
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="session-ready">
       <View style={styles.header}>
@@ -267,14 +303,106 @@ export default function SessionScreen() {
               ? `Up to now (${formatLocalDateTime(d.price.until)})`
               : `To ${formatLocalDateTime(d.price?.until)}`}
         </Text>
-        {Number(d.extra_fees) ? (
-          <Text style={styles.row} testID="session-extra">
-            Extra fees: {formatPeso(d.extra_fees)}
-          </Text>
+        {d.charges.length ? (
+          <View testID="session-fees">
+            <Text style={styles.row} testID="session-extra">
+              Extra fees: {formatPeso(d.extra_fees)}
+            </Text>
+            {d.charges.map((c: any) => {
+              const removable = open && c.type === 'additional_fee';
+              return (
+                <View key={c.id}>
+                  <View style={styles.feeRow} testID={`fee-row-${c.description}`}>
+                    <Text style={styles.feeText}>
+                      {c.description}: {formatPeso(c.amount)}
+                    </Text>
+                    {removable ? (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setFeeError(null);
+                          setConfirmFee(c.id);
+                        }}
+                        style={styles.feeX}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${c.description}`}
+                        hitSlop={8}
+                        testID={`fee-remove-${c.description}`}
+                      >
+                        <Text style={styles.feeXText}>×</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  {confirmFee === c.id ? (
+                    <View style={styles.feeConfirm} testID="fee-remove-confirm">
+                      <Text style={styles.meta}>
+                        Remove {c.description} {formatPeso(c.amount)} from this session?
+                      </Text>
+                      <View style={styles.confirmRow}>
+                        <Button
+                          title="Remove"
+                          size="small"
+                          variant="danger"
+                          loading={removing}
+                          onPress={() => removeFee(c.id)}
+                          testID="fee-remove-yes"
+                        />
+                        <Button
+                          title="Keep"
+                          size="small"
+                          variant="outline"
+                          onPress={() => setConfirmFee(null)}
+                          testID="fee-remove-no"
+                        />
+                      </View>
+                      {feeError ? (
+                        <Text style={styles.meta} testID="fee-remove-error">
+                          {feeError}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
         ) : null}
-        <Text style={styles.row} testID="session-paid">
-          {Number(d.refunded) > 0 ? 'Paid (net)' : 'Paid'}: {formatPeso(d.paid)}
-        </Text>
+        {paymentsDisplay(d.payments) === 'collapsible' ? (
+          <TouchableOpacity
+            onPress={() => setShowPayments((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showPayments }}
+            testID="session-paid-toggle"
+          >
+            <Text style={styles.row} testID="session-paid">
+              {Number(d.refunded) > 0 ? 'Paid (net)' : 'Paid'}: {formatPeso(d.paid)}{' '}
+              <Text style={styles.toggle}>
+                {showPayments ? '▾ Hide' : `▸ ${d.payments.length} payments`}
+              </Text>
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.row} testID="session-paid">
+            {Number(d.refunded) > 0 ? 'Paid (net)' : 'Paid'}: {formatPeso(d.paid)}
+          </Text>
+        )}
+        {paymentsDisplay(d.payments) === 'single' ||
+        (paymentsDisplay(d.payments) === 'collapsible' && showPayments) ? (
+          <View testID="session-payment-list">
+            {d.payments.map((p: any, i: number) => (
+              <Text
+                key={p.id}
+                style={[styles.paymentRow, p.direction === 'refund' && styles.refundRow]}
+                testID={`payment-row-${i}`}
+              >
+                {p.direction === 'refund' ? 'Refund −' : ''}
+                {formatPeso(p.amount)} ·{' '}
+                {PAYMENT_METHOD_LABELS[p.method as PaymentMethod] || p.method} ·{' '}
+                {formatLocalDateTime(p.received_at)} · {p.recorded_by}
+                {p.note ? ` · ${p.note}` : ''}
+              </Text>
+            ))}
+          </View>
+        ) : null}
         {Number(d.refunded) > 0 ? (
           <Text style={styles.meta} testID="session-refunded">
             Refunded: {formatPeso(d.refunded)}
@@ -293,7 +421,7 @@ export default function SessionScreen() {
         </Text>
       </View>
 
-      {canEditSession(s) ? (
+      {open ? (
         <View style={styles.actions} testID="session-actions">
           <Button
             title="Edit details"
@@ -302,15 +430,10 @@ export default function SessionScreen() {
             testID="session-edit"
             style={styles.action}
           />
-          {canApplyPayment(s, d.balance) ? (
-            <Button
-              title="Apply payment"
-              onPress={() => openPay()}
-              testID="session-pay"
-              style={styles.action}
-            />
-          ) : null}
         </View>
+      ) : null}
+      {open && reservation ? (
+        <View style={{ marginHorizontal: theme.spacing.md }}>{moneyButtons}</View>
       ) : null}
       {notice ? (
         <Text
@@ -320,49 +443,8 @@ export default function SessionScreen() {
           {notice}
         </Text>
       ) : null}
-      {!ended && presets.length ? (
-        <View style={styles.section}>
-          <Text style={styles.heading}>Extra fees</Text>
-          {d.charges.map((c: any) => (
-            <Text key={c.id} style={styles.row}>
-              {c.description}: {formatPeso(c.amount)}
-            </Text>
-          ))}
-          <View style={styles.chips}>
-            {presets.map((p) => (
-              <Button
-                key={p.id}
-                title={`Apply ${p.name} ${formatPeso(p.amount)}`}
-                size="small"
-                variant="outline"
-                onPress={() => applyPreset(p)}
-                testID={`session-fee-${p.name}`}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.section} testID="session-payments">
-        <Text style={styles.heading}>Payments</Text>
-        {d.payments.length ? (
-          d.payments.map((p: any, i: number) => (
-            <Text
-              key={p.id}
-              style={[styles.row, p.direction === 'refund' && styles.refundRow]}
-              testID={`payment-row-${i}`}
-            >
-              {p.direction === 'refund' ? 'Refund −' : ''}
-              {formatPeso(p.amount)} ·{' '}
-              {PAYMENT_METHOD_LABELS[p.method as PaymentMethod] || p.method} ·{' '}
-              {formatLocalDateTime(p.received_at)} · {p.recorded_by}
-              {p.note ? ` · ${p.note}` : ''}
-            </Text>
-          ))
-        ) : (
-          <Text style={styles.meta}>No payments yet</Text>
-        )}
-        {ended && Number(d.refundable) > 0 ? (
+      {ended && Number(d.refundable) > 0 ? (
+        <View style={styles.section} testID="session-payments">
           <View testID="refund-box">
             <Text style={styles.label}>
               Refund (up to {formatPeso(d.refundable)}
@@ -413,8 +495,8 @@ export default function SessionScreen() {
               style={{ marginTop: theme.spacing.sm }}
             />
           </View>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {reservation ? (
         <View style={styles.section} testID="reservation-cancel-box">
@@ -503,6 +585,7 @@ export default function SessionScreen() {
               ) : null}
             </View>
           ) : null}
+          {moneyButtons}
           <Button
             title="End session"
             variant="danger"
@@ -533,6 +616,44 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   action: { flex: 1 },
+  moneyRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginHorizontal: 0,
+    marginTop: theme.spacing.sm,
+  },
+  feeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    paddingLeft: theme.spacing.sm,
+  },
+  feeText: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, flex: 1 },
+  feeX: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  feeXText: { fontSize: 16, lineHeight: 18, color: theme.colors.danger, fontWeight: '700' },
+  feeConfirm: {
+    marginTop: theme.spacing.xs,
+    marginLeft: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background,
+  },
+  toggle: { ...theme.typography.bodySmall, color: theme.colors.primary, fontWeight: '600' },
+  paymentRow: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+    paddingLeft: theme.spacing.sm,
+  },
   confirmRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

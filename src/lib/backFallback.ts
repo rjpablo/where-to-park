@@ -66,6 +66,7 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   // Edit details / Apply payment (rj t131u): back to that session's page.
   'staff/session-edit': (p) => sessionParent(p),
   'staff/session-pay': (p) => sessionParent(p),
+  'staff/session-fee': (p) => sessionParent(p),
   // Messages: from a listing's page back to it; from the sidebar back to search.
   'operator/inbox': (p) => {
     const id = one(p, 'locationId');
