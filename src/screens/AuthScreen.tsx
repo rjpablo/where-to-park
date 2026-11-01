@@ -11,14 +11,30 @@ export function AuthScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
-  const { requestOtp, verifyOtp, completeProfile, loading } = useAuthStore();
-  const [step, setStep] = React.useState<'phone' | 'code' | 'profile'>('phone');
+  const { requestOtp, verifyOtp, completeProfile, signInWithGoogle, loading } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   // Accounts page: 'Add account' / signing a saved account in again (phone prefilled).
-  const params = useLocalSearchParams<{ phone?: string; add?: string }>();
+  // complete=1: back from Google as a new account, finish onboarding (name prefilled).
+  const params = useLocalSearchParams<{ phone?: string; add?: string; complete?: string }>();
+  const [step, setStep] = React.useState<'phone' | 'code' | 'profile'>(
+    params.complete ? 'profile' : 'phone'
+  );
+  const [googleBusy, setGoogleBusy] = React.useState(false);
   const presetPhone = typeof params.phone === 'string' ? params.phone : '';
   const [phone, setPhone] = React.useState(presetPhone || '+639183333333');
   const [code, setCode] = React.useState('');
-  const [displayName, setDisplayName] = React.useState('');
+  const [displayName, setDisplayName] = React.useState(
+    params.complete && user?.display_name && user.display_name !== 'New user'
+      ? user.display_name
+      : ''
+  );
+  // The profile can arrive after the screen (web redirect): prefill once it does.
+  React.useEffect(() => {
+    if (params.complete && !displayName && user?.display_name && user.display_name !== 'New user') {
+      setDisplayName(user.display_name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.display_name]);
   const [accountType, setAccountType] = React.useState<'driver' | 'operator'>('driver');
   const [error, setError] = React.useState<string | null>(null);
 
@@ -46,6 +62,26 @@ export function AuthScreen() {
     }
   };
 
+  const google = async () => {
+    setError(null);
+    setGoogleBusy(true);
+    try {
+      const res = await signInWithGoogle('signin');
+      if (res.status !== 'done') return; // web: navigating to Google; or cancelled
+      if (res.isNew) {
+        setStep('profile');
+        const name = useAuthStore.getState().user?.display_name;
+        if (name && name !== 'New user') setDisplayName(name);
+        return;
+      }
+      router.replace('/search');
+    } catch (err: any) {
+      setError(err.message || 'Google sign-in failed');
+    } finally {
+      setGoogleBusy(false);
+    }
+  };
+
   const finishProfile = async () => {
     setError(null);
     try {
@@ -60,7 +96,11 @@ export function AuthScreen() {
     <View style={[styles.container, bottomInset]} testID="auth-ready">
       <Text style={styles.title}>Where To Park</Text>
       <Text style={styles.subtitle}>
-        {params.add ? 'Add an account: sign in with its phone' : 'Sign in with your phone'}
+        {params.complete
+          ? 'Almost done: confirm your name and account type'
+          : params.add
+            ? 'Add an account: sign in with its phone or Google'
+            : 'Sign in with your phone or Google'}
       </Text>
       {params.add ? (
         <Text style={styles.subtitle} testID="auth-add-note">
@@ -80,6 +120,14 @@ export function AuthScreen() {
             testID="auth-phone"
           />
           <Button title="Send code" onPress={send} loading={loading} testID="auth-send-otp" />
+          <Text style={styles.or}>or</Text>
+          <Button
+            title="Continue with Google"
+            variant="outline"
+            onPress={google}
+            loading={googleBusy}
+            testID="auth-google"
+          />
         </View>
       )}
 
@@ -156,6 +204,11 @@ export function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
+  or: {
+    textAlign: 'center',
+    color: theme.colors.text.secondary,
+    marginVertical: theme.spacing.sm,
+  },
   container: {
     flex: 1,
     padding: theme.spacing.lg,

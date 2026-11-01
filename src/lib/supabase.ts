@@ -27,6 +27,9 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      // Google sign-in (rj t146u): authorization-code flow with PKCE. The verifier is kept
+      // in the same storage; the app exchanges the code itself (src/lib/googleAuth.ts).
+      flowType: 'pkce',
     },
   }
 );
@@ -47,6 +50,10 @@ export type Profile = {
   phone: string | null;
   is_admin: boolean;
   account_type?: 'driver' | 'operator';
+  /** 0069: Google picture (https), set by the server only. */
+  avatar_url?: string | null;
+  /** 0069: false until onboarding (name + account type) is saved. */
+  onboarded?: boolean;
   preferred_nav_app: 'google_maps' | 'waze' | 'default' | null;
   created_at: string;
   updated_at: string;

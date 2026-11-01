@@ -69,6 +69,10 @@ export default function RootLayout() {
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="auth" options={{ title: 'Sign in' }} />
+          <Stack.Screen
+            name="oauth-callback"
+            options={{ title: 'Signing in', headerBackVisible: false }}
+          />
           <Stack.Screen name="profile" options={{ title: 'Profile' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
           <Stack.Screen name="shortcuts" options={{ title: 'Shortcuts' }} />

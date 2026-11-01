@@ -12,6 +12,8 @@ import {
   saveAccountInfo,
   saveTokens,
 } from '../lib/accountVault';
+import { finishOAuthRedirect, startGoogleOAuth } from '../lib/googleAuth';
+import type { OAuthIntent } from '../lib/oauthCallback';
 import { useSidebarStore } from './sidebarStore';
 import { useShortcutsStore } from './shortcutsStore';
 
@@ -24,7 +26,15 @@ interface AuthState {
   verifyOtp: (phone: string, code: string) => Promise<{ isNew: boolean }>;
   completeProfile: (displayName: string, accountType: 'driver' | 'operator') => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  /**
+   * Google sign-in (also from Add account) or linking Google to the current account.
+   * Web navigates away ('redirected'; /oauth-callback finishes). Native returns when done.
+   */
+  signInWithGoogle: (
+    intent?: OAuthIntent
+  ) => Promise<{ status: 'redirected' | 'cancelled' | 'done'; isNew?: boolean }>;
+  /** Finish a Google redirect (/oauth-callback): exchange, save the account, load the profile. */
+  completeOAuth: (url: string) => Promise<{ isNew: boolean } | null>;
   /** Sign out of the CURRENT account: revokes its session and removes it from the device. */
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -49,6 +59,8 @@ export function isNewOnboardingProfile(
   userMetadata?: Record<string, unknown> | null
 ): boolean {
   if (userMetadata?.is_new) return true;
+  // 0069: new accounts (Google or phone) stay 'not onboarded' until onboarding is saved.
+  if (profile && (profile as { onboarded?: boolean }).onboarded === false) return true;
   const name = (profile?.display_name || '').trim();
   if (!name || name === 'New user') return true;
   const phoneDigits = digits(phone) || digits(profile?.phone);
@@ -245,9 +257,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data.user) set({ user: await loadProfile(data.user.id) });
   },
 
-  signInWithGoogle: async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-    if (error) throw error;
+  signInWithGoogle: async (intent = 'signin') => {
+    // Adding another account: keep the current one's session for switching back.
+    if (intent === 'signin') await saveCurrentSession().catch(() => {});
+    const res = await startGoogleOAuth(intent);
+    if (res.kind === 'redirected') return { status: 'redirected' };
+    if (res.kind === 'cancelled') return { status: 'cancelled' };
+    const done = await get().completeOAuth(res.url);
+    return { status: 'done', isNew: done?.isNew };
+  },
+
+  completeOAuth: async (url) => {
+    set({ loading: true });
+    try {
+      const session = await finishOAuthRedirect(url);
+      if (!session?.user) return null;
+      currentAuthUserId = session.user.id;
+      rememberSession(session);
+      const profile = await loadProfile(session.user.id);
+      set({ user: profile });
+      resetPerAccount(session.user.id);
+      return {
+        isNew: isNewOnboardingProfile(
+          profile,
+          '',
+          session.user.user_metadata as Record<string, unknown> | null
+        ),
+      };
+    } finally {
+      set({ loading: false });
+    }
   },
 
   signOut: async () => {
