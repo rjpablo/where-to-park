@@ -374,7 +374,6 @@ export function SearchScreen() {
           <AvailabilityBadge
             trackingMode={item.tracking_mode}
             availableCount={item.available_count}
-            capacity={item.capacity}
             openStatus={item.open_status}
             updatedAt={item.availability_updated_at}
             staleThresholdMin={item.stale_after_min}

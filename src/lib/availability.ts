@@ -26,3 +26,16 @@ export function searchSummary(listings: SlotCountable[]): string {
     slots === 1 ? 'spot' : 'spots'
   } available`;
 }
+
+/**
+ * Availability badge text for count / slot listings (results sheet and listing page, rj
+ * t126u): the free count only, '1 spot', '0 spots', '12 spots' (no '/capacity'). A missing
+ * or invalid count shows 'Unknown' (the badge's existing fallback) rather than a number.
+ */
+export function spotsLabel(available: number | string | null | undefined): string {
+  if (available == null || available === '') return 'Unknown';
+  const n = Number(available);
+  if (!Number.isFinite(n) || n < 0) return 'Unknown';
+  const whole = Math.floor(n);
+  return `${whole} ${whole === 1 ? 'spot' : 'spots'}`;
+}

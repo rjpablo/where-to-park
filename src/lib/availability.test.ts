@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { availableSlots, searchSummary, totalAvailableSlots } from './availability.ts';
+import { availableSlots, searchSummary, spotsLabel, totalAvailableSlots } from './availability.ts';
 
 test('count listings contribute their free slots; open/full contribute 0', () => {
   assert.equal(availableSlots({ tracking_mode: 'count', available_count: 7 }), 7);
@@ -36,4 +36,15 @@ test('summary line wording', () => {
     ]),
     '3 listings · 48 spots available'
   );
+});
+
+test('spotsLabel: free count only, singular for 1, Unknown when missing', () => {
+  assert.equal(spotsLabel(0), '0 spots');
+  assert.equal(spotsLabel(1), '1 spot');
+  assert.equal(spotsLabel(12), '12 spots');
+  assert.equal(spotsLabel('3'), '3 spots');
+  assert.equal(spotsLabel(null), 'Unknown');
+  assert.equal(spotsLabel(undefined), 'Unknown');
+  assert.equal(spotsLabel(NaN), 'Unknown');
+  assert.equal(spotsLabel(-1), 'Unknown');
 });

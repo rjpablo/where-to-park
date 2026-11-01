@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../lib/theme';
 import { formatRelativeTime, isStale } from '../utils/formatters';
+import { spotsLabel } from '../lib/availability';
 
 interface AvailabilityBadgeProps {
   trackingMode: 'count' | 'open_full' | 'slots';
   availableCount: number;
-  capacity?: number;
   openStatus?: boolean | null;
   updatedAt: string;
   staleThresholdMin: number;
@@ -15,7 +15,6 @@ interface AvailabilityBadgeProps {
 export function AvailabilityBadge({
   trackingMode,
   availableCount,
-  capacity,
   openStatus,
   updatedAt,
   staleThresholdMin,
@@ -30,8 +29,14 @@ export function AvailabilityBadge({
     }
 
     if (trackingMode === 'count' || trackingMode === 'slots') {
-      const text = capacity ? `${availableCount}/${capacity}` : `${availableCount}`;
-      const color = availableCount > 0 ? theme.colors.available : theme.colors.full;
+      // Free count only ('n spots'; rj): capacity is no longer shown here.
+      const text = spotsLabel(availableCount);
+      const color =
+        text === 'Unknown'
+          ? theme.colors.text.secondary
+          : availableCount > 0
+            ? theme.colors.available
+            : theme.colors.full;
       return { text, color };
     }
 
@@ -43,7 +48,9 @@ export function AvailabilityBadge({
   return (
     <View style={styles.container}>
       <View style={[styles.badge, { backgroundColor: stale ? theme.colors.warning : color }]}>
-        <Text style={styles.badgeText}>{text}</Text>
+        <Text style={styles.badgeText} testID="availability-badge-text">
+          {text}
+        </Text>
       </View>
       <Text
         style={[styles.timestamp, stale && styles.staleTimestamp]}

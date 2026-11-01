@@ -488,7 +488,6 @@ export default function LocationDetailScreen() {
             <AvailabilityBadge
               trackingMode={location.tracking_mode}
               availableCount={location.available_count}
-              capacity={location.capacity}
               openStatus={location.open_status}
               updatedAt={location.availability_updated_at}
               staleThresholdMin={location.stale_after_min}
