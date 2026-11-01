@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   autoOptionLabel,
+  filterByPlate,
+  normalizePlate,
+  sessionReturnRoute,
   priceBreakdownLines,
   setRateLabel,
   balanceToSettle,
@@ -195,4 +198,29 @@ test('session set rate label and split breakdown lines (0057)', () => {
     ['M: 2 mo · ₱8,000.00']
   );
   assert.deepEqual(priceBreakdownLines(null), []);
+});
+
+test('filterByPlate: case- and space-insensitive substring; empty query keeps all', () => {
+  const list = [
+    { plate: 'ABC 1234' },
+    { plate: 'xyz-987' },
+    { plate: null },
+    { plate: 'NBC 1235' },
+  ];
+  assert.equal(normalizePlate(' ab c1 '), 'ABC1');
+  assert.deepEqual(filterByPlate(list, ''), list);
+  assert.deepEqual(filterByPlate(list, '   '), list);
+  assert.deepEqual(filterByPlate(list, 'abc1'), [{ plate: 'ABC 1234' }]);
+  assert.deepEqual(filterByPlate(list, 'BC 123'), [{ plate: 'ABC 1234' }, { plate: 'NBC 1235' }]);
+  assert.deepEqual(filterByPlate(list, 'XYZ-9'), [{ plate: 'xyz-987' }]);
+  assert.deepEqual(filterByPlate(list, 'zzz'), []);
+});
+
+test('sessionReturnRoute: back to Availability when opened from its Sessions tab', () => {
+  assert.deepEqual(sessionReturnRoute('availability', { locationId: 'L', ended: 'ABC' }), {
+    pathname: '/operator/availability',
+    params: { locationId: 'L', ended: 'ABC' },
+  });
+  assert.equal(sessionReturnRoute(undefined, {}).pathname, '/staff/sessions');
+  assert.equal(sessionReturnRoute('other', {}).pathname, '/staff/sessions');
 });

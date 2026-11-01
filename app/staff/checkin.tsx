@@ -6,16 +6,17 @@ import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { WalkInForm, type WalkInValues } from '../../src/components/WalkInForm';
-import { walkInErrorMessage } from '../../src/lib/walkIn';
+import { sessionReturnRoute, walkInErrorMessage } from '../../src/lib/walkIn';
 
 // Walk-in check-in: vehicle, plate, start (now by default), optional end, rate
 // (Automatic or any applicable rate) and the amount due. Saving opens Active Sessions.
 export default function CheckInScreen() {
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
-  const locationId = firstParam(
-    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
-  );
+  const sp = useLocalSearchParams<{ locationId?: string | string[]; from?: string | string[] }>();
+  const locationId = firstParam(sp.locationId);
+  // Opened from the Availability Sessions tab (+): saving returns there.
+  const from = firstParam(sp.from);
   const [locationName, setLocationName] = useState('Listing');
 
   useEffect(() => {
@@ -43,14 +44,13 @@ export default function CheckInScreen() {
     });
     if (error) return error.message;
     if (data?.error) return walkInErrorMessage(data.error);
-    router.replace({
-      pathname: '/staff/sessions',
-      params: {
-        locationId,
-        checkedIn: v.plate.toUpperCase(),
-        ...(new Date(v.startAt).getTime() > Date.now() ? { reserved: '1' } : {}),
-      },
+    const back = sessionReturnRoute(from, {
+      locationId,
+      checkedIn: v.plate.toUpperCase(),
+      ...(new Date(v.startAt).getTime() > Date.now() ? { reserved: '1' } : {}),
     });
+    if (from === 'availability') router.dismissTo(back);
+    else router.replace(back);
     return null;
   };
 

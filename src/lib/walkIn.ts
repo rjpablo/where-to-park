@@ -255,3 +255,27 @@ export function priceBreakdownLines(
     return `${p.rate_name}: ${qty} · ₱${amt}`;
   });
 }
+
+/** Plate filter on the Availability Sessions tab: case- and space-insensitive, live. */
+export function normalizePlate(v: string | null | undefined): string {
+  return (v ?? '').replace(/\s+/g, '').toUpperCase();
+}
+export function filterByPlate<T extends { plate?: string | null }>(items: T[], query: string): T[] {
+  const q = normalizePlate(query);
+  if (!q) return items;
+  return items.filter((s) => normalizePlate(s.plate).includes(q));
+}
+
+/**
+ * Where check-in / end / cancel return to: the Availability screen when the flow was opened
+ * from its Sessions tab (`from=availability`), else the session board (Active Sessions).
+ */
+export function sessionReturnRoute(
+  from: string | null | undefined,
+  params: Record<string, string>
+): { pathname: '/operator/availability' | '/staff/sessions'; params: Record<string, string> } {
+  return {
+    pathname: from === 'availability' ? '/operator/availability' : '/staff/sessions',
+    params,
+  };
+}

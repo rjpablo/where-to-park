@@ -1,18 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { formatLocalDateTime } from '../../src/utils/formatters';
 import { firstParam } from '../../src/lib/params';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { SessionSummary, sessionCardStyles } from '../../src/components/SessionSummary';
+import { fetchActiveSessions } from '../../src/lib/activeSessions';
+import { filterByPlate } from '../../src/lib/walkIn';
 
 export default function AvailabilityScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(0);
-  const locationId = firstParam(
-    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
-  );
+  const router = useRouter();
+  const sp = useLocalSearchParams<{
+    locationId?: string | string[];
+    checkedIn?: string | string[];
+    reserved?: string | string[];
+    ended?: string | string[];
+    cancelled?: string | string[];
+  }>();
+  const locationId = firstParam(sp.locationId);
+  const checkedIn = firstParam(sp.checkedIn);
+  const reservedSaved = firstParam(sp.reserved) === '1';
+  const endedPlate = firstParam(sp.ended);
+  const cancelledPlate = firstParam(sp.cancelled);
+  // Tabs: Sessions (first, default; rj) shows the count and the active sessions; Count and
+  // Open/Full are the tracking modes (tapping one switches the listing to it, as before).
+  const [tab, setTab] = useState<'sessions' | 'mode'>('sessions');
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [previews, setPreviews] = useState<Record<string, any>>({});
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [plateQuery, setPlateQuery] = useState('');
   const [location, setLocation] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,8 +42,43 @@ export default function AvailabilityScreen() {
 
   useEffect(() => {
     loadLocationData();
+    loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationId]);
+
+  // Coming back from a session page or check-in (added / ended / cancelled): reload.
+  const firstFocus = React.useRef(true);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      loadLocationData();
+      loadSessions();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locationId])
+  );
+
+  const loadSessions = async () => {
+    if (!locationId) return;
+    try {
+      setSessionsError(null);
+      const res = await fetchActiveSessions(locationId);
+      setSessions(res.sessions);
+      setPreviews(res.previews);
+    } catch (err: any) {
+      setSessionsError(err?.message || 'Failed to load sessions');
+    } finally {
+      setSessionsLoaded(true);
+    }
+  };
+
+  const chooseMode = (mode: 'count' | 'open_full') => {
+    setTab('mode');
+    const current = location?.tracking_mode === 'open_full' ? 'open_full' : 'count';
+    if (current !== mode) setMode(mode);
+  };
 
   const loadLocationData = async () => {
     try {
@@ -168,6 +224,10 @@ export default function AvailabilityScreen() {
 
   const reserved = Number(location.manual_reserved_count || 0);
   const unavailable = Number(location.unavailable_count || 0);
+  const onSessions = tab === 'sessions';
+  const countOn = !onSessions && location.tracking_mode !== 'open_full';
+  const openFullOn = !onSessions && location.tracking_mode === 'open_full';
+  const shownSessions = filterByPlate(sessions, plateQuery);
 
   return (
     <ScrollView
@@ -181,32 +241,27 @@ export default function AvailabilityScreen() {
 
       <View style={styles.modeRow}>
         <TouchableOpacity
-          style={[styles.modeChip, location.tracking_mode !== 'open_full' && styles.modeChipOn]}
-          onPress={() => setMode('count')}
-          testID="mode-count"
+          style={[styles.modeChip, onSessions && styles.modeChipOn]}
+          onPress={() => setTab('sessions')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: onSessions }}
+          testID="tab-sessions"
         >
-          <Text
-            style={[
-              styles.modeChipText,
-              location.tracking_mode !== 'open_full' && styles.modeChipTextOn,
-            ]}
-          >
-            Count
-          </Text>
+          <Text style={[styles.modeChipText, onSessions && styles.modeChipTextOn]}>Sessions</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.modeChip, location.tracking_mode === 'open_full' && styles.modeChipOn]}
-          onPress={() => setMode('open_full')}
+          style={[styles.modeChip, countOn && styles.modeChipOn]}
+          onPress={() => chooseMode('count')}
+          testID="mode-count"
+        >
+          <Text style={[styles.modeChipText, countOn && styles.modeChipTextOn]}>Count</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeChip, openFullOn && styles.modeChipOn]}
+          onPress={() => chooseMode('open_full')}
           testID="mode-open-full"
         >
-          <Text
-            style={[
-              styles.modeChipText,
-              location.tracking_mode === 'open_full' && styles.modeChipTextOn,
-            ]}
-          >
-            Open/Full
-          </Text>
+          <Text style={[styles.modeChipText, openFullOn && styles.modeChipTextOn]}>Open/Full</Text>
         </TouchableOpacity>
       </View>
 
@@ -226,126 +281,208 @@ export default function AvailabilityScreen() {
         </Text>
       </View>
 
-      {location.tracking_mode === 'open_full' ? (
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[styles.adjustButton, styles.incrementButton]}
-            onPress={() => setOpen(true)}
-            testID="toggle-open"
-          >
-            <Text style={styles.adjustButtonText}>Open</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.adjustButton, styles.decrementButton]}
-            onPress={() => setOpen(false)}
-            testID="toggle-full"
-          >
-            <Text style={styles.adjustButtonText}>Full</Text>
-          </TouchableOpacity>
+      {onSessions ? (
+        <View style={styles.section} testID="sessions-tab">
+          {checkedIn ? (
+            <Text style={styles.successText} testID="availability-checked-in">
+              {reservedSaved ? 'Reservation saved for' : 'Checked in'} {checkedIn}
+            </Text>
+          ) : null}
+          {endedPlate ? (
+            <Text style={styles.successText} testID="availability-session-ended">
+              Session ended: {endedPlate}
+            </Text>
+          ) : null}
+          {cancelledPlate ? (
+            <Text style={styles.successText} testID="availability-reservation-cancelled">
+              Reservation cancelled: {cancelledPlate}
+            </Text>
+          ) : null}
+          <View style={styles.sessionsHead}>
+            <Text style={[styles.sectionTitle, styles.sessionsTitle]} testID="sessions-count">
+              Active sessions ({sessions.length})
+            </Text>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() =>
+                router.push({
+                  pathname: '/staff/checkin',
+                  params: { locationId: location.id, from: 'availability' },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Add a session"
+              testID="sessions-add"
+            >
+              <Text style={styles.addButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            style={styles.filterInput}
+            value={plateQuery}
+            onChangeText={setPlateQuery}
+            placeholder="Filter by plate number"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            testID="sessions-filter"
+          />
+          {sessionsError ? <Text style={styles.errorText}>{sessionsError}</Text> : null}
+          {!sessionsLoaded ? (
+            <Text style={styles.activityText}>Loading sessions…</Text>
+          ) : shownSessions.length ? (
+            shownSessions.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  sessionCardStyles.sessionCard,
+                  item.status === 'overdue' && sessionCardStyles.sessionCardOverdue,
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/staff/session',
+                    params: { id: item.id, locationId: item.location_id, from: 'availability' },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Open session ${item.plate || ''}`}
+                testID={`avail-session-${item.plate}`}
+              >
+                <SessionSummary item={item} preview={previews[item.id] || null} />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.activityText} testID="sessions-empty">
+              {sessions.length ? 'No sessions match this plate' : 'No active sessions'}
+            </Text>
+          )}
         </View>
       ) : (
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[styles.adjustButton, styles.decrementButton]}
-            onPress={() => adjustAvailability(-1)}
-            disabled={loading || location.available_count === 0}
-          >
-            <Text style={styles.adjustButtonText}>-1</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.adjustButton, styles.incrementButton]}
-            onPress={() => adjustAvailability(1)}
-            disabled={loading || location.available_count >= location.capacity}
-          >
-            <Text style={styles.adjustButtonText}>+1</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {location.tracking_mode !== 'open_full' ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Manual Adjustments</Text>
-
-          <View style={styles.manualRow}>
-            <View style={styles.manualItem}>
-              <Text style={styles.manualLabel}>Reserved</Text>
-              <View style={styles.stepper}>
-                <TouchableOpacity
-                  style={styles.stepperButton}
-                  onPress={() => setManual(reserved - 1, unavailable)}
-                  disabled={reserved <= 0}
-                  testID="reserved-minus"
-                >
-                  <Text>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.stepperValue} testID="reserved-value">
-                  {reserved}
-                </Text>
-                <TouchableOpacity
-                  style={styles.stepperButton}
-                  onPress={() => setManual(reserved + 1, unavailable)}
-                  testID="reserved-plus"
-                >
-                  <Text>+</Text>
-                </TouchableOpacity>
-              </View>
+        <>
+          {location.tracking_mode === 'open_full' ? (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.adjustButton, styles.incrementButton]}
+                onPress={() => setOpen(true)}
+                testID="toggle-open"
+              >
+                <Text style={styles.adjustButtonText}>Open</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.adjustButton, styles.decrementButton]}
+                onPress={() => setOpen(false)}
+                testID="toggle-full"
+              >
+                <Text style={styles.adjustButtonText}>Full</Text>
+              </TouchableOpacity>
             </View>
+          ) : (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.adjustButton, styles.decrementButton]}
+                onPress={() => adjustAvailability(-1)}
+                disabled={loading || location.available_count === 0}
+              >
+                <Text style={styles.adjustButtonText}>-1</Text>
+              </TouchableOpacity>
 
-            <View style={styles.manualItem}>
-              <Text style={styles.manualLabel}>Unavailable</Text>
-              <View style={styles.stepper}>
-                <TouchableOpacity
-                  style={styles.stepperButton}
-                  onPress={() => setManual(reserved, unavailable - 1)}
-                  disabled={unavailable <= 0}
-                  testID="unavailable-minus"
-                >
-                  <Text>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.stepperValue} testID="unavailable-value">
-                  {unavailable}
-                </Text>
-                <TouchableOpacity
-                  style={styles.stepperButton}
-                  onPress={() => setManual(reserved, unavailable + 1)}
-                  testID="unavailable-plus"
-                >
-                  <Text>+</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.adjustButton, styles.incrementButton]}
+                onPress={() => adjustAvailability(1)}
+                disabled={loading || location.available_count >= location.capacity}
+              >
+                <Text style={styles.adjustButtonText}>+1</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-          {notice ? (
+          )}
+
+          {location.tracking_mode !== 'open_full' ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Manual Adjustments</Text>
+
+              <View style={styles.manualRow}>
+                <View style={styles.manualItem}>
+                  <Text style={styles.manualLabel}>Reserved</Text>
+                  <View style={styles.stepper}>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved - 1, unavailable)}
+                      disabled={reserved <= 0}
+                      testID="reserved-minus"
+                    >
+                      <Text>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.stepperValue} testID="reserved-value">
+                      {reserved}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved + 1, unavailable)}
+                      testID="reserved-plus"
+                    >
+                      <Text>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.manualItem}>
+                  <Text style={styles.manualLabel}>Unavailable</Text>
+                  <View style={styles.stepper}>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved, unavailable - 1)}
+                      disabled={unavailable <= 0}
+                      testID="unavailable-minus"
+                    >
+                      <Text>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.stepperValue} testID="unavailable-value">
+                      {unavailable}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.stepperButton}
+                      onPress={() => setManual(reserved, unavailable + 1)}
+                      testID="unavailable-plus"
+                    >
+                      <Text>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+              {notice ? (
+                <Text style={styles.errorText} testID="manual-notice">
+                  {notice}
+                </Text>
+              ) : null}
+            </View>
+          ) : notice ? (
             <Text style={styles.errorText} testID="manual-notice">
               {notice}
             </Text>
           ) : null}
-        </View>
-      ) : notice ? (
-        <Text style={styles.errorText} testID="manual-notice">
-          {notice}
-        </Text>
-      ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        {recentActivity.length > 0 ? (
-          recentActivity.map((activity) => (
-            <View key={activity.id} style={styles.activityItem}>
-              <Text style={styles.activityText}>
-                {activity.status === 'active' || activity.status === 'overdue'
-                  ? 'Check-in'
-                  : 'Check-out'}
-                : {activity.plate}
-              </Text>
-              <Text style={styles.activityTime}>{formatLocalDateTime(activity.created_at)}</Text>
-            </View>
-          ))
-        ) : (
-          <Text style={styles.activityText}>No recent activity</Text>
-        )}
-      </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity) => (
+                <View key={activity.id} style={styles.activityItem}>
+                  <Text style={styles.activityText}>
+                    {activity.status === 'active' || activity.status === 'overdue'
+                      ? 'Check-in'
+                      : 'Check-out'}
+                    : {activity.plate}
+                  </Text>
+                  <Text style={styles.activityTime}>
+                    {formatLocalDateTime(activity.created_at)}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.activityText}>No recent activity</Text>
+            )}
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -473,6 +610,38 @@ const styles = StyleSheet.create({
   },
   stepperValue: {
     ...theme.typography.h3,
+  },
+  sessionsHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.sm,
+  },
+  sessionsTitle: { marginBottom: 0 },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.md,
+  },
+  addButtonText: { color: '#fff', fontSize: 28, lineHeight: 30, fontWeight: '700' },
+  filterInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+    ...theme.typography.body,
+  },
+  successText: {
+    ...theme.typography.body,
+    color: theme.colors.success,
+    marginBottom: theme.spacing.sm,
   },
   activityItem: {
     flexDirection: 'row',

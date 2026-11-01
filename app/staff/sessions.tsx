@@ -4,18 +4,14 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
-import { formatLocalDateTime, formatPeso, formatRelativeTime } from '../../src/utils/formatters';
+import { formatLocalDateTime, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { deliverReturnedPush } from '../../src/lib/push';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
-import {
-  endedBalance,
-  isNegativeBalance,
-  isReservation,
-  sessionWaived,
-  startsIn,
-} from '../../src/lib/walkIn';
+import { SessionSummary } from '../../src/components/SessionSummary';
+import { fetchActiveSessions } from '../../src/lib/activeSessions';
+import { endedBalance, isNegativeBalance, sessionWaived } from '../../src/lib/walkIn';
 
 // folios is a one-to-one embed (object) or an array, depending on PostgREST's view.
 const embeddedFolio = (e: any) => (Array.isArray(e?.folios) ? e.folios[0] : e?.folios);
@@ -95,37 +91,8 @@ export default function SessionsScreen() {
   const loadSessions = async () => {
     try {
       setError(null);
-      await supabase.rpc('refresh_overdue');
-      let query = supabase
-        .from('parking_sessions')
-        .select(
-          `
-          *,
-          locations(name),
-          folios(
-            id,
-            status,
-            folio_charges(amount, type, voided_at),
-            payments(amount)
-          )
-        `
-        )
-        .in('status', ['active', 'overdue'])
-        .order('started_at', { ascending: false });
-      if (locationId) query = query.eq('location_id', locationId);
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) throw fetchError;
-      setSessions(data || []);
-      const next: Record<string, any> = {};
-      await Promise.all(
-        (data || []).map(async (s: any) => {
-          const { data: preview } = await supabase.rpc('session_balance_preview', {
-            p_session_id: s.id,
-          });
-          if (preview?.success) next[s.id] = preview;
-        })
-      );
+      const { sessions: data, previews: next } = await fetchActiveSessions(locationId);
+      setSessions(data);
       setPreviews(next);
       const driverIds = [...new Set((data || []).map((s: any) => s.driver_id).filter(Boolean))];
       if (driverIds.length) {
@@ -186,82 +153,13 @@ export default function SessionsScreen() {
   };
 
   const renderSession = ({ item }: { item: any }) => {
-    const preview = livePreview(item);
-    const balance = Number(preview?.live_balance ?? 0);
-    const parkingSoFar = Number(preview?.parking_so_far ?? 0);
-    const extraFees = Number(preview?.extra_fees ?? 0);
     const isOverdue = item.status === 'overdue';
-    const reservation = isReservation(item);
-    const overdueMin = Number(
-      item.overdue_minutes ||
-        (item.scheduled_end_at
-          ? Math.max(
-              0,
-              Math.floor((Date.now() - new Date(item.scheduled_end_at).getTime()) / 60000)
-            )
-          : 0)
-    );
-
     return (
       <View
         style={[styles.sessionCard, isOverdue && styles.sessionCardOverdue]}
         testID={`session-row-${item.plate}`}
       >
-        <View style={styles.sessionHeader}>
-          <View>
-            <Text style={styles.sessionPlate}>{item.plate || 'Unknown'}</Text>
-            <Text style={styles.sessionType}>{item.vehicle_type || 'car'}</Text>
-          </View>
-          {reservation ? (
-            <View style={styles.reservationBadge} testID={`reservation-badge-${item.plate}`}>
-              <Text style={styles.reservationBadgeText}>Reservation</Text>
-            </View>
-          ) : null}
-          {isOverdue && (
-            <View style={styles.overdueBadge} testID={`overdue-badge-${item.plate}`}>
-              <Text style={styles.overdueBadgeText}>OVERDUE</Text>
-            </View>
-          )}
-          {sessionWaived(item) > 0 ? (
-            <View style={styles.waivedBadge} testID={`waived-${item.plate}`}>
-              <Text style={styles.waivedBadgeText}>Waived {formatPeso(sessionWaived(item))}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.sessionDetails}>
-          <Text style={styles.sessionTime} testID={`session-start-${item.plate}`}>
-            {reservation
-              ? `Starts: ${formatLocalDateTime(item.started_at)} (${startsIn(item.started_at)})`
-              : `Started: ${formatLocalDateTime(item.started_at)} (${formatRelativeTime(item.started_at)})`}
-          </Text>
-          {item.scheduled_end_at ? (
-            <Text style={styles.sessionTime} testID={`scheduled-end-${item.plate}`}>
-              Scheduled end: {formatLocalDateTime(item.scheduled_end_at)}
-            </Text>
-          ) : null}
-          <Text style={styles.sessionLocation}>{item.locations?.name}</Text>
-          <Text style={styles.sessionTime} testID={`parking-so-far-${item.plate}`}>
-            {reservation ? 'Planned stay' : 'Parking so far'}: {formatPeso(parkingSoFar)}
-          </Text>
-          {extraFees ? (
-            <Text style={styles.sessionTime} testID={`extra-fees-${item.plate}`}>
-              Extra fees: {formatPeso(extraFees)}
-            </Text>
-          ) : null}
-          <Text
-            style={[styles.sessionBalance, isNegativeBalance(balance) && styles.negative]}
-            testID={`session-balance-${item.plate}`}
-          >
-            Balance: {formatPeso(balance)}
-          </Text>
-          {isOverdue ? (
-            <Text style={styles.overdueTime} testID={`overdue-time-${item.plate}`}>
-              Overdue {Math.floor(overdueMin / 60)}h {overdueMin % 60}m, not billed unless end time
-              or amount is edited
-            </Text>
-          ) : null}
-        </View>
+        <SessionSummary item={item} preview={livePreview(item)} />
 
         <Button
           title="Open"

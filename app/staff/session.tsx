@@ -24,6 +24,7 @@ import {
   paymentAmountError,
   refundAmountError,
   startsIn,
+  sessionReturnRoute,
   walkInErrorMessage,
   type PaymentMethod,
   priceBreakdownLines,
@@ -37,8 +38,10 @@ import { formatLocalDateTime, formatPeso } from '../../src/utils/formatters';
 // balance is settled (server-enforced).
 export default function SessionScreen() {
   const bottomInset = useBottomInset(theme.spacing.lg);
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const params = useLocalSearchParams<{ id?: string | string[]; from?: string | string[] }>();
   const id = firstParam(params.id);
+  // Opened from the Availability Sessions tab: end / cancel return there instead.
+  const from = firstParam(params.from);
   const [d, setD] = React.useState<any>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -186,10 +189,12 @@ export default function SessionScreen() {
         await load();
         return;
       }
-      router.dismissTo({
-        pathname: '/staff/sessions',
-        params: { locationId: d.session.location_id, cancelled: d.session.plate },
-      });
+      router.dismissTo(
+        sessionReturnRoute(from, {
+          locationId: d.session.location_id,
+          cancelled: d.session.plate,
+        })
+      );
     } finally {
       setEnding(false);
     }
@@ -214,10 +219,9 @@ export default function SessionScreen() {
       deliverReturnedPush(data, 'Session ended', 'A walk-in session was closed').catch(() => {});
       // Back to the Active Sessions screen already in the stack (or open it), not a
       // second copy on top.
-      router.dismissTo({
-        pathname: '/staff/sessions',
-        params: { locationId: d.session.location_id, ended: d.session.plate },
-      });
+      router.dismissTo(
+        sessionReturnRoute(from, { locationId: d.session.location_id, ended: d.session.plate })
+      );
     } finally {
       setEnding(false);
     }
