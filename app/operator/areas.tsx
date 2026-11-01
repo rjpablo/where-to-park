@@ -8,21 +8,30 @@ import {
   Modal,
   TouchableOpacity,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import {
+  AREA_SELECT,
+  areaErrorMessage,
+  sortAreas,
+  vehicleTypesLabel,
+  type Area,
+} from '../../src/lib/areas';
+import { VEHICLE_TYPE_LABELS } from '../../src/lib/searchFilters';
 
 // A listing's areas (its own page; rates are on /operator/rates).
 export default function AreasScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
-  const locationId = firstParam(
-    useLocalSearchParams<{ locationId?: string | string[] }>().locationId
-  );
-  const [areas, setAreas] = React.useState<any[]>([]);
+  const router = useRouter();
+  const sp = useLocalSearchParams<{ locationId?: string | string[]; saved?: string | string[] }>();
+  const locationId = firstParam(sp.locationId);
+  const saved = firstParam(sp.saved);
+  const [areas, setAreas] = React.useState<Area[]>([]);
   const [areaName, setAreaName] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -43,12 +52,12 @@ export default function AreasScreen() {
     }
     try {
       const [{ data: areaRows, error: areaErr }, loc] = await Promise.all([
-        supabase.from('areas').select('*').eq('location_id', locationId).order('sort_order'),
+        supabase.from('areas').select(AREA_SELECT).eq('location_id', locationId),
         supabase.from('locations').select('name').eq('id', locationId).single(),
       ]);
       if (loc.data?.name) setLocationName(loc.data.name);
       if (areaErr) throw areaErr;
-      setAreas(areaRows || []);
+      setAreas(sortAreas((areaRows || []) as unknown as Area[]));
     } catch (err: any) {
       setError(err.message || 'Failed to load areas');
     } finally {
@@ -56,9 +65,12 @@ export default function AreasScreen() {
     }
   }, [locationId]);
 
-  React.useEffect(() => {
-    load();
-  }, [load]);
+  // Also reloads when coming back from the area editor.
+  useFocusEffect(
+    React.useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const addArea = async () => {
     if (!areaName.trim()) return;
@@ -67,12 +79,20 @@ export default function AreasScreen() {
       p_name: areaName.trim(),
     });
     if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
+      setError(rpcError?.message || areaErrorMessage(data?.error));
       return;
     }
+    setError(null);
     setAreaName('');
     setNotice(`Area saved`);
     await load();
+    // Straight to its settings (total spots, vehicle types, monitoring).
+    if (data?.area_id) {
+      router.push({
+        pathname: '/operator/area-edit',
+        params: { locationId: locationId!, areaId: data.area_id },
+      });
+    }
   };
 
   const removeArea = async (id: string) => {
@@ -81,7 +101,7 @@ export default function AreasScreen() {
     setDeleting(false);
     setPendingDelete(null);
     if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
+      setError(rpcError?.message || areaErrorMessage(data?.error));
       return;
     }
     await load();
@@ -99,16 +119,45 @@ export default function AreasScreen() {
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="areas-ready">
       <Text style={styles.subtitle}>{locationName}</Text>
 
+      {saved ? (
+        <Text style={styles.notice} testID="areas-saved">
+          Saved {saved}
+        </Text>
+      ) : null}
       {areas.map((area) => (
-        <View key={area.id} style={styles.row}>
-          <Text style={styles.rowTitle}>{area.name}</Text>
+        <View key={area.id} style={styles.row} testID={`area-row-${area.name}`}>
+          <View style={styles.rowMain}>
+            <Text style={styles.rowTitle}>
+              {area.name}
+              {area.is_main ? <Text style={styles.mainBadge}> · Default</Text> : null}
+            </Text>
+            <Text style={styles.rowMeta} testID={`area-summary-${area.name}`}>
+              {area.monitored ? `${area.capacity} spots` : 'Spots not monitored'} ·{' '}
+              {vehicleTypesLabel(area.vehicle_types, VEHICLE_TYPE_LABELS)}
+            </Text>
+          </View>
           <Button
-            title="Delete"
+            title="Edit"
             size="small"
             variant="outline"
-            onPress={() => setPendingDelete({ id: area.id, name: area.name })}
-            testID={`area-delete-${area.name}`}
+            onPress={() =>
+              router.push({
+                pathname: '/operator/area-edit',
+                params: { locationId: locationId!, areaId: area.id },
+              })
+            }
+            testID={`area-edit-${area.name}`}
           />
+          {/* rj t139u: Main can't be deleted. */}
+          {area.is_main ? null : (
+            <Button
+              title="Delete"
+              size="small"
+              variant="outline"
+              onPress={() => setPendingDelete({ id: area.id, name: area.name })}
+              testID={`area-delete-${area.name}`}
+            />
+          )}
         </View>
       ))}
       <TextInput
@@ -191,7 +240,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
   },
-  rowTitle: { ...theme.typography.body, fontWeight: '600', flex: 1 },
+  rowMain: { flex: 1 },
+  rowTitle: { ...theme.typography.body, fontWeight: '600' },
+  rowMeta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 2 },
+  mainBadge: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    fontWeight: '400',
+  },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.md },
   // Same dialog look as the listing delete (operator/hub).

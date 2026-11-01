@@ -106,3 +106,15 @@ test('Available slots editor goes back to Availability', () => {
     '/operator/availability?locationId=L'
   );
 });
+
+test('area screens go back to Areas / the same area (rj t139u)', () => {
+  assert.equal(
+    backFallback('operator/slots-editor', { locationId: 'L', areaId: 'A' }),
+    '/operator/availability?locationId=L&areaId=A'
+  );
+  assert.equal(
+    backFallback('operator/area-edit', { locationId: 'L', areaId: 'A' }),
+    '/operator/areas?locationId=L'
+  );
+  assert.equal(backFallback('operator/area-edit', {}), '/operator/listings');
+});

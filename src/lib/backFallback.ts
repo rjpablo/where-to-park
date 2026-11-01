@@ -43,6 +43,11 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'operator/hub/[id]': () => LISTINGS,
   'operator/edit/[id]': (p) => listingParent(p, 'id'),
   'operator/areas': (p) => listingParent(p),
+  // Area settings (rj t139u): back to that listing's Areas.
+  'operator/area-edit': (p) => {
+    const id = one(p, 'locationId');
+    return id ? `/operator/areas?locationId=${encodeURIComponent(id)}` : LISTINGS;
+  },
   'operator/rates': (p) => listingParent(p),
   // New / Edit rate: back to that listing's Rates list.
   'operator/rate-edit': (p) => {
@@ -53,9 +58,15 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'operator/staff': (p) => listingParent(p),
   'operator/availability': (p) => listingParent(p),
   // Available slots editor: back to that listing's Availability screen.
+  // (rj t139u: per area; back to the same area.)
   'operator/slots-editor': (p) => {
     const id = one(p, 'locationId');
-    return id ? `/operator/availability?locationId=${encodeURIComponent(id)}` : LISTINGS;
+    const area = one(p, 'areaId');
+    return id
+      ? `/operator/availability?locationId=${encodeURIComponent(id)}${
+          area ? `&areaId=${encodeURIComponent(area)}` : ''
+        }`
+      : LISTINGS;
   },
   'staff/checkin': (p) => listingParent(p),
   'staff/sessions': (p) => listingParent(p),

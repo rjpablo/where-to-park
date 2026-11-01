@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../../src/components/Button';
 import { FacilityPhotoField } from '../../../src/components/FacilityPhotoField';
 import { MapPinPicker } from '../../../src/components/map/MapPinPicker';
@@ -19,6 +19,7 @@ import { useBottomInset } from '../../../src/hooks/useBottomInset';
 export default function EditLocationScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
+  const router = useRouter();
   const id = firstParam(useLocalSearchParams<{ id: string | string[] }>().id);
   const [pageScroll, setPageScroll] = React.useState(true);
   const [name, setName] = React.useState('');
@@ -113,7 +114,6 @@ export default function EditLocationScreen() {
         p_address: address.trim(),
         p_lat: pin.latitude,
         p_lng: pin.longitude,
-        p_capacity: Number(capacity),
         p_rules: rules,
       });
       if (rpcError) throw rpcError;
@@ -164,12 +164,18 @@ export default function EditLocationScreen() {
         testID="edit-address"
       />
 
-      <Text style={styles.label}>Capacity</Text>
-      <TextInput
-        style={styles.input}
-        value={capacity}
-        onChangeText={setCapacity}
-        keyboardType="numeric"
+      {/* rj t139u: spots and vehicle types are set per area (Main and any others). */}
+      <Text style={styles.label}>Spots</Text>
+      <Text style={styles.areasNote} testID="edit-spots-note">
+        {capacity} counted spots. Total spots, vehicle types and monitoring are set per area.
+      </Text>
+      <Button
+        title="Manage areas"
+        variant="outline"
+        size="small"
+        onPress={() => router.push({ pathname: '/operator/areas', params: { locationId: id! } })}
+        testID="edit-manage-areas"
+        style={{ alignSelf: 'flex-start', marginBottom: theme.spacing.md }}
       />
 
       <Text style={styles.label}>Rules</Text>
@@ -236,6 +242,11 @@ export default function EditLocationScreen() {
 }
 
 const styles = StyleSheet.create({
+  areasNote: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
