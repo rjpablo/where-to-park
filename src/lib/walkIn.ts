@@ -249,6 +249,9 @@ export function priceBreakdownLines(
   if (parts.length === 1 && (!setRateName || parts[0].rate_name === setRateName)) return [];
   return parts.map((p) => {
     const qty = p.months ? `${p.months} mo` : `${p.hours}h`;
-    return `${p.rate_name}: ${qty} · ₱${Number(p.amount || 0).toFixed(2)}`;
+    const amt = Number(p.amount || 0)
+      .toFixed(2)
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `${p.rate_name}: ${qty} · ₱${amt}`;
   });
 }

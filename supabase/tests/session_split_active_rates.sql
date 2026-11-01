@@ -43,6 +43,11 @@ BEGIN
   -- Picking the default overrides higher-priority rates where it applies: 4h × ₱50
   r := update_walk_in_session(p, fri, sat2, 'suv', 'ZZP 0002', dflt);
   ASSERT (session_details(p)->>'parking')::numeric = 200, 'picked default all hours';
+  -- 0058: picking the same rate Automatic had stored still switches to 'picked'
+  r := update_walk_in_session(p, fri, sat2, 'suv', 'ZZP 0002', NULL);
+  ASSERT (SELECT rate_auto FROM parking_sessions WHERE id = p), 'auto again';
+  r := update_walk_in_session(p, fri, sat2, 'suv', 'ZZP 0002', (SELECT rate_id FROM parking_sessions WHERE id = p));
+  ASSERT NOT (SELECT rate_auto FROM parking_sessions WHERE id = p), 'same rate, now picked';
   -- Re-picking Automatic flips back to priority split
   r := update_walk_in_session(p, fri, sat2, 'suv', 'ZZP 0002', NULL);
   ASSERT (SELECT rate_auto FROM parking_sessions WHERE id = p) AND (session_details(p)->>'parking')::numeric = 290, 'back to auto';
