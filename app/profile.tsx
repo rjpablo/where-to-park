@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../src/components/Button';
 import { useAuthStore } from '../src/stores/authStore';
 import { supabase } from '../src/lib/supabase';
@@ -16,7 +16,46 @@ export default function ProfileScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
-  const { user, initialize } = useAuthStore();
+  const { user, initialize, signInWithGoogle } = useAuthStore();
+  // Sign-in methods (rj t146u): Phone and/or Google; Link Google uses manual linking.
+  const params = useLocalSearchParams<{ googleLinked?: string }>();
+  const [methods, setMethods] = React.useState<{ provider: string; email: string | null }[] | null>(
+    null
+  );
+  const [linkBusy, setLinkBusy] = React.useState(false);
+  const [linkNotice, setLinkNotice] = React.useState<string | null>(
+    params.googleLinked ? 'Google linked: you can now sign in with Google' : null
+  );
+  const [linkError, setLinkError] = React.useState<string | null>(null);
+  const loadMethods = React.useCallback(async () => {
+    const { data } = await supabase.auth.getUserIdentities();
+    setMethods(
+      (data?.identities || []).map((i) => ({
+        provider: i.provider,
+        email: (i.identity_data?.email as string | undefined) ?? null,
+      }))
+    );
+  }, []);
+  React.useEffect(() => {
+    if (user?.id) loadMethods();
+  }, [user?.id, loadMethods]);
+  const google = methods?.find((m) => m.provider === 'google') ?? null;
+  const linkGoogle = async () => {
+    setLinkError(null);
+    setLinkNotice(null);
+    setLinkBusy(true);
+    try {
+      const res = await signInWithGoogle('link');
+      if (res.status === 'done') {
+        setLinkNotice('Google linked: you can now sign in with Google');
+        await loadMethods();
+      }
+    } catch (e: any) {
+      setLinkError(e?.message || 'Could not link Google');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
   const [navApp, setNavApp] = React.useState<NavApp>('default');
   const [navNotice, setNavNotice] = React.useState<string | null>(null);
   const [name, setName] = React.useState(user?.display_name || '');
@@ -115,6 +154,42 @@ export default function ProfileScreen() {
       {nameNotice ? (
         <Text style={styles.notice} testID="profile-name-notice">
           {nameNotice}
+        </Text>
+      ) : null}
+
+      <Text style={styles.section}>Sign-in methods</Text>
+      <View testID="profile-sign-in-methods">
+        {user.phone ? <Text style={styles.meta}>Phone (code by SMS)</Text> : null}
+        {google ? (
+          <Text style={styles.meta} testID="profile-google-linked">
+            Google{google.email ? `: ${google.email}` : ''}
+          </Text>
+        ) : methods ? (
+          <View style={styles.row}>
+            <Button
+              title="Link Google"
+              variant="outline"
+              size="small"
+              onPress={linkGoogle}
+              loading={linkBusy}
+              testID="profile-link-google"
+            />
+          </View>
+        ) : null}
+      </View>
+      {!google && methods ? (
+        <Text style={styles.hint}>
+          Link your Google account to sign in to this same account with Google.
+        </Text>
+      ) : null}
+      {linkNotice ? (
+        <Text style={styles.notice} testID="profile-link-notice">
+          {linkNotice}
+        </Text>
+      ) : null}
+      {linkError ? (
+        <Text style={styles.warn} testID="profile-link-error">
+          {linkError}
         </Text>
       ) : null}
 
