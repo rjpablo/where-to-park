@@ -36,7 +36,7 @@ agent; EAS uses the same signing key, so new builds install over them.
 | Owner (Expo account) | `the-bad-company` |
 | Project | `@the-bad-company/where-to-park` |
 | Project ID | `811e8d6d-6c98-4307-9cca-f82f0c767a1a` |
-| Android package | `com.wheretopark.app` |
+| Android package | 🟧 `com.thebadcompany.wheretopark` (iOS bundle id the same; was `com.wheretopark.app` up to 1.0.10) |
 
 ## Config changes
 
@@ -117,6 +117,25 @@ The anon keys are in `eas.json` (`build.preview.env` = staging, `build.productio
   9 listings, rates, areas, policies, reviews, chat threads, notifications and the 2 listing
   photos), without agent test rows. The one chat image wasn't copied.
 
+## Package rename (🟧 rj: `com.thebadcompany.wheretopark`)
+
+`expo.android.package` and `expo.ios.bundleIdentifier` changed from `com.wheretopark.app` to
+`com.thebadcompany.wheretopark`. The `wheretopark://` scheme is unchanged.
+
+- Android treats it as a **new app**: it installs next to the old one (no upgrade, no data carried
+  over; users sign in again). Uninstall the old `com.wheretopark.app` when done.
+- **EAS credentials are per package.** EAS has keystore `where-to-park-preview` only for
+  `com.wheretopark.app`, so the next `eas build -p android` finds no credentials for the new
+  package and asks to generate a new keystore. To keep the same signing key (and its SHA-1
+  `B4:03:43:93:6C:AC:95:EB:7E:DB:BA:36:EA:B2:C1:26:94:60:FF:68`), set it up first with
+  `eas credentials -p android` → profile → Keystore → set up with the existing keystore file
+  (or the `credentials.json` steps below, then delete the file). If a new keystore is generated,
+  read its SHA-1 from `eas credentials -p android`.
+- **Google Cloud Android OAuth client** (only needed for a future native Google Sign-In; the
+  current browser flow uses the web client): package name `com.thebadcompany.wheretopark`, SHA-1
+  of the keystore the build is signed with (above if reused), and for Play releases also the Play
+  app-signing key's SHA-1.
+
 ## Signing credentials
 
 The APK is signed with the existing preview keystore so it installs over 1.0.1 and 1.0.2.
@@ -130,7 +149,7 @@ The APK is signed with the existing preview keystore so it installs over 1.0.1 a
 | Certificate | `CN=Where To Park Preview, OU=Preview, O=WhereToPark, L=Baguio, ST=Benguet, C=PH`, valid until 2054-03-16 |
 | Keystore file | Agent store `bc-57ea3263-8c5a-51d2-acd9-44d1320450c5`, `keystore/where-to-park-preview.keystore` (on the shared box: `/cursor/stores/bc-57ea3263-8c5a-51d2-acd9-44d1320450c5/keystore/where-to-park-preview.keystore`). The bot's assets folder has a copy. |
 | Password | `keystore/storepass.txt` in the same store folder. The store password and key password are the same. |
-| On EAS | Uploaded as the Android build credentials **`where-to-park-preview` (Default)** for `com.wheretopark.app` |
+| On EAS | Uploaded as the Android build credentials **`where-to-park-preview` (Default)** for the old package `com.wheretopark.app` only (see Package rename) |
 
 The same SHA-1 must be registered on the Android OAuth client when Google sign-in is added.
 

@@ -37,7 +37,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wheretopark.app"
+      "bundleIdentifier": "com.thebadcompany.wheretopark"
     },
     "android": {
       "adaptiveIcon": {
@@ -46,7 +46,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.wheretopark.app",
+      "package": "com.thebadcompany.wheretopark",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
