@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../stores/authStore';
@@ -100,6 +100,13 @@ export function AuthScreen() {
 
   return (
     <View style={[styles.container, bottomInset]} testID="auth-ready">
+      {/* App logo (Art's icon, rj): the rounded app icon above the name. */}
+      <Image
+        source={require('../../assets/logo.png')}
+        style={styles.logo}
+        accessibilityLabel="Where To Park logo"
+        testID="auth-logo"
+      />
       <Text style={styles.title}>Where To Park</Text>
       <Text style={styles.subtitle}>
         {params.complete
@@ -209,6 +216,13 @@ export function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
+  logo: {
+    width: 88,
+    height: 88,
+    borderRadius: 20,
+    alignSelf: 'center',
+    marginBottom: theme.spacing.md,
+  },
   signOutLink: {
     textAlign: 'center',
     color: theme.colors.text.secondary,

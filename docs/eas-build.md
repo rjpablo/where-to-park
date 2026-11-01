@@ -261,3 +261,7 @@ Notes:
 - 🟧 The old web-only issue (the results sheet couldn't be collapsed after expanding,
   a reanimated `setAttribute` error) is fixed since the SDK 54 upgrade: on web the sheet
   moves between Minimized, Normal and Maximized by tapping or dragging the handle.
+
+## 🟧 App icon and splash (Art's icon)
+
+The launcher icon, adaptive icon (foreground, background, monochrome) and splash come from `app.json` and `assets/`, with Art's sources in `assets/brand/`. They are native resources, so they change only in the next EAS build. The splash uses `expo-splash-screen`, which was added as a dependency for this. The web favicon and PWA icons ship with each web deploy (`public/`, `assets/favicon.png`).
