@@ -98,6 +98,9 @@ export default function RootLayout() {
           <Stack.Screen name="staff/session" options={{ title: 'Session' }} />
           <Stack.Screen name="admin/verify" options={{ title: 'Verification Queue' }} />
           <Stack.Screen name="admin/reports" options={{ title: 'Moderation' }} />
+          <Stack.Screen name="admin/contact" options={{ title: 'Contact messages' }} />
+          <Stack.Screen name="admin/contact-item" options={{ title: 'Contact message' }} />
+          <Stack.Screen name="contact" options={{ title: 'Contact Us' }} />
         </Stack>
       </KeyboardAvoidingView>
       <Toast />

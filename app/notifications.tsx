@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../src/components/Button';
 import { supabase } from '../src/lib/supabase';
@@ -62,7 +62,19 @@ export default function NotificationsScreen() {
             style={[styles.row, !item.read_at && styles.unread]}
             testID={`notification-${item.type}`}
           >
-            <Text style={styles.rowTitle}>{item.title}</Text>
+            {item.type === 'contact_submission' && item.ref_id ? (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push(`/admin/contact-item?id=${encodeURIComponent(item.ref_id)}` as never)
+                }
+                accessibilityRole="link"
+                testID={`notification-open-${item.ref_id}`}
+              >
+                <Text style={[styles.rowTitle, styles.link]}>{item.title} ›</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.rowTitle}>{item.title}</Text>
+            )}
             {item.body ? <Text style={styles.body}>{item.body}</Text> : null}
             <Text style={styles.meta}>
               {formatLocalDateTime(item.created_at)} · {formatRelativeTime(item.created_at)}
@@ -103,6 +115,7 @@ const styles = StyleSheet.create({
   },
   unread: { borderLeftWidth: 4, borderLeftColor: theme.colors.primary },
   rowTitle: { ...theme.typography.body, fontWeight: '600' },
+  link: { color: theme.colors.primary },
   body: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 4 },
   meta: { ...theme.typography.caption, color: theme.colors.text.tertiary, marginVertical: 6 },
 });

@@ -27,6 +27,7 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   profile: () => SEARCH,
   notifications: () => SEARCH,
   shortcuts: () => SEARCH,
+  contact: () => SEARCH,
   vehicles: () => SEARCH,
   'location/[id]': () => SEARCH,
   // A driver's chat goes back to the listing; an operator's (driverId set) to Messages.
@@ -65,6 +66,8 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   // Admin (opened from the sidebar on the search screen)
   'admin/verify': () => SEARCH,
   'admin/reports': () => SEARCH,
+  'admin/contact': () => SEARCH,
+  'admin/contact-item': () => '/admin/contact',
 };
 
 export function backFallback(routeName: string, params?: RouteParams): string | null {

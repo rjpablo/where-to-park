@@ -22,6 +22,7 @@ export type SidebarCounts = {
   unread_notifications?: number;
   pending_verifications?: number;
   pending_reports?: number;
+  open_contact?: number;
   listing_reviewed?: number;
   listings?: number;
   vehicles?: number;
@@ -54,6 +55,8 @@ export type SidebarItemKey =
   | 'vehicles'
   | 'verify'
   | 'moderation'
+  | 'contact'
+  | 'contact_admin'
   | 'sign_out';
 
 export type SidebarItem = {
@@ -98,7 +101,12 @@ function item(
 
 /** Items in display order for the signed-in role (guests get Sign in only). */
 export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): SidebarItem[] {
-  if (!user) return [item('sign_in', 'Sign in', '/auth', counts)];
+  if (!user) {
+    return [
+      item('sign_in', 'Sign in', '/auth', counts),
+      item('contact', 'Contact Us', '/contact', counts),
+    ];
+  }
   const items: SidebarItem[] = [
     item('profile', 'My profile', '/profile', counts, 'profile_incomplete', 'profile_incomplete'),
     item('messages', 'Messages', '/operator/inbox', counts, 'unread_messages', 'unread_messages'),
@@ -130,6 +138,7 @@ export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): Sid
     items.push(item('list_space', 'List your parking space', undefined, counts));
   }
   items.push(item('vehicles', 'Saved vehicles', '/vehicles', counts, 'vehicles'));
+  items.push(item('contact', 'Contact Us', '/contact', counts));
   if (user.isAdmin) {
     items.push(
       item(
@@ -147,6 +156,15 @@ export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): Sid
         '/admin/reports',
         counts,
         'pending_reports',
+        undefined,
+        'admin'
+      ),
+      item(
+        'contact_admin',
+        'Contact messages',
+        '/admin/contact',
+        counts,
+        'open_contact',
         undefined,
         'admin'
       )
@@ -178,6 +196,7 @@ export function parseSidebarCounts(data: unknown): SidebarCounts {
     unread_notifications: num(d.unread_notifications),
     pending_verifications: num(d.pending_verifications),
     pending_reports: num(d.pending_reports),
+    open_contact: num(d.open_contact),
     listing_reviewed: num(d.listing_reviewed),
     listings: num(d.listings),
     vehicles: num(d.vehicles),

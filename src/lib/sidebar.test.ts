@@ -42,10 +42,10 @@ test('badge: a trigger disabled in the database no longer lights it', () => {
   ]);
 });
 
-test('items: guest sees Sign in only', () => {
+test('items: guest sees Sign in and Contact Us', () => {
   assert.deepEqual(
     buildSidebarItems(null, EMPTY_COUNTS).map((i) => i.key),
-    ['sign_in']
+    ['sign_in', 'contact']
   );
 });
 
@@ -57,6 +57,7 @@ test('items: driver vs operator vs admin are role-appropriate', () => {
     'notifications',
     'list_space',
     'vehicles',
+    'contact',
     'sign_out',
   ]);
   const op = buildSidebarItems({ isAdmin: false, hasWorkspace: true }, base).map((i) => i.key);
@@ -64,7 +65,7 @@ test('items: driver vs operator vs admin are role-appropriate', () => {
   const admin = buildSidebarItems({ isAdmin: true, hasWorkspace: true }, base);
   assert.deepEqual(
     admin.filter((i) => i.section === 'admin').map((i) => i.key),
-    ['verify', 'moderation']
+    ['verify', 'moderation', 'contact_admin']
   );
   assert.equal(admin[admin.length - 1].key, 'sign_out');
 });
@@ -77,6 +78,7 @@ test('items: each shows its own count; red only for enabled triggers', () => {
     unread_notifications: 120,
     pending_verifications: 4,
     pending_reports: 1,
+    open_contact: 2,
     listings: 3,
     vehicles: 2,
     profile_incomplete: 1,
@@ -95,6 +97,9 @@ test('items: each shows its own count; red only for enabled triggers', () => {
   assert.equal(byKey.verify.countLabel, '4');
   assert.equal(byKey.verify.alert, false, 'trigger disabled → grey');
   assert.equal(byKey.moderation.alert, false);
+  assert.equal(byKey.contact_admin.countLabel, '2');
+  assert.equal(byKey.contact_admin.alert, false, 'informational');
+  assert.equal(byKey.contact.countLabel, '');
   assert.equal(byKey.sign_out.countLabel, '');
 });
 

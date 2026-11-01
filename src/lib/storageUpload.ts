@@ -21,10 +21,11 @@ export function locationPhotoPublicUrl(storagePath: string | null | undefined): 
 }
 
 async function uploadToBucket(
-  bucket: 'chat-images' | 'location-photos' | 'review-photos',
+  bucket: 'chat-images' | 'location-photos' | 'review-photos' | 'contact-images',
   path: string,
   base64: string,
-  contentType: string
+  contentType: string,
+  upsert = true
 ): Promise<{ error: Error | null }> {
   let body: ArrayBuffer;
   try {
@@ -34,7 +35,7 @@ async function uploadToBucket(
   }
   const { error } = await supabase.storage.from(bucket).upload(path, body, {
     contentType: contentType || 'image/jpeg',
-    upsert: true,
+    upsert,
   });
   return { error: error ? new Error(error.message) : null };
 }
@@ -168,4 +169,23 @@ export async function deleteReviewPhoto(photo: {
   if (!data?.length) return { error: 'You can only remove photos from your own review' };
   await supabase.storage.from('review-photos').remove([photo.storage_path]);
   return {};
+}
+
+/**
+ * Contact Us image (0059): private bucket, insert-only for the sender (no upsert:
+ * anyone may add up to the declared count within 30 minutes; only admins can read).
+ */
+export async function uploadContactImage(args: {
+  path: string;
+  base64: string;
+  contentType?: string;
+}): Promise<{ error?: string }> {
+  const res = await uploadToBucket(
+    'contact-images',
+    args.path,
+    args.base64,
+    args.contentType || 'image/jpeg',
+    false
+  );
+  return res.error ? { error: res.error.message } : {};
 }
