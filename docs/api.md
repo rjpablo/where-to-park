@@ -177,30 +177,11 @@ Release reserved/occupied capacity (called on session end, reservation cancel).
 
 ---
 
-#### `adjust_availability`
+#### `location_free_spaces` / `free_spaces` 🟧
 
-Manually adjust available count (+1, -1, set).
+A listing's free spaces, the one source (migration 0064): `capacity − started open sessions − Reserved − Unavailable`, never below 0. Call `location_free_spaces(p_location_id)` or select the `free_spaces` computed field (`locations?select=*,free_spaces`). Readable by anyone.
 
-**Parameters:**
-
-```typescript
-{
-  p_location_id: UUID;
-  p_delta: number; // +1, -1, or set to specific value
-}
-```
-
-**Returns:**
-
-```typescript
-{
-  success: boolean;
-  available_count: number; // New count
-}
-```
-
-**Auth:** Operator/Staff for this location  
-**Notes:** Updates `availability_updated_at` and logs in `availability_events`
+`adjust_availability` (the old +1/-1) was removed in migration 0065 (it had no permission check).
 
 ---
 
