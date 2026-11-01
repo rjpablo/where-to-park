@@ -1,4 +1,4 @@
--- Sessions-only availability (migration 0064). Rolls back.
+-- Sessions-only availability (migration 0064; per area since 0067). Rolls back.
 BEGIN;
 CREATE FUNCTION pg_temp.act(p_phone text) RETURNS void LANGUAGE plpgsql AS $$
 DECLARE v uuid := (SELECT id FROM profiles WHERE phone = p_phone);
@@ -16,12 +16,12 @@ BEGIN
   PERFORM pg_temp.act('+639170000002'); -- Juan (owner)
   -- Test List: 1 parked car, no Reserved/Unavailable, counted by sessions -> 9 of 10
   IF TL IS NOT NULL THEN
-    UPDATE locations SET tracking_mode = 'count', manual_reserved_count = 0, unavailable_count = 0, capacity = 10 WHERE id = TL;
+    UPDATE areas SET manual_reserved_count = 0, unavailable_count = 0, capacity = 10, marked_full = false, monitored = true WHERE id = main_area_id(TL);
     started := (SELECT COUNT(*) FROM parking_sessions WHERE location_id = TL AND status IN ('active','overdue') AND started_at <= now());
     ASSERT location_free_spaces(TL) = 10 - started, 'Test List free: ' || location_free_spaces(TL);
   END IF;
 
-  UPDATE locations SET manual_reserved_count = 0, unavailable_count = 0 WHERE id = SR;
+  UPDATE areas SET manual_reserved_count = 0, unavailable_count = 0 WHERE id = main_area_id(SR);
   SELECT capacity INTO cap FROM locations WHERE id = SR;
   f0 := location_free_spaces(SR);
   started := (SELECT COUNT(*) FROM parking_sessions WHERE location_id = SR AND status IN ('active','overdue') AND started_at <= now());
@@ -44,12 +44,12 @@ BEGIN
   ASSERT location_free_spaces(SR) = f0 - 1, 'reservation not deducted yet';
 
   -- Reserved / Unavailable come off; never below 0
-  r := set_manual_counts(SR, 2, 1);
-  ASSERT r->>'success' = 'true' AND (r->>'available_count')::int = f0 - 4, 'manual: ' || r::text;
+  r := set_area_counts(main_area_id(SR), 2, 1);
+  ASSERT r->>'success' = 'true' AND (r->>'free_spaces')::int = f0 - 4, 'manual: ' || r::text;
   ASSERT location_free_spaces(SR) = f0 - 4, 'manual deducted';
 
   -- Full listing: walk-in refused even with a future reservation around; reservation alone doesn't fill it
-  UPDATE locations SET manual_reserved_count = 0, unavailable_count = cap - started - 2 WHERE id = SR;
+  UPDATE areas SET manual_reserved_count = 0, unavailable_count = cap - started - 2 WHERE id = main_area_id(SR);
   ASSERT location_free_spaces(SR) = 1, 'one left';
   r := start_walk_in(SR, 'car', 'QZ 6403');
   ASSERT r->>'success' = 'true', 'last space ok despite a future reservation: ' || r::text;
@@ -63,6 +63,6 @@ BEGIN
   ASSERT (SELECT available_count FROM locations WHERE id = SR) = 1, 'cache after end';
 
   -- Public can read the number
-  ASSERT has_function_privilege('anon', 'location_free_spaces(uuid)', 'EXECUTE'), 'anon reads free';
+  ASSERT has_function_privilege('anon', 'location_free_spaces(uuid, vehicle_type)', 'EXECUTE'), 'anon reads free';
 END $$;
 ROLLBACK;

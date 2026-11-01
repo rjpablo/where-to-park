@@ -133,6 +133,7 @@ Calculate parking fee for a given duration and vehicle.
   p_start_at: timestamp;
   p_end_at?: timestamp;
   p_kind: 'session' | 'reservation';
+  p_area_id?: UUID;           // 0067: the area (Main when omitted)
 }
 ```
 
@@ -149,12 +150,12 @@ Calculate parking fee for a given duration and vehicle.
 
 **Logic:**
 
-1. `SELECT ... FOR UPDATE` on location (or slot) row → serializes concurrent requests
-2. Count overlapping active/confirmed sessions and reservations
-3. Subtract `manual_reserved_count` and `unavailable_count`
+1. `SELECT ... FOR UPDATE` on the location and the area (or slot) row → serializes concurrent requests
+2. 🟧 0067: an unmonitored area always succeeds (no count). A start ≤ now needs `area_counted_spaces ≥ 1`; a future start counts the area's overlapping sessions
+3. Subtract the area's `manual_reserved_count` and `unavailable_count`
 4. If `available >= 1`, return success; else `no_longer_available`
 
-**Used by:** `start_walk_in`, `request_reservation`, `set_manual_counts`
+Not callable by clients (0067). **Used by:** `start_walk_in`, `update_walk_in_session` (moving a session to another area)
 
 ---
 
@@ -179,9 +180,25 @@ Release reserved/occupied capacity (called on session end, reservation cancel).
 
 #### `location_free_spaces` / `free_spaces` 🟧
 
-A listing's free spaces, the one source (migration 0064): `capacity − started open sessions − Reserved − Unavailable`, never below 0. Call `location_free_spaces(p_location_id)` or select the `free_spaces` computed field (`locations?select=*,free_spaces`). Readable by anyone.
+A listing's free spaces, the one source. Since migration 0067 it is the **sum over the listing's monitored areas** (optionally only areas that take a vehicle type): `location_free_spaces(p_location_id, p_vehicle_type DEFAULT NULL)`; `NULL` when no such area is monitored. Per area: `area_free_spaces(area_id)` = 0 when the area is switched Full, else `capacity − started open sessions in the area − Reserved − Unavailable` (never below 0), `NULL` when not monitored. `area_counted_spaces` is the same without the Full switch. `location_is_full(p_location_id, p_vehicle_type DEFAULT NULL)` is true only when every (applicable) area is full (an unmonitored area is full only when its Available/Full toggle says Full). Computed fields: `locations?select=*,free_spaces,counted_spaces,listing_full` and `areas?select=*,area_free,area_counted,area_occupied,area_full`. Readable by anyone. `locations.capacity / manual_reserved_count / unavailable_count / marked_full / available_count` are now caches kept in sync from the areas (monitored totals; `marked_full` = the listing is Full).
 
 `adjust_availability` (the old +1/-1) was removed in migration 0065 (it had no permission check).
+
+---
+
+#### Areas 🟧 (migration 0067)
+
+Every listing has a **Main** area (`areas.is_main`), created with the listing; it can't be deleted or renamed (RPCs return `main_area_locked`; a trigger also blocks direct writes). Area columns: `capacity`, `vehicle_types` (NULL = all), `monitored`, `manual_reserved_count`, `unavailable_count`, `marked_full`. Sessions have `area_id` (Main when not given).
+
+| RPC | Who | Notes |
+| --- | --- | --- |
+| `upsert_area(p_location_id, p_name, p_area_id?, p_sort_order?)` | owner/manager | `name_required`, `area_name_taken` (case-insensitive), `main_area_locked` (rename Main) |
+| `delete_area(p_area_id)` | owner/manager | `main_area_locked`, `area_has_sessions` (open sessions); ended sessions move to Main |
+| `set_area_settings(p_area_id, p_capacity, p_vehicle_types, p_monitored)` | owner/manager | `capacity_invalid`, `capacity_below_in_use` (`in_use`); empty or every type = all |
+| `set_area_counts(p_area_id, p_reserved, p_unavailable)` | owner/manager/assigned staff | Reserved/Unavailable; `area_not_monitored`, `no_longer_available` |
+| `set_area_full(p_area_id, p_full)` | owner/manager/assigned staff | Full switch (monitored) / Available-Full toggle (unmonitored); logged in `availability_events` with `area_id` |
+
+`set_manual_counts` and `set_listing_full` were dropped (0067). `update_location(p_capacity)` now sets Main's total spots.
 
 ---
 
@@ -200,6 +217,9 @@ Check in a walk-in session.
   p_plate: string;              // Required
   p_note?: string;
   p_scheduled_end_at?: timestamp;
+  p_started_at?: timestamp;
+  p_rate_id?: UUID;
+  p_area_id?: UUID;             // 🟧 0067: the area (Main when omitted)
 }
 ```
 
@@ -210,7 +230,8 @@ Check in a walk-in session.
   success: boolean;
   session_id: UUID;
   folio_id: UUID;
-  error?: 'no_longer_available';
+  area_id: UUID;
+  error?: 'no_longer_available' | 'vehicle_not_allowed' | 'area_not_found' | 'plate_active';
 }
 ```
 

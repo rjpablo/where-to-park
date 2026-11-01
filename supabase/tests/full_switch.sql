@@ -1,4 +1,4 @@
--- Full switch (migration 0066). Rolls back.
+-- Full switch (migration 0066; per area since 0067: here on Main, the only area). Rolls back.
 BEGIN;
 CREATE FUNCTION pg_temp.act_id(v uuid) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -21,17 +21,17 @@ BEGIN
 
   -- Anonymous and outsiders refused
   PERFORM pg_temp.act_id(NULL);
-  ASSERT set_listing_full(SR, true)->>'error' = 'not_authenticated', 'anon refused';
-  ASSERT NOT has_function_privilege('anon', 'set_listing_full(uuid, boolean)', 'EXECUTE'), 'anon no grant';
+  ASSERT set_area_full(main_area_id(SR), true)->>'error' = 'not_authenticated', 'anon refused';
+  ASSERT NOT has_function_privilege('anon', 'set_area_full(uuid, boolean)', 'EXECUTE'), 'anon no grant';
   IF outsider IS NOT NULL THEN
     PERFORM pg_temp.act_id(outsider);
-    ASSERT set_listing_full(SR, true)->>'error' = 'Permission denied', 'outsider refused';
+    ASSERT set_area_full(main_area_id(SR), true)->>'error' = 'Permission denied', 'outsider refused';
   END IF;
-  ASSERT NOT (SELECT marked_full FROM locations WHERE id = SR), 'still not full';
+  ASSERT NOT (SELECT marked_full FROM areas WHERE id = main_area_id(SR)), 'still not full';
 
   -- Staff (Ana) marks it Full: free 0 everywhere, counted unchanged, logged
   PERFORM pg_temp.act('+639170000003');
-  r := set_listing_full(SR, true);
+  r := set_area_full(main_area_id(SR), true);
   ASSERT r->>'success' = 'true' AND (r->>'free_spaces')::int = 0 AND (r->>'counted_spaces')::int = counted, 'full: ' || r::text;
   ASSERT location_free_spaces(SR) = 0, 'free 0';
   ASSERT (SELECT free_spaces(l) FROM locations l WHERE l.id = SR) = 0, 'computed field 0';
@@ -48,7 +48,7 @@ BEGIN
 
   -- Owner (Juan) turns it off: back to the count
   PERFORM pg_temp.act('+639170000002');
-  r := set_listing_full(SR, false);
+  r := set_area_full(main_area_id(SR), false);
   ASSERT r->>'success' = 'true' AND location_free_spaces(SR) = counted - 1, 'unfull: ' || r::text;
   ASSERT EXISTS (SELECT 1 FROM availability_events WHERE location_id = SR AND change = 'unmarked_full'), 'logged off';
 
