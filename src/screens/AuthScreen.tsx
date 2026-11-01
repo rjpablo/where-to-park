@@ -11,7 +11,8 @@ export function AuthScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
-  const { requestOtp, verifyOtp, completeProfile, signInWithGoogle, loading } = useAuthStore();
+  const { requestOtp, verifyOtp, completeProfile, signInWithGoogle, signOut, loading } =
+    useAuthStore();
   const user = useAuthStore((s) => s.user);
   // Accounts page: 'Add account' / signing a saved account in again (phone prefilled).
   // complete=1: back from Google as a new account, finish onboarding (name prefilled).
@@ -192,18 +193,40 @@ export function AuthScreen() {
         </Text>
       ) : null}
 
-      <Button
-        title="Browse as guest"
-        variant="outline"
-        onPress={() => router.replace('/search')}
-        style={{ marginTop: theme.spacing.lg }}
-        testID="auth-guest"
-      />
+      {/* Guests only (rj t151u): it never signed anyone out, so while signed in (Google or
+          phone onboarding, Add account) it just left the session as it was. */}
+      {!user && step !== 'profile' ? (
+        <Button
+          title="Browse as guest"
+          variant="outline"
+          onPress={() => router.replace('/search')}
+          style={{ marginTop: theme.spacing.lg }}
+          testID="auth-guest"
+        />
+      ) : null}
+      {step === 'profile' ? (
+        <Text
+          style={styles.signOutLink}
+          onPress={async () => {
+            await signOut();
+            router.replace('/accounts');
+          }}
+          testID="auth-onboarding-sign-out"
+        >
+          Sign out
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  signOutLink: {
+    textAlign: 'center',
+    color: theme.colors.text.secondary,
+    textDecorationLine: 'underline',
+    marginTop: theme.spacing.lg,
+  },
   or: {
     textAlign: 'center',
     color: theme.colors.text.secondary,
