@@ -645,83 +645,8 @@ export default function LocationDetailScreen() {
 
         {tab === 'reviews' ? (
           <View testID="tab-panel-reviews">
-            {/* Reviews */}
             <View style={styles.section}>
-              {(() => {
-                const stats = Array.isArray(location.location_rating_stats)
-                  ? location.location_rating_stats[0]
-                  : location.location_rating_stats;
-                const count = Number(stats?.review_count ?? location.reviews?.length ?? 0);
-                const avg = Number(stats?.avg_rating ?? 0);
-                return (
-                  <>
-                    <Text style={styles.sectionTitle} testID="reviews-heading">
-                      Reviews ({count})
-                    </Text>
-                    {count > 0 && avg > 0 ? (
-                      <View style={styles.ratingDisplay} testID="reviews-average">
-                        <Text style={styles.ratingNumber}>{avg.toFixed(1)}</Text>
-                        <Text style={styles.ratingStars}>⭐</Text>
-                      </View>
-                    ) : null}
-                  </>
-                );
-              })()}
-
-              {location.reviews?.map((review: any) => (
-                <View
-                  key={review.id}
-                  style={styles.reviewItem}
-                  testID={`review-${review.author_id}`}
-                >
-                  <Text style={styles.reviewAuthor}>
-                    {embeddedOne<any>(review.public_profiles)?.display_name || 'Anonymous'}
-                  </Text>
-                  {review.session_id || review.reservation_id ? (
-                    <Text style={styles.bookedLabel} testID="booked-via-app">
-                      Booked via app
-                    </Text>
-                  ) : null}
-                  <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
-                  {(() => {
-                    const images = reviewImages(review);
-                    if (!images.length) return null;
-                    return (
-                      <View style={styles.thumbRow} testID={`review-photos-${review.id}`}>
-                        {images.map((img, i) => (
-                          <TouchableOpacity
-                            key={img.key}
-                            onPress={() => setCarousel({ images, start: i })}
-                            accessibilityRole="imagebutton"
-                            accessibilityLabel={`Review photo ${i + 1} of ${images.length}`}
-                            testID={`review-photo-${review.id}-${i}`}
-                          >
-                            <Image
-                              source={{ uri: img.uri }}
-                              style={styles.thumb}
-                              resizeMode="cover"
-                            />
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    );
-                  })()}
-                  {review.comment ? <Text style={styles.reviewText}>{review.comment}</Text> : null}
-                  {user ? (
-                    <Button
-                      title="Report review"
-                      size="small"
-                      variant="outline"
-                      onPress={() => {
-                        setReportTarget({ type: 'review', id: review.id });
-                        setReportReason('Inappropriate');
-                      }}
-                      testID={`report-review-${review.id}`}
-                    />
-                  ) : null}
-                </View>
-              ))}
-
+              {/* Write a review, above the reviews list */}
               {user ? (
                 <View style={styles.reviewForm} testID="review-form">
                   <Text style={styles.sectionTitle}>Write a review</Text>
@@ -833,8 +758,86 @@ export default function LocationDetailScreen() {
                   title="Sign in to review"
                   variant="outline"
                   onPress={() => router.push('/auth')}
+                  style={styles.reviewSignIn}
+                  testID="review-sign-in"
                 />
               )}
+
+              {/* Reviews */}
+              {(() => {
+                const stats = Array.isArray(location.location_rating_stats)
+                  ? location.location_rating_stats[0]
+                  : location.location_rating_stats;
+                const count = Number(stats?.review_count ?? location.reviews?.length ?? 0);
+                const avg = Number(stats?.avg_rating ?? 0);
+                return (
+                  <>
+                    <Text style={styles.sectionTitle} testID="reviews-heading">
+                      Reviews ({count})
+                    </Text>
+                    {count > 0 && avg > 0 ? (
+                      <View style={styles.ratingDisplay} testID="reviews-average">
+                        <Text style={styles.ratingNumber}>{avg.toFixed(1)}</Text>
+                        <Text style={styles.ratingStars}>⭐</Text>
+                      </View>
+                    ) : null}
+                  </>
+                );
+              })()}
+
+              {location.reviews?.map((review: any) => (
+                <View
+                  key={review.id}
+                  style={styles.reviewItem}
+                  testID={`review-${review.author_id}`}
+                >
+                  <Text style={styles.reviewAuthor}>
+                    {embeddedOne<any>(review.public_profiles)?.display_name || 'Anonymous'}
+                  </Text>
+                  {review.session_id || review.reservation_id ? (
+                    <Text style={styles.bookedLabel} testID="booked-via-app">
+                      Booked via app
+                    </Text>
+                  ) : null}
+                  <Text style={styles.reviewRating}>{'⭐'.repeat(review.rating)}</Text>
+                  {(() => {
+                    const images = reviewImages(review);
+                    if (!images.length) return null;
+                    return (
+                      <View style={styles.thumbRow} testID={`review-photos-${review.id}`}>
+                        {images.map((img, i) => (
+                          <TouchableOpacity
+                            key={img.key}
+                            onPress={() => setCarousel({ images, start: i })}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel={`Review photo ${i + 1} of ${images.length}`}
+                            testID={`review-photo-${review.id}-${i}`}
+                          >
+                            <Image
+                              source={{ uri: img.uri }}
+                              style={styles.thumb}
+                              resizeMode="cover"
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    );
+                  })()}
+                  {review.comment ? <Text style={styles.reviewText}>{review.comment}</Text> : null}
+                  {user ? (
+                    <Button
+                      title="Report review"
+                      size="small"
+                      variant="outline"
+                      onPress={() => {
+                        setReportTarget({ type: 'review', id: review.id });
+                        setReportReason('Inappropriate');
+                      }}
+                      testID={`report-review-${review.id}`}
+                    />
+                  ) : null}
+                </View>
+              ))}
             </View>
           </View>
         ) : null}
@@ -1063,7 +1066,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: theme.spacing.xs,
   },
-  reviewForm: { marginTop: theme.spacing.md },
+  reviewForm: { marginBottom: theme.spacing.lg },
+  reviewSignIn: { marginBottom: theme.spacing.lg },
   // Square thumbnails (cover-cropped) above a review's text.
   thumbRow: {
     flexDirection: 'row',
