@@ -163,10 +163,17 @@ export default function ListingHubScreen() {
       </View>
 
       <View style={styles.actions}>
+        {/* Availability first and the only primary button, for everyone (rj) */}
+        <Button
+          title="Availability"
+          onPress={() => go('/operator/availability', { locationId: location.id })}
+          testID="hub-availability"
+        />
         {manage ? (
           <>
             <Button
               title="Edit details and photos"
+              variant="outline"
               onPress={() => go('/operator/edit/[id]', { id: location.id })}
               testID="hub-edit"
             />
@@ -206,12 +213,6 @@ export default function ListingHubScreen() {
             />
           </>
         ) : null}
-        <Button
-          title="Availability"
-          variant={manage ? 'outline' : 'primary'}
-          onPress={() => go('/operator/availability', { locationId: location.id })}
-          testID="hub-availability"
-        />
         <Button
           title="Session board"
           variant="outline"
