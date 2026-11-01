@@ -99,3 +99,10 @@ test('Add fee goes back to its session page', () => {
     '/staff/session?id=s1&locationId=L'
   );
 });
+
+test('Available slots editor goes back to Availability', () => {
+  assert.equal(
+    backFallback('operator/slots-editor', { locationId: 'L' }),
+    '/operator/availability?locationId=L'
+  );
+});

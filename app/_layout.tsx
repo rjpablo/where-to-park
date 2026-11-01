@@ -93,6 +93,10 @@ export default function RootLayout() {
           <Stack.Screen name="operator/fees" options={{ title: 'Fee Presets' }} />
           <Stack.Screen name="operator/inbox" options={{ title: 'Messages' }} />
           <Stack.Screen name="operator/availability" options={{ title: 'Availability' }} />
+          <Stack.Screen
+            name="operator/slots-editor"
+            options={{ title: 'Available slots editor' }}
+          />
           <Stack.Screen name="staff/checkin" options={{ title: 'Check In' }} />
           <Stack.Screen name="staff/sessions" options={{ title: 'Active Sessions' }} />
           <Stack.Screen name="staff/session" options={{ title: 'Session' }} />

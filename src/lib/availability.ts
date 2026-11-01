@@ -49,3 +49,16 @@ export function spotsLabel(available: number | string | null | undefined): strin
   const whole = Math.floor(n);
   return `${whole} ${whole === 1 ? 'spot' : 'spots'}`;
 }
+
+/** Available slots editor: free spaces after changing held (Reserved + Unavailable) spaces. */
+export function heldPreview(free: number, oldHeld: number, newHeld: number): number {
+  return Math.max(0, Math.floor(free + oldHeld - newHeld));
+}
+
+/** Plain message for set_manual_counts errors. */
+export function manualCountsError(code: unknown): string {
+  const c = String(code ?? '');
+  if (c === 'no_longer_available') return "That's more spaces than are free right now.";
+  if (c === 'Permission denied') return "You don't have access to this listing.";
+  return c || 'Something went wrong';
+}

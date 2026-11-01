@@ -52,6 +52,11 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'operator/fees': (p) => listingParent(p),
   'operator/staff': (p) => listingParent(p),
   'operator/availability': (p) => listingParent(p),
+  // Available slots editor: back to that listing's Availability screen.
+  'operator/slots-editor': (p) => {
+    const id = one(p, 'locationId');
+    return id ? `/operator/availability?locationId=${encodeURIComponent(id)}` : LISTINGS;
+  },
   'staff/checkin': (p) => listingParent(p),
   'staff/sessions': (p) => listingParent(p),
   // One session: back to that listing's Active Sessions.

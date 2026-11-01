@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   availableSlots,
   freeSpaces,
+  heldPreview,
+  manualCountsError,
   searchSummary,
   spotsLabel,
   totalAvailableSlots,
@@ -61,4 +63,15 @@ test('freeSpaces: the server free_spaces first, else the cached count; never bel
   assert.equal(freeSpaces({ available_count: 7 }), 7);
   assert.equal(freeSpaces({ free_spaces: null, available_count: null }), 0);
   assert.equal(freeSpaces({ free_spaces: -2 }), 0);
+});
+
+test('slots editor: preview and errors', () => {
+  assert.equal(heldPreview(79, 0, 2), 77);
+  assert.equal(heldPreview(5, 4, 0), 9);
+  assert.equal(heldPreview(1, 0, 3), 0);
+  assert.equal(
+    manualCountsError('no_longer_available'),
+    "That's more spaces than are free right now."
+  );
+  assert.equal(manualCountsError('x'), 'x');
 });
