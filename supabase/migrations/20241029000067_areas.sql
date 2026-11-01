@@ -235,10 +235,17 @@ CREATE TRIGGER areas_sync_location AFTER INSERT OR DELETE OR UPDATE ON areas
 
 SELECT refresh_location_availability(ARRAY(SELECT id FROM locations));
 
--- Staff assigned to a listing can read its areas (also unpublished listings).
+-- Staff assigned to a listing can read its areas (also unpublished listings). Inline (not
+-- can_work_location, which clients can't execute) and for signed-in users only.
 DROP POLICY IF EXISTS "Staff can view areas" ON areas;
-CREATE POLICY "Staff can view areas" ON areas FOR SELECT
-  USING (can_work_location(location_id, auth.uid()));
+CREATE POLICY "Staff can view areas" ON areas FOR SELECT TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM locations l
+    JOIN operator_members om ON om.operator_id = l.operator_id
+    WHERE l.id = areas.location_id
+      AND om.profile_id = auth.uid()
+      AND (om.role IN ('owner', 'manager') OR areas.location_id = ANY (om.location_ids))
+  ));
 
 -- 7. Area RPCs. Owners/managers manage areas and their settings; anyone who works the
 -- listing (owner, manager, assigned staff) sets Reserved/Unavailable and Full.

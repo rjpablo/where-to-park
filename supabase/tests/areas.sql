@@ -151,4 +151,17 @@ BEGIN
   ASSERT update_location(newloc, p_capacity => 9)->>'success' = 'true', 'edit listing';
   ASSERT location_free_spaces(newloc) = 9, 'edit listing spots = Main';
 END $$;
+-- RLS: anyone reads a published listing's areas (with the computed fields); staff too.
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  ASSERT (SELECT COUNT(*) FROM areas a WHERE a.location_id = '30000000-0000-0000-0000-000000000002'
+          AND area_free(a) IS NOT DISTINCT FROM area_free(a)) >= 1, 'anon reads areas';
+END $$;
+RESET ROLE;
+SELECT pg_temp.act('+639170000003');
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+  ASSERT (SELECT COUNT(*) FROM areas WHERE location_id = '30000000-0000-0000-0000-000000000002') >= 1, 'staff reads areas';
+END $$;
+RESET ROLE;
 ROLLBACK;
