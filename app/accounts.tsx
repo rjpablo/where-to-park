@@ -31,7 +31,11 @@ export default function AccountsScreen() {
     if (busy || a.userId === user?.id) return;
     setNotice(null);
     if (a.status === 'signed_out') {
-      router.push(`/auth?phone=${encodeURIComponent(a.phone || '')}` as never);
+      router.push(
+        (a.email
+          ? `/auth?email=${encodeURIComponent(a.email)}`
+          : `/auth?phone=${encodeURIComponent(a.phone || '')}`) as never
+      );
       return;
     }
     setBusy(a.userId);

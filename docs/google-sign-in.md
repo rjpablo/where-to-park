@@ -14,6 +14,7 @@ Code: `src/lib/googleAuth.ts` (start and finish), `src/lib/oauthCallback.ts` (pu
 - **Automatic (server, Supabase Auth):** a Google sign-in whose verified email matches an existing account's confirmed email lands in that account.
 - **Existing phone accounts:** they have no auth email, and there is no profile email field. They use **Profile → Link Google** while signed in (Supabase manual linking). From then on, Continue with Google opens the same account.
 - **Guard (0069, trigger on `auth.identities`):** an OAuth identity is refused when the provider didn't verify its email, when the email belongs to another account (auth email or another account's identity), or when an existing target account (one that already has another sign-in method) holds that email unconfirmed. Since 0070, brand-new Google users pass: GoTrue inserts the identity before it marks their email confirmed. An unverified email typed anywhere can't attract someone else's Google sign-in. This also closes the reported Supabase gap where a manually linked identity with an unverified email becomes an automatic-linking target.
+- **Email + password accounts (0071):** staging auto-confirms email sign-ups (no confirmation mail), so their address is unproven. The guard refuses a Google identity onto an account whose `email` identity holds the same address with `identity_data.email_verified` not true (Supabase sets it when a confirmation link is opened; `users.confirmation_sent_at` is no signal, phone OTP sets it too). Without this, signing up with someone's Gmail address and a password would let the Google sign-in for that address land in the attacker's account. Trade-off: the first to register an address with a password blocks its Google sign-in until confirmation mails are on. Signing up with a password for an address that is already a Google account gets 'User already registered'.
 - **Profile for new Google users:** Google name (confirmed in onboarding) and picture (`profiles.avatar_url`). No phone: `profiles.phone` is optional and nothing requires it.
 
 Tests: `supabase/tests/google_sign_in.sql` (simulated GoTrue rows), `src/lib/oauthCallback.test.ts`.
@@ -27,6 +28,7 @@ Staging (`ckspplijrygjlencrduw`), set through the Management API `config/auth`:
 - `external_google_secret` = the web client secret (never committed; kept on the dev box only)
 - `uri_allow_list` += `wheretopark://**`, `https://where-to-park.expo.app/**`, `https://where-to-park--*.expo.app/**`, `http://localhost:19006/**`
 - `security_manual_linking_enabled = true` (Link Google)
+- Email + password (rj): `external_email_enabled = true`, `mailer_autoconfirm = true` (no confirmation mail), `password_min_length = 8`, `external_phone_enabled = false` (phone sign-in off; existing sessions keep refreshing)
 
 Prod checklist (not done):
 

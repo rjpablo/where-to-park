@@ -7,6 +7,8 @@ export type SavedAccount = {
   userId: string;
   displayName: string | null;
   phone: string | null;
+  /** Sign-in email (email + password or Google), for signing in again. */
+  email?: string | null;
   isAdmin: boolean;
   /** 'signed_out': its saved session no longer works; sign in again to use it. */
   status: 'active' | 'signed_out';
@@ -27,6 +29,7 @@ export function parseAccounts(raw: string | null | undefined): SavedAccount[] {
         userId: a.userId,
         displayName: typeof a.displayName === 'string' ? a.displayName : null,
         phone: typeof a.phone === 'string' ? a.phone : null,
+        email: typeof a.email === 'string' ? a.email : null,
         isAdmin: a.isAdmin === true,
         status: a.status === 'signed_out' ? 'signed_out' : 'active',
         addedAt: typeof a.addedAt === 'number' ? a.addedAt : 0,
@@ -41,7 +44,13 @@ export function parseAccounts(raw: string | null | undefined): SavedAccount[] {
 /** Add or refresh an account (keeps its place in the list; signed in again = active). */
 export function upsertAccount(
   list: SavedAccount[],
-  a: { userId: string; displayName?: string | null; phone?: string | null; isAdmin?: boolean },
+  a: {
+    userId: string;
+    displayName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    isAdmin?: boolean;
+  },
   now = Date.now()
 ): SavedAccount[] {
   const i = list.findIndex((x) => x.userId === a.userId);
@@ -49,6 +58,7 @@ export function upsertAccount(
     userId: a.userId,
     displayName: a.displayName ?? (i >= 0 ? list[i].displayName : null),
     phone: a.phone ?? (i >= 0 ? list[i].phone : null),
+    email: a.email ?? (i >= 0 ? (list[i].email ?? null) : null),
     isAdmin: a.isAdmin ?? (i >= 0 ? list[i].isAdmin : false),
     status: 'active',
     addedAt: i >= 0 ? list[i].addedAt : now,
@@ -72,15 +82,19 @@ export function otherAccounts(list: SavedAccount[], currentId: string | null): S
   return list.filter((a) => a.userId !== currentId);
 }
 
-export function accountLabel(a: { displayName?: string | null; phone?: string | null }): string {
+export function accountLabel(a: {
+  displayName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}): string {
   const name = (a.displayName || '').trim();
-  return name || a.phone || 'Account';
+  return name || a.phone || a.email || 'Account';
 }
 
-/** Second line under an account: phone, admin, or 'Signed out'. */
+/** Second line under an account: email or phone, admin, or 'Signed out'. */
 export function accountSubLabel(a: SavedAccount): string {
   if (a.status === 'signed_out') return 'Signed out · tap to sign in again';
-  return [a.isAdmin ? 'Admin' : null, a.phone].filter(Boolean).join(' · ');
+  return [a.isAdmin ? 'Admin' : null, a.email || a.phone].filter(Boolean).join(' · ');
 }
 
 /** SecureStore keys allow [A-Za-z0-9._-]. */

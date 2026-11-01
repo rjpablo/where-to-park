@@ -115,6 +115,30 @@ BEGIN
   ASSERT pg_temp.fails($q$SELECT pg_temp.google_identity('a0000000-0000-0000-0000-0000000000a5', 'sub-qa-squat', 'qa.squat@example.com', true)$q$,
     'oauth_link_target_unverified'), 'squatted unconfirmed email refused';
 
+  -- 6c. Email + password with auto-confirm (0071): an email account's address isn't proven
+  --     (its email identity has email_verified false), so a Google sign-in with that email
+  --     can't join it, even though email_confirmed_at is set (auto-confirm).
+  INSERT INTO auth.users (id, instance_id, aud, role, email, email_confirmed_at, confirmation_sent_at, created_at, updated_at)
+  VALUES ('a0000000-0000-0000-0000-0000000000a6', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'qa.pw@example.com', now(), now(), now(), now());
+  INSERT INTO auth.identities (id, provider_id, user_id, provider, identity_data, created_at, updated_at)
+  VALUES (gen_random_uuid(), 'a0000000-0000-0000-0000-0000000000a6', 'a0000000-0000-0000-0000-0000000000a6', 'email',
+    '{"sub":"a0000000-0000-0000-0000-0000000000a6","email":"qa.pw@example.com","email_verified":false}', now(), now());
+  ASSERT (SELECT onboarded = false AND display_name = 'New user' AND phone IS NULL FROM profiles WHERE id = 'a0000000-0000-0000-0000-0000000000a6'),
+    'email signup: onboarding asked, no email as name';
+  ASSERT pg_temp.fails($q$SELECT pg_temp.google_identity('a0000000-0000-0000-0000-0000000000a6', 'sub-qa-pw', 'qa.pw@example.com', true)$q$,
+    'oauth_link_target_unverified'), 'auto-confirmed email account not linkable';
+  --     The staging test accounts (phone + admin-set email, unverified) are refused too.
+  ASSERT pg_temp.fails(format($q$SELECT pg_temp.google_identity(%L, 'sub-qa-sarah-pw', %L, true)$q$,
+      (SELECT id FROM auth.users WHERE email = 'sarah@wheretopark.test'), 'sarah@wheretopark.test'),
+    'oauth_link_target_unverified'), 'test account email not linkable';
+  --     The same account with its email confirmed by mail links normally ("link them").
+  UPDATE auth.identities SET identity_data = identity_data || '{"email_verified": true}'
+   WHERE user_id = 'a0000000-0000-0000-0000-0000000000a6' AND provider = 'email';
+  PERFORM pg_temp.google_identity('a0000000-0000-0000-0000-0000000000a6', 'sub-qa-pw2', 'qa.pw@example.com', true);
+  --     A different Google email links to an email account as before (manual Link Google).
+  PERFORM pg_temp.google_identity(JUAN, 'sub-qa-juan-2', 'qa.juan2@example.com', true);
+
   -- 7. Phone sign-ups are unchanged (profile named after the phone, onboarding asked).
   INSERT INTO auth.users (id, instance_id, aud, role, phone, created_at, updated_at)
   VALUES ('a0000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', '639179990001', now(), now());

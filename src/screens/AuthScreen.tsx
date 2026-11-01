@@ -4,6 +4,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../stores/authStore';
 import { isLocalSupabaseUrl } from '../lib/env';
+import { PHONE_SIGN_IN_ENABLED } from '../lib/authConfig';
+import {
+  emailAuthErrorMessage,
+  normalizeEmail,
+  validateEmailPassword,
+  type EmailAuthMode,
+} from '../lib/emailAuth';
 import { theme } from '../lib/theme';
 import { useBottomInset } from '../hooks/useBottomInset';
 
@@ -11,15 +18,34 @@ export function AuthScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
-  const { requestOtp, verifyOtp, completeProfile, signInWithGoogle, signOut, loading } =
-    useAuthStore();
+  const {
+    requestOtp,
+    verifyOtp,
+    completeProfile,
+    signInWithGoogle,
+    signIn,
+    signUp,
+    signOut,
+    loading,
+  } = useAuthStore();
   const user = useAuthStore((s) => s.user);
-  // Accounts page: 'Add account' / signing a saved account in again (phone prefilled).
+  // Accounts page: 'Add account' / signing a saved account in again (email or phone prefilled).
   // complete=1: back from Google as a new account, finish onboarding (name prefilled).
-  const params = useLocalSearchParams<{ phone?: string; add?: string; complete?: string }>();
-  const [step, setStep] = React.useState<'phone' | 'code' | 'profile'>(
-    params.complete ? 'profile' : 'phone'
+  const params = useLocalSearchParams<{
+    phone?: string;
+    email?: string;
+    add?: string;
+    complete?: string;
+  }>();
+  // 'start': email + password and Google (phone OTP too when PHONE_SIGN_IN_ENABLED).
+  const [step, setStep] = React.useState<'start' | 'code' | 'profile'>(
+    params.complete ? 'profile' : 'start'
   );
+  const [email, setEmail] = React.useState(typeof params.email === 'string' ? params.email : '');
+  const [password, setPassword] = React.useState('');
+  const [mode, setMode] = React.useState<EmailAuthMode>('signin');
+  const [emailBusy, setEmailBusy] = React.useState(false);
+  const [notice, setNotice] = React.useState<string | null>(null);
   const [googleBusy, setGoogleBusy] = React.useState(false);
   const presetPhone = typeof params.phone === 'string' ? params.phone : '';
   const [phone, setPhone] = React.useState(presetPhone || '+639183333333');
@@ -59,6 +85,37 @@ export function AuthScreen() {
       router.replace('/search');
     } catch (err: any) {
       setError(err.message || 'Invalid code');
+    }
+  };
+
+  // Email + password (rj): sign in, or create an account (then the same onboarding).
+  const submitEmail = async () => {
+    setError(null);
+    setNotice(null);
+    const invalid = validateEmailPassword(email, password, mode);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      const addr = normalizeEmail(email);
+      const res = mode === 'signup' ? await signUp(addr, password) : await signIn(addr, password);
+      if ('needsConfirmation' in res && res.needsConfirmation) {
+        setNotice('Check your email and open the link to confirm, then sign in.');
+        setMode('signin');
+        return;
+      }
+      setPassword('');
+      if (res.isNew) {
+        setStep('profile');
+        return;
+      }
+      router.replace('/search');
+    } catch (err: any) {
+      setError(emailAuthErrorMessage(err, mode));
+    } finally {
+      setEmailBusy(false);
     }
   };
 
@@ -112,8 +169,8 @@ export function AuthScreen() {
         {params.complete
           ? 'Almost done: confirm your name'
           : params.add
-            ? 'Add an account: sign in with its phone or Google'
-            : 'Sign in with your phone or Google'}
+            ? 'Add an account: sign in with its email or Google'
+            : 'Sign in with your email or Google'}
       </Text>
       {params.add ? (
         <Text style={styles.subtitle} testID="auth-add-note">
@@ -121,18 +178,68 @@ export function AuthScreen() {
         </Text>
       ) : null}
 
-      {step === 'phone' && (
+      {step === 'start' && (
         <View>
-          <Text style={styles.label}>Phone</Text>
+          {/* Phone OTP is off for now (rj); the flag brings it back. */}
+          {PHONE_SIGN_IN_ENABLED ? (
+            <View>
+              <Text style={styles.label}>Phone</Text>
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                testID="auth-phone"
+              />
+              <Button title="Send code" onPress={send} loading={loading} testID="auth-send-otp" />
+              <Text style={styles.or}>or</Text>
+            </View>
+          ) : null}
+          <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            testID="auth-phone"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            placeholder="you@example.com"
+            testID="auth-email"
           />
-          <Button title="Send code" onPress={send} loading={loading} testID="auth-send-otp" />
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            textContentType={mode === 'signup' ? 'newPassword' : 'password'}
+            placeholder={mode === 'signup' ? 'At least 8 characters' : 'Password'}
+            onSubmitEditing={submitEmail}
+            testID="auth-password"
+          />
+          <Button
+            title={mode === 'signup' ? 'Create account' : 'Sign in'}
+            onPress={submitEmail}
+            loading={emailBusy}
+            testID="auth-email-submit"
+          />
+          <Text
+            style={styles.switchLink}
+            onPress={() => {
+              setError(null);
+              setNotice(null);
+              setMode(mode === 'signup' ? 'signin' : 'signup');
+            }}
+            testID="auth-email-mode"
+          >
+            {mode === 'signup' ? 'Have an account? Sign in' : 'New here? Create an account'}
+          </Text>
           <Text style={styles.or}>or</Text>
           <Button
             title="Continue with Google"
@@ -182,6 +289,11 @@ export function AuthScreen() {
         </View>
       )}
 
+      {notice ? (
+        <Text style={styles.notice} testID="auth-notice">
+          {notice}
+        </Text>
+      ) : null}
       {error ? (
         <Text style={styles.error} testID="auth-error">
           {error}
@@ -228,6 +340,16 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textDecorationLine: 'underline',
     marginTop: theme.spacing.lg,
+  },
+  switchLink: {
+    textAlign: 'center',
+    color: theme.colors.primary,
+    marginTop: theme.spacing.sm,
+  },
+  notice: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.md,
   },
   or: {
     textAlign: 'center',

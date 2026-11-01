@@ -26,7 +26,13 @@ interface AuthState {
   verifyOtp: (phone: string, code: string) => Promise<{ isNew: boolean }>;
   /** accountType defaults to 'driver' (onboarding no longer asks; rj). */
   completeProfile: (displayName: string, accountType?: 'driver' | 'operator') => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  /** Email + password sign-in (also from Add account). */
+  signIn: (email: string, password: string) => Promise<{ isNew: boolean }>;
+  /** Email + password sign-up; needsConfirmation when the project requires a confirmation mail. */
+  signUp: (
+    email: string,
+    password: string
+  ) => Promise<{ isNew: boolean; needsConfirmation?: boolean }>;
   /**
    * Google sign-in (also from Add account) or linking Google to the current account.
    * Web navigates away ('redirected'; /oauth-callback finishes). Native returns when done.
@@ -111,6 +117,20 @@ async function clearLocalSession() {
     return;
   }
   await supabase.auth.signOut({ scope: 'local' });
+}
+
+/** Make a fresh session the current account (password sign-in / sign-up); true = onboarding. */
+async function adoptSession(session: {
+  user: { id: string; user_metadata?: Record<string, unknown> | null };
+  access_token?: string;
+  refresh_token?: string;
+}): Promise<boolean> {
+  currentAuthUserId = session.user.id;
+  rememberSession(session);
+  const profile = await loadProfile(session.user.id);
+  useAuthStore.setState({ user: profile });
+  resetPerAccount(session.user.id);
+  return isNewOnboardingProfile(profile, '', session.user.user_metadata ?? null);
 }
 
 /** Per-account state that must not leak across accounts. */
@@ -253,9 +273,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signIn: async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    if (data.user) set({ user: await loadProfile(data.user.id) });
+    set({ loading: true });
+    try {
+      // Adding another account: keep the current one's session for switching back.
+      await saveCurrentSession().catch(() => {});
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (!data.user || !data.session) throw new Error('No session');
+      return { isNew: await adoptSession(data.session) };
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  signUp: async (email: string, password: string) => {
+    set({ loading: true });
+    try {
+      await saveCurrentSession().catch(() => {});
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      // Email confirmation on (prod later): no session until the mail link is opened.
+      if (!data.session) return { isNew: true, needsConfirmation: true };
+      // Supabase answers an existing, confirmed email with a fake user that has no
+      // identities (no session either, so handled above); a session means a new account.
+      return { isNew: await adoptSession(data.session) };
+    } finally {
+      set({ loading: false });
+    }
   },
 
   signInWithGoogle: async (intent = 'signin') => {
@@ -364,16 +408,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// Keep the saved-accounts list in step with whoever is signed in (name, phone, admin).
+// Keep the saved-accounts list in step with whoever is signed in (name, phone, email, admin).
 useAuthStore.subscribe((state, prev) => {
   const u = state.user;
   if (!u || u === prev.user) return;
-  saveAccountInfo({
-    userId: u.id,
-    displayName: u.display_name,
-    phone: u.phone,
-    isAdmin: !!u.is_admin,
-  })
+  supabase.auth
+    .getSession()
+    .then(({ data }) =>
+      saveAccountInfo({
+        userId: u.id,
+        displayName: u.display_name,
+        phone: u.phone,
+        email: data.session?.user?.id === u.id ? (data.session.user.email ?? null) : undefined,
+        isAdmin: !!u.is_admin,
+      })
+    )
     .then((accounts) => useAuthStore.setState({ accounts }))
     .catch(() => {});
 });

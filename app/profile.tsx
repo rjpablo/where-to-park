@@ -9,6 +9,7 @@ import { FilterDropdown } from '../src/components/FilterDropdown';
 import { NAV_APP_OPTIONS } from '../src/lib/navigation';
 import { refreshSidebarCounts, useSidebarStore } from '../src/stores/sidebarStore';
 import { useBottomInset } from '../src/hooks/useBottomInset';
+import { PHONE_SIGN_IN_ENABLED } from '../src/lib/authConfig';
 
 type NavApp = 'google_maps' | 'waze' | 'default';
 
@@ -17,7 +18,7 @@ export default function ProfileScreen() {
   const bottomInset = useBottomInset(theme.spacing.lg);
   const router = useRouter();
   const { user, initialize, signInWithGoogle } = useAuthStore();
-  // Sign-in methods (rj t146u): Phone and/or Google; Link Google uses manual linking.
+  // Sign-in methods (rj t146u): email + password, Phone, Google; Link Google uses manual linking.
   const params = useLocalSearchParams<{ googleLinked?: string }>();
   const [methods, setMethods] = React.useState<{ provider: string; email: string | null }[] | null>(
     null
@@ -40,6 +41,7 @@ export default function ProfileScreen() {
     if (user?.id) loadMethods();
   }, [user?.id, loadMethods]);
   const google = methods?.find((m) => m.provider === 'google') ?? null;
+  const emailMethod = methods?.find((m) => m.provider === 'email') ?? null;
   const linkGoogle = async () => {
     setLinkError(null);
     setLinkNotice(null);
@@ -159,7 +161,18 @@ export default function ProfileScreen() {
 
       <Text style={styles.section}>Sign-in methods</Text>
       <View testID="profile-sign-in-methods">
-        {user.phone ? <Text style={styles.meta}>Phone (code by SMS)</Text> : null}
+        {emailMethod ? (
+          <Text style={styles.meta} testID="profile-email-method">
+            Email and password{emailMethod.email ? `: ${emailMethod.email}` : ''}
+          </Text>
+        ) : null}
+        {user.phone ? (
+          <Text style={styles.meta}>
+            {PHONE_SIGN_IN_ENABLED
+              ? 'Phone (code by SMS)'
+              : `Phone: ${user.phone} (SMS sign-in is off for now)`}
+          </Text>
+        ) : null}
         {google ? (
           <Text style={styles.meta} testID="profile-google-linked">
             Google{google.email ? `: ${google.email}` : ''}

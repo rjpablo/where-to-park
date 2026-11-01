@@ -63,3 +63,18 @@ test('labels and keys', () => {
   assert.equal(tokenKey('a/b'), 'wtp-acct-a_b');
   assert.equal(askedKeyFor('wtp-shortcuts-asked', 'u1'), 'wtp-shortcuts-asked:u1');
 });
+
+test('email accounts (email + password sign-in): saved, labelled, kept on refresh', () => {
+  let list = upsertAccount(
+    [],
+    { userId: 'e', displayName: null, phone: null, email: 'sarah@example.com' },
+    1
+  );
+  assert.equal(accountLabel(list[0]), 'sarah@example.com');
+  list = upsertAccount(list, { userId: 'e', displayName: 'Sarah' }, 2);
+  assert.equal(list[0].email, 'sarah@example.com');
+  assert.equal(accountLabel(list[0]), 'Sarah');
+  assert.equal(accountSubLabel(list[0]), 'sarah@example.com');
+  assert.equal(parseAccounts(JSON.stringify(list))[0].email, 'sarah@example.com');
+  assert.equal(parseAccounts(JSON.stringify([{ userId: 'old', phone: '+63' }]))[0].email, null);
+});
