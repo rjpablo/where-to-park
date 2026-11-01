@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { buildSidebarItems, needsAttention, type SidebarItem } from '../lib/sidebar';
@@ -22,6 +23,8 @@ import { loadShortcuts, useShortcutsStore } from '../stores/shortcutsStore';
 import { shortcutLabel, sidebarShortcuts } from '../lib/shortcuts';
 
 const MAX_WIDTH = 320;
+/** App version from the app config (app.json 'version'), shown at the bottom. */
+const appVersion: string | null = Constants.expoConfig?.version ?? null;
 const ANIM_MS = 200;
 
 /** ☰ button left of the 'Find Parking' header title; red dot when anything needs attention. */
@@ -257,16 +260,21 @@ export function Sidebar({ hasWorkspace }: Props) {
             ))}
             {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           </ScrollView>
-          {signOutItem ? (
-            <View style={styles.footer} testID="sidebar-footer">
+          <View style={styles.footer} testID="sidebar-footer">
+            {signOutItem ? (
               <Row
                 item={signOutItem}
                 busy={busy === 'sign_out'}
                 onPress={() => onItem(signOutItem)}
                 muted
               />
-            </View>
-          ) : null}
+            ) : null}
+            {appVersion ? (
+              <Text style={styles.version} testID="sidebar-version">
+                Version {appVersion}
+              </Text>
+            ) : null}
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -364,6 +372,12 @@ const styles = StyleSheet.create({
     marginVertical: theme.spacing.sm,
   },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border },
+  version: {
+    ...theme.typography.caption,
+    color: theme.colors.text.tertiary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.xs,
+  },
   section: {
     ...theme.typography.caption,
     color: theme.colors.text.tertiary,
