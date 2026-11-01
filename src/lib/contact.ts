@@ -96,3 +96,17 @@ export function contactSender(item: {
   }
   return item.contact ? `Guest: ${item.contact}` : 'Guest (no contact)';
 }
+
+/** Message for a failed admin delete (admin_delete_contact_submission error code). */
+export function contactDeleteErrorMessage(code: string | null | undefined): string {
+  switch (code) {
+    case 'not_found':
+      return 'This message was already deleted.';
+    case 'images_remaining':
+      return "Couldn't delete the images. Nothing was deleted; try again.";
+    case 'Permission denied':
+      return 'Only admins can delete messages.';
+    default:
+      return code ? `Couldn't delete: ${code}` : "Couldn't delete. Try again.";
+  }
+}

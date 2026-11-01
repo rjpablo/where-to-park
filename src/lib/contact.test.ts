@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   categoryLabel,
+  contactDeleteErrorMessage,
   contactErrorMessage,
   contactFormError,
   contactImagePath,
@@ -58,4 +59,12 @@ test('labels, errors, paths, device ids, sender', () => {
   );
   assert.equal(contactSender({ contact: 'a@b.co' }), 'Guest: a@b.co');
   assert.equal(contactSender({}), 'Guest (no contact)');
+});
+
+test('contactDeleteErrorMessage', () => {
+  assert.equal(contactDeleteErrorMessage('not_found'), 'This message was already deleted.');
+  assert.match(contactDeleteErrorMessage('images_remaining'), /Nothing was deleted/);
+  assert.equal(contactDeleteErrorMessage('Permission denied'), 'Only admins can delete messages.');
+  assert.equal(contactDeleteErrorMessage('boom'), "Couldn't delete: boom");
+  assert.equal(contactDeleteErrorMessage(null), "Couldn't delete. Try again.");
 });

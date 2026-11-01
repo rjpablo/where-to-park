@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { ImageCarousel } from '../../src/components/ImageCarousel';
 import { supabase } from '../../src/lib/supabase';
@@ -8,7 +8,12 @@ import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
 import { formatLocalDateTime } from '../../src/utils/formatters';
-import { CONTACT_BUCKET, categoryLabel, contactSender } from '../../src/lib/contact';
+import {
+  CONTACT_BUCKET,
+  categoryLabel,
+  contactDeleteErrorMessage,
+  contactSender,
+} from '../../src/lib/contact';
 
 const SIGNED_URL_TTL_S = 3600;
 
@@ -22,6 +27,7 @@ export default function AdminContactItemScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [viewer, setViewer] = React.useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
 
   const load = React.useCallback(async () => {
     if (!id) return;
@@ -61,6 +67,35 @@ export default function AdminContactItemScreen() {
     }
     await load();
     refreshSidebarCounts();
+  };
+
+  // Admin delete: remove the images through Storage (admin DELETE policy), then the message and
+  // its notifications server-side; the RPC refuses while any image is still stored.
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    const paths: string[] = item?.images || [];
+    if (paths.length) {
+      const { error: storageError } = await supabase.storage.from(CONTACT_BUCKET).remove(paths);
+      if (storageError) {
+        setBusy(false);
+        setConfirmDelete(false);
+        setError(contactDeleteErrorMessage('images_remaining'));
+        return;
+      }
+    }
+    const { data, error: rpcError } = await supabase.rpc('admin_delete_contact_submission', {
+      p_id: id,
+    });
+    setBusy(false);
+    setConfirmDelete(false);
+    if (rpcError || data?.error) {
+      setError(contactDeleteErrorMessage(rpcError?.message || data?.error));
+      if (data?.error === 'images_remaining') load();
+      return;
+    }
+    refreshSidebarCounts();
+    router.replace('/admin/contact');
   };
 
   if (error && !item) {
@@ -118,6 +153,43 @@ export default function AdminContactItemScreen() {
           disabled={busy}
           testID="contact-item-toggle"
         />
+        {confirmDelete ? (
+          <View style={styles.confirm} testID="contact-item-delete-confirm">
+            <Text style={styles.confirmText}>
+              Delete this message
+              {urls.length ? ` and its ${urls.length} image${urls.length === 1 ? '' : 's'}` : ''}?
+              This can't be undone.
+            </Text>
+            <View style={styles.confirmRow}>
+              <Button
+                title="Cancel"
+                variant="outline"
+                onPress={() => setConfirmDelete(false)}
+                disabled={busy}
+                style={styles.confirmBtn}
+                testID="contact-item-delete-no"
+              />
+              <Button
+                title={busy ? 'Deleting…' : 'Delete'}
+                variant="danger"
+                onPress={remove}
+                disabled={busy}
+                style={styles.confirmBtn}
+                testID="contact-item-delete-yes"
+              />
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => setConfirmDelete(true)}
+            disabled={busy}
+            style={styles.deleteLink}
+            accessibilityRole="button"
+            testID="contact-item-delete"
+          >
+            <Text style={styles.deleteText}>Delete message</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ImageCarousel
         images={urls.map((u, i) => ({ key: `${i}`, uri: u }))}
@@ -151,5 +223,17 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   actions: { marginTop: theme.spacing.md },
+  deleteLink: { alignSelf: 'center', paddingVertical: theme.spacing.md },
+  deleteText: { ...theme.typography.body, color: theme.colors.danger, fontWeight: '600' },
+  confirm: {
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.danger,
+  },
+  confirmText: { ...theme.typography.body, marginBottom: theme.spacing.sm },
+  confirmRow: { flexDirection: 'row', gap: theme.spacing.sm },
+  confirmBtn: { flex: 1 },
   error: { ...theme.typography.bodySmall, color: theme.colors.danger },
 });
