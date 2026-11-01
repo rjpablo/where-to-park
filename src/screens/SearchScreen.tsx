@@ -60,6 +60,8 @@ import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
 import { useBottomInset } from '../hooks/useBottomInset';
 import { listingAvailability, listingPinLabel, visibleResults } from '../lib/areas';
+import { useAvailabilityChanges } from '../hooks/useAvailabilityChanges';
+import { changeAffectsSearch, LIVE_REFRESH_DEBOUNCE_MS } from '../lib/liveAvailability';
 
 // Results sheet, three modes (snap points, drag the handle between them):
 // - Minimized: fits its top part (title, summary, one row of filters, distance slider);
@@ -88,6 +90,8 @@ export function SearchScreen() {
     loading,
     error,
     search,
+    refresh,
+    lastSearch,
     filters,
     sortBy,
     setFilters,
@@ -328,9 +332,31 @@ export function SearchScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, sortBy, location.lat, location.lng, searchNonce, search]);
 
+  // Live availability (rj t143u): a change to a listing in the results, or one inside the
+  // searched circle that could now enter them, quietly re-runs the same search
+  // (debounced, batched) so pins, cluster counts, the Show Full filtering and the sheet
+  // rows all come from search_nearby / free_spaces again. The camera and sheet stay put.
+  const resultIds = useMemo(() => new Set(results.map((r) => r.id)), [results]);
+  useAvailabilityChanges(
+    (change) => changeAffectsSearch(change, resultIds, lastSearch),
+    () => {
+      refresh();
+    },
+    LIVE_REFRESH_DEBOUNCE_MS
+  );
+
+  // ETAs follow the result ids only, so a live availability refresh does not re-fetch them.
+  const etaIdsKey = useMemo(
+    () =>
+      results
+        .slice(0, 20)
+        .map((r) => r.id)
+        .join(','),
+    [results]
+  );
   useEffect(() => {
-    if (!results.length) return;
-    const ids = results.slice(0, 20).map((r) => r.id);
+    if (!etaIdsKey) return;
+    const ids = etaIdsKey.split(',');
     supabase
       .rpc('get_etas', {
         p_lat: location.lat,
@@ -344,7 +370,7 @@ export function SearchScreen() {
         });
         setEtas(next);
       });
-  }, [results, location.lat, location.lng]);
+  }, [etaIdsKey, location.lat, location.lng]);
 
   // Stable list props: expanding or collapsing the sheet re-renders this screen, but
   // the rows only re-render when the results, ETAs or nav app change.

@@ -37,6 +37,8 @@ import { pickProcessedImage, processWebFile } from '../../src/utils/processImage
 import { theme } from '../../src/lib/theme';
 import { embeddedOne } from '../../src/lib/embed';
 import { useListingViewers } from '../../src/hooks/useListingViewers';
+import { useAvailabilityChanges } from '../../src/hooks/useAvailabilityChanges';
+import { LIVE_REFRESH_DEBOUNCE_MS } from '../../src/lib/liveAvailability';
 import { viewersLabel } from '../../src/lib/viewerPresence';
 import { parseGeogPoint } from '../../src/lib/geog';
 import { openNavigation } from '../../src/lib/openNavigation';
@@ -222,6 +224,30 @@ export default function LocationDetailScreen() {
     setReportNotice('Report sent');
     setReportTarget(null);
   };
+
+  // Live availability (rj t143u): when this listing's availability changes, re-read just
+  // the availability fields (the free_spaces source and the per-area rows) and merge them
+  // in, without reloading photos, reviews or the page.
+  const refreshAvailability = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from('locations')
+      .select(
+        'available_count, capacity, marked_full, manual_reserved_count, unavailable_count, availability_updated_at, free_spaces, listing_full, areas(id, name, is_main, sort_order, vehicle_types, monitored, marked_full, area_free, area_full)'
+      )
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (data) setLocation((prev: any) => (prev ? { ...prev, ...data } : prev));
+  };
+  useAvailabilityChanges(
+    (change) => change.id === id,
+    () => {
+      refreshAvailability();
+    },
+    LIVE_REFRESH_DEBOUNCE_MS,
+    !!id
+  );
 
   const loadLocation = async () => {
     if (!id) {

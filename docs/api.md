@@ -582,3 +582,7 @@ See `supabase/tests/*.sql` for pgTAP examples.
 ---
 
 **For more details, see the feature spec (`docs/spec.md`) and database schema (`supabase/migrations/`). **
+
+## 🟧 Realtime: `listing-availability` broadcast (0068)
+
+Public broadcast channel (no sign-in needed). Event `changed`, payload `{ id: UUID, lat: number, lng: number }`, sent by a trigger on `locations` whenever a published, non-deleted listing's availability caches change (sessions, area settings, Reserved/Unavailable, Full) or it is published/unpublished/deleted. Carries no counts: clients re-read through `search_nearby` / `free_spaces`. Clients only listen; `realtime.send` and the trigger function aren't callable by clients.
