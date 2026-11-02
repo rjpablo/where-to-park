@@ -94,6 +94,7 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'admin/reports': () => SEARCH,
   'admin/contact': () => SEARCH,
   'admin/contact-item': () => '/admin/contact',
+  'admin/push': () => SEARCH,
 };
 
 function sessionParent(p: RouteParams | undefined): string {

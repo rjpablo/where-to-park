@@ -57,6 +57,7 @@ export type SidebarItemKey =
   | 'moderation'
   | 'contact'
   | 'contact_admin'
+  | 'push_admin'
   | 'sign_out';
 
 export type SidebarItem = {
@@ -167,7 +168,8 @@ export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): Sid
         'open_contact',
         undefined,
         'admin'
-      )
+      ),
+      item('push_admin', 'Push notifications', '/admin/push', counts, undefined, undefined, 'admin')
     );
   }
   items.push(item('sign_out', 'Sign out', undefined, counts));

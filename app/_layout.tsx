@@ -115,6 +115,7 @@ export default function RootLayout() {
           <Stack.Screen name="admin/reports" options={{ title: 'Moderation' }} />
           <Stack.Screen name="admin/contact" options={{ title: 'Contact messages' }} />
           <Stack.Screen name="admin/contact-item" options={{ title: 'Contact message' }} />
+          <Stack.Screen name="admin/push" options={{ title: 'Push notifications' }} />
           <Stack.Screen name="contact" options={{ title: 'Contact Us' }} />
           <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
           <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
