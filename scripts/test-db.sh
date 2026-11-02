@@ -55,6 +55,7 @@ run_tap "$ROOT/supabase/tests/push_events.sql"
 run_tap "$ROOT/supabase/tests/avatars.sql"
 run_tap "$ROOT/supabase/tests/google_avatar.sql"
 run_tap "$ROOT/supabase/tests/listing_owner.sql"
+run_tap "$ROOT/supabase/tests/email_privacy.sql"
 
 echo ""
 echo "Running parallel concurrency test..."
