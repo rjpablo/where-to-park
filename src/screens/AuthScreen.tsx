@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../stores/authStore';
@@ -8,6 +9,7 @@ import { PHONE_SIGN_IN_ENABLED } from '../lib/authConfig';
 import {
   emailAuthErrorMessage,
   normalizeEmail,
+  passwordToggle,
   validateEmailPassword,
   type EmailAuthMode,
 } from '../lib/emailAuth';
@@ -43,6 +45,8 @@ export function AuthScreen() {
   );
   const [email, setEmail] = React.useState(typeof params.email === 'string' ? params.email : '');
   const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
+  const toggle = passwordToggle(showPassword);
   const [mode, setMode] = React.useState<EmailAuthMode>('signin');
   const [emailBusy, setEmailBusy] = React.useState(false);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -210,19 +214,32 @@ export function AuthScreen() {
             testID="auth-email"
           />
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            textContentType={mode === 'signup' ? 'newPassword' : 'password'}
-            placeholder={mode === 'signup' ? 'At least 8 characters' : 'Password'}
-            onSubmitEditing={submitEmail}
-            testID="auth-password"
-          />
+          {/* Eye button shows/hides the password (rj t171u). */}
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              textContentType={mode === 'signup' ? 'newPassword' : 'password'}
+              placeholder={mode === 'signup' ? 'At least 8 characters' : 'Password'}
+              onSubmitEditing={submitEmail}
+              testID="auth-password"
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={toggle.label}
+              hitSlop={8}
+              style={styles.eye}
+              testID="auth-password-toggle"
+            >
+              <Ionicons name={toggle.icon} size={22} color={theme.colors.text.secondary} />
+            </Pressable>
+          </View>
           <Button
             title={mode === 'signup' ? 'Create account' : 'Sign in'}
             onPress={submitEmail}
@@ -340,6 +357,17 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textDecorationLine: 'underline',
     marginTop: theme.spacing.lg,
+  },
+  passwordRow: { position: 'relative', justifyContent: 'center' },
+  passwordInput: { paddingRight: 48 },
+  eye: {
+    position: 'absolute',
+    right: 4,
+    top: 0,
+    bottom: theme.spacing.md,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   switchLink: {
     textAlign: 'center',

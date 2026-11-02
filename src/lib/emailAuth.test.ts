@@ -48,3 +48,9 @@ test('emailAuthErrorMessage maps Supabase Auth errors', () => {
   assert.equal(emailAuthErrorMessage({ message: 'Boom' }, 'signin'), 'Boom');
   assert.equal(emailAuthErrorMessage(null, 'signup'), 'Could not create the account');
 });
+
+test('password toggle: eye shows, eye-off hides', async () => {
+  const { passwordToggle } = await import('./emailAuth.ts');
+  assert.deepEqual(passwordToggle(false), { icon: 'eye', label: 'Show password' });
+  assert.deepEqual(passwordToggle(true), { icon: 'eye-off', label: 'Hide password' });
+});

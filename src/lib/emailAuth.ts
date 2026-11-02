@@ -60,3 +60,13 @@ export function emailAuthErrorMessage(
   }
   return msg || (mode === 'signup' ? 'Could not create the account' : 'Sign-in failed');
 }
+
+/** Password show/hide toggle (rj t171u): the eye button's icon and accessibility label. */
+export function passwordToggle(visible: boolean): {
+  icon: 'eye' | 'eye-off';
+  label: 'Show password' | 'Hide password';
+} {
+  return visible
+    ? { icon: 'eye-off', label: 'Hide password' }
+    : { icon: 'eye', label: 'Show password' };
+}
