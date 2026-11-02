@@ -30,6 +30,55 @@ pg_cron  refresh-overdue (every minute) → refresh_overdue() → "Scheduled end
 The app only registers / removes this device's **Expo push token** and handles taps.
 It never sends pushes and never holds a service-role key.
 
+## Types, recipients and switches (🟧 rj t176u, migrations 0073–0074)
+
+rj's picks from the list of possible pushes (numbers are his). Each type has a switch on
+**Admin › Push notifications** (table `push_settings`). Off = the in-app notification is still
+created, only the push is skipped. A type with no row in `push_settings` (`fee_paid`,
+`new_listing`, `approval_required`, `overdue`) is never pushed.
+
+| # | Type | Event (where the row is made) | Recipients | Push default | Tap opens |
+|---|---|---|---|---|---|
+| 1 | `session_ended` | `end_session` → `notify_session_staff` | listing staff (owners, managers, staff on all listings or this one) | on | Session page |
+| 2 | `session_extended` | `extend_session` → `notify_session_staff` | listing staff | on | Session page |
+| 3 | `scheduled_end` | `refresh_overdue()` (cron `refresh-overdue`, every minute) | listing staff | **off** (not picked; switch kept) | Session page |
+| 4 | `verification_needed` | `create_location` | every admin | on | Verification queue |
+| 5 | `contact_submission` | `submit_contact` | every admin | on | the contact message |
+| 6 | `chat_message` | trigger `chat_messages_notify` (people's text/photo messages; not system events) | driver writes → listing staff; staff writes → the driver. Never the sender | on | the chat thread |
+| 7 | `reservation_request` | trigger `reservations_notify`: status becomes `pending_approval` | listing staff (not the driver) | on | the listing's hub |
+| 9 | `no_show` | trigger `reservations_notify`: status becomes `no_show` | listing staff and the driver | on | staff: listing hub; driver: Location details |
+| 10 | `report` | trigger `reports_notify`: a report on a **listing** | listing owner(s) and managers (the reporter isn't named; not the reporter) | on | the listing's hub |
+| 11 | `listing_reviewed` | trigger `locations_notify_reviewed`: verified, or rejected | listing owner(s) (not the admin who did it) | on | My listings |
+| 12 | `session_ending_soon` | cron `session-ending-soon` (every minute) → `notify_sessions_ending_soon()` | the driver linked to the session (`parking_sessions.driver_id`) | on | Location details |
+| 13 | `reservation_decision` | trigger `reservations_notify`: status becomes `confirmed` or `declined` | the driver | on | Location details |
+| 16 | `staff_added` | trigger `operator_members_notify`: a new manager/staff membership (`invite_staff`) | the person added | on | My listings |
+
+Rules and decisions:
+
+- **Chat burst control (6)**: a message makes a notification only if the recipient has no
+  *unread* chat notification for that thread from the last **10 minutes**. A burst of messages
+  is one push; a reply after 10 minutes (or after they opened the thread) pushes again.
+  Opening a thread (`mark_thread_read`) now also marks its chat notifications read, so the
+  Notifications count doesn't stay up for messages already read. Chat notifications also show
+  in the Notifications list.
+- **Ending soon (12)**: sent when an **active, started** session with a linked driver is within
+  30 minutes of its End, once per End time (`data.end_epoch`). If the session is extended, the
+  new End gets its own reminder when it is 30 minutes away. A session created with an End less
+  than 30 minutes away is reminded at once. Sessions with no linked driver (all walk-ins today)
+  get nothing.
+- **Reservations (7, 9, 13)** are triggers on the `reservations` table. Nothing in the app
+  writes that table yet (Phase 3), so these never fire today; they were tested by writing rows
+  directly. Staff "reservations" (future-start sessions) have no request / confirm / decline
+  / no-show step.
+- **Recipients "listing staff"** = `listing_staff_ids(location)`: owners, managers, and staff
+  assigned to all listings or to that listing (the same people `notify_session_staff` uses).
+- Every row's `data` has `location_id` (where there is one) and `audience` (`driver` /
+  `operator`), which `src/lib/notificationRoute.ts` uses to pick the screen.
+
+Admin screen: `app/admin/push.tsx` (sidebar › Admin › **Push notifications**, admins only).
+RPCs `admin_push_settings()` and `admin_set_push_setting(type, enabled)` refuse non-admins;
+RLS lets only admins read `push_settings`; nobody writes it directly.
+
 ## Identifiers used (staging and the Android app)
 
 | What | Value |
@@ -47,12 +96,12 @@ It never sends pushes and never holds a service-role key.
 | Expo account / project | `the-bad-company` / `@the-bad-company/where-to-park`, project ID `811e8d6d-6c98-4307-9cca-f82f0c767a1a` |
 | EAS credential | Android › `com.thebadcompany.wheretopark` › **Push Notifications (FCM V1): Google Service Account Key** = the service account above (uploaded Nov 3, 2026) |
 | Supabase staging project | `ckspplijrygjlencrduw` (https://ckspplijrygjlencrduw.supabase.co) |
-| Migration | `supabase/migrations/20241029000072_push_delivery.sql` (applied to **staging only**) |
+| Migrations | `20241029000072_push_delivery.sql`, 🟧 `20241029000073_push_settings.sql`, `20241029000074_push_events.sql` (applied to **staging only**) |
 | Edge Function | **`send-push`** — `supabase/functions/send-push/` (`index.ts`, `lib.ts`), URL `https://ckspplijrygjlencrduw.supabase.co/functions/v1/send-push`, deployed with `--no-verify-jwt` (`[functions.send-push] verify_jwt = false` in `supabase/config.toml`) |
 | Function secret | `PUSH_WEBHOOK_SECRET` (optional: `EXPO_ACCESS_TOKEN`, only if Expo "Enhanced push security" is ever turned on; not set) |
 | Vault secrets | `push_webhook_secret` (same value as `PUSH_WEBHOOK_SECRET`), `push_function_url` (the function URL above; not secret) |
-| Trigger | `notifications_push` AFTER INSERT ON `public.notifications` → `push_dispatch_notification()` |
-| pg_cron jobs | `refresh-overdue` `* * * * *` → `SELECT public.refresh_overdue()`; `push-receipts` `*/15 * * * *` → `SELECT public.push_webhook_post('{"action":"receipts"}')` |
+| Trigger | `notifications_push` AFTER INSERT ON `public.notifications` → `push_dispatch_notification()` (🟧 0073: only when the type's `push_settings` switch is on) |
+| pg_cron jobs | `refresh-overdue` `* * * * *` → `SELECT public.refresh_overdue()`; `push-receipts` `*/15 * * * *` → `SELECT public.push_webhook_post('{"action":"receipts"}')`; 🟧 `session-ending-soon` `* * * * *` → `SELECT public.notify_sessions_ending_soon()` (0074) |
 | Tables | `push_tokens` (0025; one row per device token, PK = token), `push_tickets` (0072; Expo tickets waiting for a receipt; RLS on, no client access) |
 | RPCs | `register_push_token(p_token, p_platform)` (0025), `unregister_push_token(p_token)` (0072) |
 | Extensions | `pg_net` (schema `extensions`, created by 0072), `pg_cron` (already on), `supabase_vault` (already on) |
@@ -158,7 +207,7 @@ Firebase, `google-services.json` and the EAS FCM key are per **app**, not per da
 they are already done for prod. For the prod database:
 
 1. Apply migrations 0034–0071 that prod is missing (see `docs/eas-build.md`), then
-   `20241029000072_push_delivery.sql`.
+   `20241029000072_push_delivery.sql`, `…073_push_settings.sql` and `…074_push_events.sql`.
 2. Make a **new** webhook secret for prod (`openssl rand -hex 32`); keep it out of git.
 3. `supabase secrets set PUSH_WEBHOOK_SECRET=… --project-ref pvxtdvyrqviuhhclbije` (or the
    Management API secrets endpoint).
@@ -167,8 +216,8 @@ they are already done for prod. For the prod database:
 5. In the prod SQL editor:
    `select vault.create_secret('<prod secret>', 'push_webhook_secret');`
    `select vault.create_secret('https://pvxtdvyrqviuhhclbije.supabase.co/functions/v1/send-push', 'push_function_url');`
-6. Check: `select jobname, schedule from cron.job;` shows `refresh-overdue` and
-   `push-receipts`.
+6. Check: `select jobname, schedule from cron.job;` shows `refresh-overdue`,
+   `push-receipts` and `session-ending-soon`.
 7. Switch the `production` profile in `eas.json` back to prod and build (push only reaches
    builds made after this feature — 1.0.13 or later).
 
@@ -188,6 +237,19 @@ they are already done for prod. For the prod database:
   `push_webhook_post` or read `push_tickets`.
 - Unit tests: `supabase/functions/send-push/lib.test.ts`, `src/lib/notificationRoute.test.ts`
   (`npm run test:unit`). pgTAP: `supabase/tests/push_delivery.sql` (local DB).
+
+🟧 **Per-type check (Nov 3, 2026, staging, rj t176u)**: with made-up tokens for sarah, juan,
+ana and rj.admin re-added before each step, each event was triggered as the right test account
+(or by writing `reservations` rows directly, since no flow writes them). A row was created for
+every type with the expected recipients, and `pushed_at` was set (push sent to Expo) for every
+type whose switch was on: session ended/extended (juan, ana), new listing (admin), contact
+(admin), chat (sarah's 2 quick messages → one each for juan and ana; juan's reply → sarah),
+reservation request (juan, ana), confirmed and declined (sarah), no-show (juan, ana, sarah),
+report (juan), verified and rejected (juan), ending soon (sarah; a second run made none; +5 min
+on the End made a new one), added as staff (sarah). With a switch off (scheduled end by default;
+chat turned off for one message) the row was created and nothing was pushed. Non-admins get
+"Permission denied" from both admin RPCs and see no `push_settings` rows. All test data was
+removed afterwards (`/workspace/qa-sql/push_verify.py`, `push_cleanup.py` on the box).
 
 **Needs a new Android build (not done; no build was requested):**
 
