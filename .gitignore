@@ -43,3 +43,7 @@ public/maplibre-gl-csp-worker.js
 credentials.json
 *.keystore
 storepass.txt
+
+# Firebase Admin SDK / FCM service account keys (private; never commit)
+*firebase-adminsdk*.json
+.fcm-service-account.json
