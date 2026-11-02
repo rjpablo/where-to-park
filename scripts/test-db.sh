@@ -49,6 +49,7 @@ run_tap "$ROOT/supabase/tests/unverified.sql"
 run_tap "$ROOT/supabase/tests/open_full.sql"
 run_tap "$ROOT/supabase/tests/extend_session.sql"
 run_tap "$ROOT/supabase/tests/notifications.sql"
+run_tap "$ROOT/supabase/tests/push_delivery.sql"
 
 echo ""
 echo "Running parallel concurrency test..."

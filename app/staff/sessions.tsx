@@ -7,7 +7,6 @@ import { firstParam } from '../../src/lib/params';
 import { formatLocalDateTime, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { DateTimeField } from '../../src/components/DateTimeField';
-import { deliverReturnedPush } from '../../src/lib/push';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { SessionSummary } from '../../src/components/SessionSummary';
 import { fetchActiveSessions } from '../../src/lib/activeSessions';
@@ -354,11 +353,6 @@ export default function SessionsScreen() {
                 return;
               }
               setOverrideNotice('Session extended');
-              await deliverReturnedPush(
-                data,
-                'Session extended',
-                `${item.plate} extended by ${extendHours}h`
-              );
               await loadSessions();
             }}
           />

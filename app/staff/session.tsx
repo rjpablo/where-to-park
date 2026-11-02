@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { deliverReturnedPush } from '../../src/lib/push';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
@@ -203,8 +202,7 @@ export default function SessionScreen() {
         await load();
         return;
       }
-      // Push is best-effort: never let it block leaving the page.
-      deliverReturnedPush(data, 'Session ended', 'A walk-in session was closed').catch(() => {});
+      // Staff are pushed by the server (notifications trigger -> send-push), not from here.
       // Back to the Active Sessions screen already in the stack (or open it), not a
       // second copy on top.
       router.dismissTo(
