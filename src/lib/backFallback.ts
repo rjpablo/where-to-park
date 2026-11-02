@@ -29,6 +29,7 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   shortcuts: () => SEARCH,
   contact: () => SEARCH,
   accounts: () => SEARCH,
+  privacy: () => SEARCH,
   vehicles: () => SEARCH,
   'location/[id]': () => SEARCH,
   // A driver's chat goes back to the listing; an operator's (driverId set) to Messages.
