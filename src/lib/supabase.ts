@@ -50,7 +50,7 @@ export type Profile = {
   phone: string | null;
   is_admin: boolean;
   account_type?: 'driver' | 'operator';
-  /** 0069: Google picture (https), set by the server only. */
+  /** 0069/0076: Google picture (https URL) or uploaded photo ('avatars/<id>/<file>'); server-set only. */
   avatar_url?: string | null;
   /** 0069: false until onboarding (name + account type) is saved. */
   onboarded?: boolean;

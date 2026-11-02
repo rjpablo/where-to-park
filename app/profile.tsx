@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput } from 'react-native';
+import { Platform, Pressable, View, Text, StyleSheet, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../src/components/Button';
 import { useAuthStore } from '../src/stores/authStore';
@@ -10,6 +10,10 @@ import { NAV_APP_OPTIONS } from '../src/lib/navigation';
 import { refreshSidebarCounts, useSidebarStore } from '../src/stores/sidebarStore';
 import { useBottomInset } from '../src/hooks/useBottomInset';
 import { PHONE_SIGN_IN_ENABLED } from '../src/lib/authConfig';
+import { Avatar } from '../src/components/Avatar';
+import { pickAvatarImage, processAvatarWebFile } from '../src/utils/avatarImage';
+import { pickWebImageFile } from '../src/utils/chatImage';
+import { removeMyAvatar, uploadMyAvatar } from '../src/lib/avatarUpload';
 
 type NavApp = 'google_maps' | 'waze' | 'default';
 
@@ -63,6 +67,8 @@ export default function ProfileScreen() {
   const [name, setName] = React.useState(user?.display_name || '');
   const [nameNotice, setNameNotice] = React.useState<string | null>(null);
   const [nameBusy, setNameBusy] = React.useState(false);
+  const [photoBusy, setPhotoBusy] = React.useState(false);
+  const [photoNotice, setPhotoNotice] = React.useState<string | null>(null);
   const incomplete = (useSidebarStore((s) => s.counts.profile_incomplete) ?? 0) > 0;
 
   React.useEffect(() => {
@@ -99,6 +105,48 @@ export default function ProfileScreen() {
     refreshSidebarCounts();
   };
 
+  // Profile photo (rj t179u): gallery on Android, file picker on the web; square ~512 px.
+  const changePhoto = async () => {
+    if (!user || photoBusy) return;
+    setPhotoNotice(null);
+    try {
+      let image;
+      if (Platform.OS === 'web') {
+        const file = await pickWebImageFile();
+        if (!file) return;
+        setPhotoBusy(true);
+        image = await processAvatarWebFile(file);
+      } else {
+        image = await pickAvatarImage();
+        if (!image) return;
+        setPhotoBusy(true);
+      }
+      const res = await uploadMyAvatar(user.id, image);
+      if (res.error) setPhotoNotice(res.error);
+      else {
+        useAuthStore.setState({ user: { ...user, avatar_url: res.avatarUrl } });
+        setPhotoNotice('Photo saved');
+      }
+    } catch (e: any) {
+      setPhotoNotice(e?.message || 'Could not change the photo');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    if (!user || photoBusy) return;
+    setPhotoBusy(true);
+    setPhotoNotice(null);
+    const res = await removeMyAvatar(user.id);
+    setPhotoBusy(false);
+    if (res.error) setPhotoNotice(res.error);
+    else {
+      useAuthStore.setState({ user: { ...user, avatar_url: null } });
+      setPhotoNotice('Photo removed');
+    }
+  };
+
   const saveNav = async (app: NavApp) => {
     if (!user) return;
     setNavApp(app);
@@ -122,7 +170,49 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, bottomInset]} testID="profile-ready">
-      <Text style={styles.title}>{user.display_name}</Text>
+      <View style={styles.photoRow}>
+        <Pressable
+          onPress={changePhoto}
+          accessibilityRole="button"
+          accessibilityLabel="Change profile photo"
+          testID="profile-avatar"
+        >
+          <Avatar
+            url={user.avatar_url}
+            size={88}
+            name={user.display_name}
+            testID="profile-avatar-img"
+          />
+        </Pressable>
+        <View style={styles.photoText}>
+          <Text style={styles.title}>{user.display_name}</Text>
+          <View style={styles.photoButtons}>
+            <Button
+              title={photoBusy ? 'Saving…' : 'Change photo'}
+              size="small"
+              variant="outline"
+              onPress={changePhoto}
+              disabled={photoBusy}
+              testID="profile-photo-change"
+            />
+            {user.avatar_url ? (
+              <Button
+                title="Remove photo"
+                size="small"
+                variant="outline"
+                onPress={removePhoto}
+                disabled={photoBusy}
+                testID="profile-photo-remove"
+              />
+            ) : null}
+          </View>
+        </View>
+      </View>
+      {photoNotice ? (
+        <Text style={styles.meta} testID="profile-photo-notice">
+          {photoNotice}
+        </Text>
+      ) : null}
       <Text style={styles.meta} testID="profile-account-type">
         Account type: {user.account_type || 'driver'}
       </Text>
@@ -238,6 +328,9 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   title: { ...theme.typography.h2 },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  photoText: { flex: 1, gap: theme.spacing.sm },
+  photoButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
   meta: { ...theme.typography.body, color: theme.colors.text.secondary },
   section: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },
   row: { flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' },
