@@ -5,6 +5,7 @@ import { Button } from '../src/components/Button';
 import { theme } from '../src/lib/theme';
 import { useAuthStore } from '../src/stores/authStore';
 import { useBottomInset } from '../src/hooks/useBottomInset';
+import { Avatar } from '../src/components/Avatar';
 import { accountLabel, accountSubLabel, type SavedAccount } from '../src/lib/accounts';
 
 /** Accounts on this device: switch, add, sign out others, continue as guest. */
@@ -59,16 +60,24 @@ export default function AccountsScreen() {
     <ScrollView contentContainerStyle={[styles.container, bottomInset]} testID="accounts-ready">
       <Text style={styles.section}>Current</Text>
       <View style={[styles.row, styles.current]} testID="accounts-current">
-        <Text style={styles.name}>
-          {user ? accountLabel({ displayName: user.display_name, phone: user.phone }) : 'Guest'}
-        </Text>
-        <Text style={styles.sub}>
-          {user
-            ? current
-              ? accountSubLabel(current) || 'Signed in'
-              : user.phone || 'Signed in'
-            : 'Not signed in · shortcuts on this device'}
-        </Text>
+        <Avatar
+          url={user?.avatar_url}
+          size={40}
+          name={user?.display_name}
+          testID="accounts-current-avatar"
+        />
+        <View style={styles.rowMain}>
+          <Text style={styles.name}>
+            {user ? accountLabel({ displayName: user.display_name, phone: user.phone }) : 'Guest'}
+          </Text>
+          <Text style={styles.sub}>
+            {user
+              ? current
+                ? accountSubLabel(current) || 'Signed in'
+                : user.phone || 'Signed in'
+              : 'Not signed in · shortcuts on this device'}
+          </Text>
+        </View>
       </View>
 
       <Text style={styles.section}>
@@ -76,6 +85,7 @@ export default function AccountsScreen() {
       </Text>
       {others.map((a) => (
         <View key={a.userId} style={styles.row} testID={`accounts-row-${a.userId}`}>
+          <Avatar url={a.avatarUrl} size={36} name={accountLabel(a)} />
           <TouchableOpacity
             style={styles.rowMain}
             onPress={() => open(a)}
@@ -178,8 +188,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   current: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
     borderWidth: 2,
     borderColor: theme.colors.primary,
   },

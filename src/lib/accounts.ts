@@ -9,6 +9,8 @@ export type SavedAccount = {
   phone: string | null;
   /** Sign-in email (email + password or Google), for signing in again. */
   email?: string | null;
+  /** profiles.avatar_url, for the photo in account lists (rj t179u). */
+  avatarUrl?: string | null;
   isAdmin: boolean;
   /** 'signed_out': its saved session no longer works; sign in again to use it. */
   status: 'active' | 'signed_out';
@@ -30,6 +32,7 @@ export function parseAccounts(raw: string | null | undefined): SavedAccount[] {
         displayName: typeof a.displayName === 'string' ? a.displayName : null,
         phone: typeof a.phone === 'string' ? a.phone : null,
         email: typeof a.email === 'string' ? a.email : null,
+        avatarUrl: typeof a.avatarUrl === 'string' ? a.avatarUrl : null,
         isAdmin: a.isAdmin === true,
         status: a.status === 'signed_out' ? 'signed_out' : 'active',
         addedAt: typeof a.addedAt === 'number' ? a.addedAt : 0,
@@ -49,6 +52,7 @@ export function upsertAccount(
     displayName?: string | null;
     phone?: string | null;
     email?: string | null;
+    avatarUrl?: string | null;
     isAdmin?: boolean;
   },
   now = Date.now()
@@ -59,6 +63,9 @@ export function upsertAccount(
     displayName: a.displayName ?? (i >= 0 ? list[i].displayName : null),
     phone: a.phone ?? (i >= 0 ? list[i].phone : null),
     email: a.email ?? (i >= 0 ? (list[i].email ?? null) : null),
+    // null = removed photo; undefined = unknown, keep the saved one
+    avatarUrl:
+      a.avatarUrl !== undefined ? a.avatarUrl : i >= 0 ? (list[i].avatarUrl ?? null) : null,
     isAdmin: a.isAdmin ?? (i >= 0 ? list[i].isAdmin : false),
     status: 'active',
     addedAt: i >= 0 ? list[i].addedAt : now,

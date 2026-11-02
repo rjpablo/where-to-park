@@ -7,6 +7,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatLocalDateTime, formatRelativeTime } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
 import { embeddedOne } from '../../src/lib/embed';
+import { Avatar } from '../../src/components/Avatar';
 import {
   latestByThread,
   previewText,
@@ -32,7 +33,7 @@ export default function OperatorInboxScreen() {
     let query = supabase
       .from('chat_threads')
       .select(
-        'id, location_id, driver_id, last_message_at, locations(name), public_profiles(display_name)'
+        'id, location_id, driver_id, last_message_at, locations(name), public_profiles(display_name, avatar_url)'
       )
       .order('last_message_at', { ascending: false });
     if (locationId) query = query.eq('location_id', locationId);
@@ -93,26 +94,40 @@ export default function OperatorInboxScreen() {
             accessibilityState={{ selected: unread }}
             testID={`inbox-thread-${t.driver_id}`}
           >
-            <Text
-              style={[styles.rowTitle, unread && styles.unread]}
-              numberOfLines={1}
-              testID={`inbox-name-${t.id}`}
-            >
-              {t.driver_id === user?.id
-                ? t.locations?.name || 'Parking'
-                : embeddedOne<any>(t.public_profiles)?.display_name || 'Driver'}
-            </Text>
-            <Text
-              style={[styles.preview, unread && styles.unread]}
-              numberOfLines={1}
-              testID={`inbox-preview-${t.id}`}
-            >
-              {previewText(latest[t.id], user?.id)}
-            </Text>
-            <Text style={styles.meta}>
-              {t.locations?.name} · {formatLocalDateTime(t.last_message_at)} (
-              {formatRelativeTime(t.last_message_at)})
-            </Text>
+            <View style={styles.threadRow}>
+              {t.driver_id === user?.id ? (
+                <Avatar url={null} size={40} name={t.locations?.name} />
+              ) : (
+                <Avatar
+                  url={embeddedOne<any>(t.public_profiles)?.avatar_url}
+                  size={40}
+                  name={embeddedOne<any>(t.public_profiles)?.display_name}
+                  testID={`inbox-avatar-${t.id}`}
+                />
+              )}
+              <View style={styles.threadText}>
+                <Text
+                  style={[styles.rowTitle, unread && styles.unread]}
+                  numberOfLines={1}
+                  testID={`inbox-name-${t.id}`}
+                >
+                  {t.driver_id === user?.id
+                    ? t.locations?.name || 'Parking'
+                    : embeddedOne<any>(t.public_profiles)?.display_name || 'Driver'}
+                </Text>
+                <Text
+                  style={[styles.preview, unread && styles.unread]}
+                  numberOfLines={1}
+                  testID={`inbox-preview-${t.id}`}
+                >
+                  {previewText(latest[t.id], user?.id)}
+                </Text>
+                <Text style={styles.meta}>
+                  {t.locations?.name} · {formatLocalDateTime(t.last_message_at)} (
+                  {formatRelativeTime(t.last_message_at)})
+                </Text>
+              </View>
+            </View>
           </TouchableOpacity>
         );
       })}
@@ -141,6 +156,8 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   // Name and preview are bold only while the thread has unread messages.
+  threadRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  threadText: { flex: 1, minWidth: 0 },
   rowTitle: { ...theme.typography.body, fontWeight: '400' },
   preview: { ...theme.typography.body, fontWeight: '400', color: theme.colors.text.primary },
   unread: { fontWeight: '700' },

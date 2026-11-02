@@ -78,3 +78,17 @@ test('email accounts (email + password sign-in): saved, labelled, kept on refres
   assert.equal(parseAccounts(JSON.stringify(list))[0].email, 'sarah@example.com');
   assert.equal(parseAccounts(JSON.stringify([{ userId: 'old', phone: '+63' }]))[0].email, null);
 });
+
+test('profile photo (rj t179u): saved, kept when unknown, cleared on remove', () => {
+  let list = upsertAccount(
+    [],
+    { userId: 'u1', displayName: 'A', avatarUrl: 'avatars/u1/1.jpg' },
+    1
+  );
+  assert.equal(list[0].avatarUrl, 'avatars/u1/1.jpg');
+  list = upsertAccount(list, { userId: 'u1', displayName: 'A' }, 2);
+  assert.equal(list[0].avatarUrl, 'avatars/u1/1.jpg');
+  list = upsertAccount(list, { userId: 'u1', avatarUrl: null }, 3);
+  assert.equal(list[0].avatarUrl, null);
+  assert.equal(parseAccounts(JSON.stringify([{ userId: 'u2', avatarUrl: 5 }]))[0].avatarUrl, null);
+});

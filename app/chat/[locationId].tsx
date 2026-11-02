@@ -22,6 +22,7 @@ import { theme } from '../../src/lib/theme';
 import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
 import { pathsNeedingUrl, sameMessages, type SignedUrlEntry } from '../../src/lib/signedUrls';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { Avatar } from '../../src/components/Avatar';
 
 /** Signed chat-image URLs last an hour and are renewed 5 minutes before they expire. */
 const SIGNED_URL_TTL_S = 3600;
@@ -47,6 +48,11 @@ export default function ChatScreen() {
   }>();
   const { user, initialize } = useAuthStore();
   const [locationName, setLocationName] = React.useState('Messages');
+  // Who you are talking to, for the header (rj t179u): the driver (staff view).
+  const [peer, setPeer] = React.useState<{
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null>(null);
   const [threadId, setThreadId] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [draft, setDraft] = React.useState('');
@@ -148,6 +154,14 @@ export default function ChatScreen() {
       .eq('id', locationId)
       .maybeSingle();
     if (loc?.name) setLocationName(loc.name);
+    if (driverId && driverId !== user?.id) {
+      const { data: p } = await supabase
+        .from('public_profiles')
+        .select('display_name, avatar_url')
+        .eq('id', driverId)
+        .maybeSingle();
+      setPeer(p ?? null);
+    }
 
     let id: string | null = null;
     if (driverId) {
@@ -177,7 +191,7 @@ export default function ChatScreen() {
     setThreadId(id);
     if (id) await loadMessages(id);
     setLoading(false);
-  }, [driverId, loadMessages, locationId]);
+  }, [driverId, loadMessages, locationId, user?.id]);
 
   React.useEffect(() => {
     initialize();
@@ -298,7 +312,21 @@ export default function ChatScreen() {
 
   return (
     <View style={[styles.container, bottomInset]} testID="chat-ready">
-      <Text style={styles.title}>{locationName}</Text>
+      {peer ? (
+        <View style={styles.header} testID="chat-header">
+          <Avatar url={peer.avatar_url} size={40} name={peer.display_name} testID="chat-avatar" />
+          <View style={styles.headerText}>
+            <Text style={styles.headerName} numberOfLines={1} testID="chat-peer-name">
+              {peer.display_name || 'Driver'}
+            </Text>
+            <Text style={styles.headerSub} numberOfLines={1}>
+              {locationName}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.title}>{locationName}</Text>
+      )}
       <ScrollView style={styles.thread} testID="chat-thread">
         {messages.map((m) => (
           <MessageRow
@@ -413,6 +441,15 @@ const MessageRow = React.memo(function MessageRow({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.lg },
   title: { ...theme.typography.h2, marginBottom: theme.spacing.md },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  headerText: { flex: 1, minWidth: 0 },
+  headerName: { ...theme.typography.h3 },
+  headerSub: { ...theme.typography.caption, color: theme.colors.text.secondary },
   thread: { flex: 1, marginBottom: theme.spacing.md },
   bubble: {
     padding: theme.spacing.md,

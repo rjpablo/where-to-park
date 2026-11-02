@@ -415,7 +415,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// Keep the saved-accounts list in step with whoever is signed in (name, phone, email, admin).
+// Keep the saved-accounts list in step with whoever is signed in (name, phone, email, photo, admin).
 useAuthStore.subscribe((state, prev) => {
   const u = state.user;
   if (!u || u === prev.user) return;
@@ -426,6 +426,7 @@ useAuthStore.subscribe((state, prev) => {
         userId: u.id,
         displayName: u.display_name,
         phone: u.phone,
+        avatarUrl: u.avatar_url ?? null,
         email: data.session?.user?.id === u.id ? (data.session.user.email ?? null) : undefined,
         isAdmin: !!u.is_admin,
       })

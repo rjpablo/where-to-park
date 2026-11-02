@@ -8,6 +8,7 @@ import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { refreshSidebarCounts } from '../../src/stores/sidebarStore';
 import { formatLocalDateTime } from '../../src/utils/formatters';
 import { categoryLabel, contactSender } from '../../src/lib/contact';
+import { Avatar } from '../../src/components/Avatar';
 
 type Filter = 'open' | 'resolved' | 'all';
 const FILTERS: { value: Filter; label: string }[] = [
@@ -107,12 +108,17 @@ export default function AdminContactScreen() {
             <Text style={styles.preview} numberOfLines={2}>
               {item.preview}
             </Text>
-            <Text style={styles.meta}>
-              {contactSender(item)} · {formatLocalDateTime(item.created_at)}
-              {Number(item.images)
-                ? ` · ${item.images} image${Number(item.images) === 1 ? '' : 's'}`
-                : ''}
-            </Text>
+            <View style={styles.senderRow}>
+              {item.user_id ? (
+                <Avatar url={item.user_avatar_url} size={24} name={item.user_name} />
+              ) : null}
+              <Text style={[styles.meta, styles.senderText]}>
+                {contactSender(item)} · {formatLocalDateTime(item.created_at)}
+                {Number(item.images)
+                  ? ` · ${item.images} image${Number(item.images) === 1 ? '' : 's'}`
+                  : ''}
+              </Text>
+            </View>
           </TouchableOpacity>
         )}
       />
@@ -121,6 +127,8 @@ export default function AdminContactScreen() {
 }
 
 const styles = StyleSheet.create({
+  senderRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  senderText: { flex: 1 },
   container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.background },
   chips: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
   chip: {

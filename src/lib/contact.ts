@@ -87,6 +87,7 @@ export function isDeviceId(v: string | null | undefined): v is string {
 export function contactSender(item: {
   user_id?: string | null;
   user_name?: string | null;
+  user_avatar_url?: string | null;
   user_phone?: string | null;
   contact?: string | null;
 }): string {

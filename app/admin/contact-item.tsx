@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { ImageCarousel } from '../../src/components/ImageCarousel';
+import { Avatar } from '../../src/components/Avatar';
 import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
@@ -126,9 +127,19 @@ export default function AdminContactItemScreen() {
           {resolved ? 'Resolved' : 'Open'}
         </Text>
       </View>
-      <Text style={styles.meta} testID="contact-item-sender">
-        {contactSender(item)}
-      </Text>
+      <View style={styles.senderRow}>
+        {item.user_id ? (
+          <Avatar
+            url={item.user_avatar_url}
+            size={32}
+            name={item.user_name}
+            testID="contact-item-avatar"
+          />
+        ) : null}
+        <Text style={[styles.meta, styles.senderText]} testID="contact-item-sender">
+          {contactSender(item)}
+        </Text>
+      </View>
       <Text style={styles.meta}>{formatLocalDateTime(item.created_at)}</Text>
       {resolved && item.resolved_at ? (
         <Text style={styles.meta}>
@@ -201,6 +212,8 @@ export default function AdminContactItemScreen() {
 }
 
 const styles = StyleSheet.create({
+  senderRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  senderText: { flex: 1 },
   container: { padding: theme.spacing.lg, backgroundColor: theme.colors.background, flexGrow: 1 },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   category: { ...theme.typography.h3 },

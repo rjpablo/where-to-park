@@ -21,6 +21,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useSidebarStore } from '../stores/sidebarStore';
 import { loadShortcuts, useShortcutsStore } from '../stores/shortcutsStore';
 import { shortcutLabel, sidebarShortcuts } from '../lib/shortcuts';
+import { Avatar } from './Avatar';
 import { accountLabel, accountSubLabel, otherAccounts } from '../lib/accounts';
 
 const MAX_WIDTH = 320;
@@ -238,6 +239,12 @@ export function Sidebar({ hasWorkspace }: Props) {
           ]}
         >
           <View style={styles.header}>
+            <Avatar
+              url={user?.avatar_url}
+              size={40}
+              name={user?.display_name}
+              testID="sidebar-avatar"
+            />
             <TouchableOpacity
               style={styles.headerText}
               onPress={() => setAccountsOpen((o) => !o)}
@@ -271,7 +278,7 @@ export function Sidebar({ hasWorkspace }: Props) {
               {otherAccounts(accounts, user?.id ?? null).map((a) => (
                 <TouchableOpacity
                   key={a.userId}
-                  style={styles.accountRow}
+                  style={[styles.accountRow, styles.accountRowPhoto]}
                   disabled={!!busy}
                   onPress={async () => {
                     if (a.status === 'signed_out') {
@@ -296,17 +303,20 @@ export function Sidebar({ hasWorkspace }: Props) {
                   accessibilityLabel={`Switch to ${accountLabel(a)}`}
                   testID={`sidebar-account-${a.userId}`}
                 >
-                  <Text style={styles.accountName} numberOfLines={1}>
-                    {busy === `acct-${a.userId}` ? `${accountLabel(a)}…` : accountLabel(a)}
-                  </Text>
-                  {accountSubLabel(a) ? (
-                    <Text
-                      style={[styles.sub, a.status === 'signed_out' && styles.signedOut]}
-                      numberOfLines={1}
-                    >
-                      {a.status === 'signed_out' ? 'Signed out' : accountSubLabel(a)}
+                  <Avatar url={a.avatarUrl} size={28} name={accountLabel(a)} />
+                  <View style={styles.headerText}>
+                    <Text style={styles.accountName} numberOfLines={1}>
+                      {busy === `acct-${a.userId}` ? `${accountLabel(a)}…` : accountLabel(a)}
                     </Text>
-                  ) : null}
+                    {accountSubLabel(a) ? (
+                      <Text
+                        style={[styles.sub, a.status === 'signed_out' && styles.signedOut]}
+                        numberOfLines={1}
+                      >
+                        {a.status === 'signed_out' ? 'Signed out' : accountSubLabel(a)}
+                      </Text>
+                    ) : null}
+                  </View>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
@@ -421,7 +431,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.md,
@@ -435,6 +445,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   accountRow: { paddingHorizontal: theme.spacing.lg, paddingVertical: 10 },
+  accountRowPhoto: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   accountName: { ...theme.typography.body, fontWeight: '600' },
   manage: { ...theme.typography.body, color: theme.colors.primary, fontWeight: '600' },
   signedOut: { color: theme.colors.danger },

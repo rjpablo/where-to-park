@@ -63,6 +63,7 @@ import {
 import * as ExpoLocation from 'expo-location';
 import { navigateLabel, preferredNavApp } from '../../src/lib/navigation';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { Avatar } from '../../src/components/Avatar';
 import { loadShortcuts, useShortcutsStore } from '../../src/stores/shortcutsStore';
 import {
   loadMyMemberships,
@@ -271,7 +272,7 @@ export default function LocationDetailScreen() {
           location_photos(*),
           location_policies(*),
           rates(*),
-          reviews(*, public_profiles(display_name), review_photos(id, storage_path, sort_order)),
+          reviews(*, public_profiles(display_name, avatar_url), review_photos(id, storage_path, sort_order)),
           location_rating_stats(review_count, avg_rating)
         `
         )
@@ -837,9 +838,17 @@ export default function LocationDetailScreen() {
                   style={styles.reviewItem}
                   testID={`review-${review.author_id}`}
                 >
-                  <Text style={styles.reviewAuthor}>
-                    {embeddedOne<any>(review.public_profiles)?.display_name || 'Anonymous'}
-                  </Text>
+                  <View style={styles.reviewAuthorRow}>
+                    <Avatar
+                      url={embeddedOne<any>(review.public_profiles)?.avatar_url}
+                      size={28}
+                      name={embeddedOne<any>(review.public_profiles)?.display_name}
+                      testID={`review-avatar-${review.author_id}`}
+                    />
+                    <Text style={styles.reviewAuthor}>
+                      {embeddedOne<any>(review.public_profiles)?.display_name || 'Anonymous'}
+                    </Text>
+                  </View>
                   {review.session_id || review.reservation_id ? (
                     <Text style={styles.bookedLabel} testID="booked-via-app">
                       Booked via app
@@ -1095,6 +1104,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,
   },
+  reviewAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   reviewAuthor: {
     ...theme.typography.body,
     fontWeight: '600',

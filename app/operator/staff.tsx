@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { Avatar } from '../../src/components/Avatar';
 
 export default function StaffScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
@@ -40,7 +41,7 @@ export default function StaffScreen() {
           .single(),
         supabase
           .from('operator_members')
-          .select('id, role, profile_id, profiles(display_name, phone)')
+          .select('id, role, profile_id, profiles(display_name, phone, avatar_url)')
           .eq('operator_id', operatorId),
       ]);
       if (opErr) throw opErr;
@@ -135,7 +136,17 @@ export default function StaffScreen() {
       <Text style={styles.heading}>Members</Text>
       {members.map((member) => (
         <View key={member.id} style={styles.card} testID={`staff-row-${member.role}`}>
-          <Text style={styles.rowTitle}>{member.profiles?.display_name || member.profile_id}</Text>
+          <View style={styles.memberRow}>
+            <Avatar
+              url={member.profiles?.avatar_url}
+              size={36}
+              name={member.profiles?.display_name}
+              testID={`staff-avatar-${member.profile_id}`}
+            />
+            <Text style={styles.rowTitle}>
+              {member.profiles?.display_name || member.profile_id}
+            </Text>
+          </View>
           <Text style={styles.meta}>
             {member.role}
             {member.profiles?.phone ? ` · ${member.profiles.phone}` : ''}
@@ -214,6 +225,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   rowTitle: { ...theme.typography.body, fontWeight: '600' },
   meta: {
     ...theme.typography.bodySmall,
