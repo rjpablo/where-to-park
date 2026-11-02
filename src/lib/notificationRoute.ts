@@ -11,6 +11,7 @@ export type PushData = {
   ref_id?: unknown;
   location_id?: unknown;
   driver_id?: unknown;
+  audience?: unknown;
   [key: string]: unknown;
 };
 
@@ -27,6 +28,9 @@ export function notificationRoute(data: PushData | null | undefined): string {
   const refType = typeof data.ref_type === 'string' ? data.ref_type : '';
   const refId = id(data.ref_id);
   const locationId = id(data.location_id);
+  const forDriver = data.audience === 'driver';
+  const listing = locationId ? `/location/${locationId}` : NOTIFICATIONS_ROUTE;
+  const hub = locationId ? `/operator/hub/${locationId}` : '/operator/listings';
 
   switch (type) {
     case 'contact_submission':
@@ -36,14 +40,29 @@ export function notificationRoute(data: PushData | null | undefined): string {
     case 'approval_required':
       return '/admin/verify';
     case 'report':
-      return '/admin/reports';
+      // 0074: a driver's report on your listing -> that listing's page (operators).
+      return data.audience === 'operator' || refType === 'location' ? hub : '/admin/reports';
     case 'chat_message': {
       if (!locationId) return '/operator/inbox';
       const driverId = id(data.driver_id);
-      return driverId ? `/chat/${locationId}?driverId=${driverId}` : `/chat/${locationId}`;
+      return driverId && !forDriver
+        ? `/chat/${locationId}?driverId=${driverId}`
+        : `/chat/${locationId}`;
     }
+    case 'reservation_request':
+      return hub;
+    case 'no_show':
+      return forDriver ? listing : hub;
+    case 'reservation_decision':
+    case 'session_ending_soon':
+      return listing;
+    case 'listing_reviewed':
+    case 'staff_added':
+      return '/operator/listings';
   }
-  if (refType === 'session' && refId) return `/staff/session?id=${refId}`;
+  if (refType === 'session' && refId) {
+    return forDriver ? listing : `/staff/session?id=${refId}`;
+  }
   if (refType === 'location' && refId) return `/location/${refId}`;
   return NOTIFICATIONS_ROUTE;
 }
