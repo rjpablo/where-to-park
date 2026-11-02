@@ -114,7 +114,7 @@ the prod anon key), apply the pending migrations and auth config to prod (see
 - Staging has the same schema as prod: every migration in `supabase/migrations` in order,
   **except `20241029000007_auth_uid.sql`, which must never be applied to a hosted project**.
   Apply new migrations to staging first, then prod.
-- Edge functions: `get-etas` (the same set prod has; `notify` isn't deployed on either).
+- Edge functions: `get-etas` (the same set prod has; `notify` isn't deployed on either). 🟧 Staging also has `send-push` (push notifications, migration 0072; see `docs/push-notifications.md`); prod doesn't yet.
 - Auth: 🟧 email + password (auto-confirm, min 8) and Google; phone provider **off** since 1.0.11
   (it had test numbers +639170000001 to +639170000004). The 4 demo users have test emails
   (`sarah@`, `juan@`, `ana@`, `rj.admin@wheretopark.test`) with one shared password kept off the repo.
