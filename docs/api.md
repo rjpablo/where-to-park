@@ -594,3 +594,17 @@ Public broadcast channel (no sign-in needed). Event `changed`, payload `{ id: UU
 - `guard_oauth_identity` (BEFORE INSERT / UPDATE OF identity_data on `auth.identities`, non-phone/email providers). Errors: `oauth_email_not_verified`, `oauth_email_belongs_to_another_account`, `oauth_link_target_unverified` (🟧 0070: only when the target account already has another identity; GoTrue confirms a new OAuth user's email after inserting its identity). GoTrue reports them to the app as a sign-in error ('Database error …'). 🟧 0071: also `oauth_link_target_unverified` when the target account has an `email` (password) identity with the same email that isn't verified (`identity_data.email_verified`; auto-confirmed sign-ups).
 - `oauth_identity_linked` (AFTER INSERT): fills a missing `profiles.avatar_url` when Google is linked to an existing account.
 - Not client-callable: all three trigger functions have EXECUTE revoked.
+
+## 🟧 Profile photos, listing owner, email privacy (0075–0080, rj t179u)
+
+- 0075: `public_profiles` is **read-only** (SELECT only for anon/authenticated; it was an auto-updatable view, so anyone could rename any user).
+- `profiles.avatar_url text`: either a Storage path `avatars/<user id>/<file>.jpg` (uploaded) or a Google `https://` URL. The app turns a Storage path into `${SUPABASE_URL}/storage/v1/object/public/avatars/<user id>/<file>` (`src/lib/avatar.ts`). Not writable by clients directly (no column grant); use the RPCs below. `profiles.avatar_removed_at timestamptz`: set by **Remove photo**; while set, Google never fills the photo.
+- Storage bucket `avatars` (0076): public read, 2 MB, `image/jpeg|png|webp`. Insert/update/delete only in your own folder `<auth.uid()>/` (one level).
+- `set_my_avatar(p_path text) → {success, avatar_url} | {error}` (authenticated): `p_path` = `<your id>/<name>` (`[A-Za-z0-9._-]{1,80}`), the object must already be uploaded. Errors: `not_signed_in`, `invalid_path`, `not_uploaded`. Clears `avatar_removed_at`.
+- `clear_my_avatar() → {success}` (authenticated): photo off (`avatar_url` null, `avatar_removed_at` now). The app then deletes your files in the bucket.
+- 0077 `oauth_identity_linked`: fills the Google picture only when `avatar_url` is null **and** `avatar_removed_at` is null. Backfills existing Google accounts the same way.
+- 0078 `public_profiles` = `id, display_name, avatar_url` (embeds `public_profiles(...)` from `reviews` and `chat_threads` return it too). `admin_contact_submissions` / `admin_contact_submission` items add `user_avatar_url`.
+- 0079 `listing_owner(p_location_id uuid) → {id, display_name, avatar_url} | null` (anon, authenticated): the listing's operator owner (earliest owner). Null when the listing is not visible to you (unpublished/deleted and you are not on its team or admin) or has no owner. Never email or phone.
+- 0080 `oauth_display_name`: ignores a provider name containing '@'.
+- **Email privacy**: no client-readable table, view or RPC returns an email; emails stay in `auth.users`/`auth.identities` (no client grants). Your own email: `GET /auth/v1/user`. Tests: `supabase/tests/email_privacy.sql`, `scripts/test-email-privacy.js` (signs in as each test account and checks no response holds another account's email; `/auth/v1/admin/users` refused). Known: `invite_staff` answers `user_not_found` for an unknown email/phone, which tells an operator whether an account exists (no email is returned).
+
