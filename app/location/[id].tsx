@@ -90,6 +90,11 @@ export default function LocationDetailScreen() {
   // Owners, managers and staff assigned to this listing get 'Manage listing'.
   const [manageRole, setManageRole] = useState<OperatorRole | null>(null);
   const [location, setLocation] = useState<any>(null);
+  // "Listed by" (rj t179u): owner's name + photo only (listing_owner, migration 0079).
+  const [owner, setOwner] = useState<{
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null>(null);
   // Live count of people on this page (including me), via Realtime Presence; joins once
   // the listing has loaded (not for 'Listing not found').
   const viewers = useListingViewers(location?.id ?? null);
@@ -289,6 +294,10 @@ export default function LocationDetailScreen() {
         )
         .eq('location_id', id);
       setCollection(photoError ? null : collectionImages(photoRows, collectionUrl));
+      const { data: ownerRow } = data
+        ? await supabase.rpc('listing_owner', { p_location_id: id })
+        : { data: null };
+      setOwner(ownerRow ?? null);
       // Deleted (or never existing) listings: show 'Listing not found', not an error.
       setLocation(data || null);
     } catch (err: any) {
@@ -503,6 +512,19 @@ export default function LocationDetailScreen() {
             </Text>
           </TouchableOpacity>
           <Text style={styles.address}>{location.address}</Text>
+          {owner ? (
+            <View style={styles.listedBy} testID="listing-owner">
+              <Avatar
+                url={owner.avatar_url}
+                size={24}
+                name={owner.display_name}
+                testID="listing-owner-avatar"
+              />
+              <Text style={styles.listedByText} numberOfLines={1}>
+                Listed by {owner.display_name || 'the owner'}
+              </Text>
+            </View>
+          ) : null}
           {distanceLine ? (
             <Text style={styles.distance} numberOfLines={2} testID="listing-distance">
               {distanceLine}
@@ -1011,6 +1033,13 @@ const styles = StyleSheet.create({
     ...theme.typography.h2,
     marginBottom: theme.spacing.xs,
   },
+  listedBy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  listedByText: { ...theme.typography.body, color: theme.colors.text.secondary, flexShrink: 1 },
   address: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,

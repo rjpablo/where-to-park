@@ -48,10 +48,12 @@ export default function ChatScreen() {
   }>();
   const { user, initialize } = useAuthStore();
   const [locationName, setLocationName] = React.useState('Messages');
-  // Who you are talking to, for the header (rj t179u): the driver (staff view).
+  // Who you are talking to, for the header (rj t179u): the driver (staff view) or the
+  // listing's owner (driver view, listing_owner 0079).
   const [peer, setPeer] = React.useState<{
     display_name: string | null;
     avatar_url: string | null;
+    owner?: boolean;
   } | null>(null);
   const [threadId, setThreadId] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -161,6 +163,9 @@ export default function ChatScreen() {
         .eq('id', driverId)
         .maybeSingle();
       setPeer(p ?? null);
+    } else {
+      const { data: o } = await supabase.rpc('listing_owner', { p_location_id: locationId });
+      setPeer(o ? { ...o, owner: true } : null);
     }
 
     let id: string | null = null;
@@ -317,10 +322,10 @@ export default function ChatScreen() {
           <Avatar url={peer.avatar_url} size={40} name={peer.display_name} testID="chat-avatar" />
           <View style={styles.headerText}>
             <Text style={styles.headerName} numberOfLines={1} testID="chat-peer-name">
-              {peer.display_name || 'Driver'}
+              {peer.owner ? locationName : peer.display_name || 'Driver'}
             </Text>
             <Text style={styles.headerSub} numberOfLines={1}>
-              {locationName}
+              {peer.owner ? `Listed by ${peer.display_name || 'the owner'}` : locationName}
             </Text>
           </View>
         </View>

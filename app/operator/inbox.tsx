@@ -28,6 +28,9 @@ export default function OperatorInboxScreen() {
   const [messages, setMessages] = React.useState<InboxMessage[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
+  // Your own conversations (as a driver): the listing owner's photo (listing_owner, 0079).
+  const [owners, setOwners] = React.useState<Record<string, string | null>>({});
+  const ownersRef = React.useRef<Record<string, string | null>>({});
 
   const load = React.useCallback(async () => {
     let query = supabase
@@ -55,8 +58,26 @@ export default function OperatorInboxScreen() {
       setMessages([]);
     }
     setThreads(rows);
+    const missing = [
+      ...new Set(
+        rows
+          .filter((t: any) => t.driver_id === user?.id && !(t.location_id in ownersRef.current))
+          .map((t: any) => t.location_id as string)
+      ),
+    ];
+    if (missing.length) {
+      const found = await Promise.all(
+        missing.map((lid) =>
+          supabase
+            .rpc('listing_owner', { p_location_id: lid })
+            .then(({ data: o }) => [lid, o?.avatar_url ?? null] as const)
+        )
+      );
+      ownersRef.current = { ...ownersRef.current, ...Object.fromEntries(found) };
+      setOwners(ownersRef.current);
+    }
     setLoading(false);
-  }, [locationId]);
+  }, [locationId, user?.id]);
 
   React.useEffect(() => {
     initialize();
@@ -96,7 +117,7 @@ export default function OperatorInboxScreen() {
           >
             <View style={styles.threadRow}>
               {t.driver_id === user?.id ? (
-                <Avatar url={null} size={40} name={t.locations?.name} />
+                <Avatar url={owners[t.location_id]} size={40} name={t.locations?.name} />
               ) : (
                 <Avatar
                   url={embeddedOne<any>(t.public_profiles)?.avatar_url}
