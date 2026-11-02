@@ -8,6 +8,7 @@ import { useBackToExit } from '../src/hooks/useBackToExit';
 import { SidebarToggle } from '../src/components/Sidebar';
 import { Toast } from '../src/components/Toast';
 import { ShortcutsMergePrompt } from '../src/components/ShortcutsMergePrompt';
+import { PushNotificationsBridge } from '../src/components/PushNotificationsBridge';
 import { FallbackBackButton } from '../src/components/FallbackBackButton';
 import { backFallback, type RouteParams } from '../src/lib/backFallback';
 import { theme } from '../src/lib/theme';
@@ -27,9 +28,11 @@ export default function RootLayout() {
     initialize();
   }, [initialize]);
 
+  // Push permission is asked once someone is signed in; the token follows the account.
+  const userId = user?.id;
   React.useEffect(() => {
-    if (user) registerPushToken();
-  }, [user]);
+    if (userId) registerPushToken();
+  }, [userId]);
 
   // Restore the saved session before any screen decides the user is signed out.
   if (!initialized) {
@@ -119,6 +122,7 @@ export default function RootLayout() {
       </KeyboardAvoidingView>
       <Toast />
       <ShortcutsMergePrompt />
+      <PushNotificationsBridge />
     </GestureHandlerRootView>
   );
 }

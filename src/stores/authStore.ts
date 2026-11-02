@@ -16,6 +16,7 @@ import { finishOAuthRedirect, startGoogleOAuth } from '../lib/googleAuth';
 import type { OAuthIntent } from '../lib/oauthCallback';
 import { useSidebarStore } from './sidebarStore';
 import { useShortcutsStore } from './shortcutsStore';
+import { registerPushToken, unregisterPushToken } from '../lib/push';
 
 interface AuthState {
   user: Profile | null;
@@ -336,6 +337,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     const id = get().user?.id ?? currentAuthUserId;
+    await unregisterPushToken();
     await supabase.auth.signOut({ scope: 'local' });
     currentAuthUserId = null;
     if (id) await forgetAccount(id);
@@ -351,6 +353,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const prevId = get().user?.id ?? null;
     if (prevId === userId) return {};
     await saveCurrentSession().catch(() => {});
+    // This device stops getting the previous account's pushes; the new one registers it.
+    if (prevId) await unregisterPushToken();
     const prevTokens = prevId ? await readTokens(prevId) : null;
     const tokens = await readTokens(userId);
     const fail = async (code: 'signed_out' | 'failed') => {
@@ -369,6 +373,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const profile = session?.user ? await loadProfile(session.user.id) : null;
       set({ user: profile, accounts: await readAccounts() });
       resetPerAccount(profile?.id ?? null);
+      // Back on the previous account: give it this device's token again.
+      if (profile) registerPushToken();
       return { error: code };
     };
     if (!tokens) return fail('signed_out');
@@ -393,6 +399,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   continueAsGuest: async () => {
     await saveCurrentSession().catch(() => {});
+    await unregisterPushToken();
     await clearLocalSession();
     currentAuthUserId = null;
     set({ user: null });
