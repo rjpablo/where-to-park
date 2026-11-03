@@ -82,6 +82,10 @@ test('0074 types (rj t176u)', () => {
   );
   assert.equal(notificationRoute({ type: 'staff_added' }), '/operator/listings');
   assert.equal(
+    notificationRoute({ type: 'staff_added', ref_type: 'staff_invite', ref_id: 'abc-1' }),
+    '/notifications'
+  );
+  assert.equal(
     notificationRoute({ type: 'chat_message', ...L, driver_id: 'd-1', audience: 'operator' }),
     `/chat/${S}?driverId=d-1`
   );

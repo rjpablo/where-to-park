@@ -58,7 +58,8 @@ export function notificationRoute(data: PushData | null | undefined): string {
       return listing;
     case 'listing_reviewed':
     case 'staff_added':
-      return '/operator/listings';
+      // 0082: an invite is answered (Accept / Decline) in the Notifications list.
+      return refType === 'staff_invite' ? NOTIFICATIONS_ROUTE : '/operator/listings';
   }
   if (refType === 'session' && refId) {
     return forDriver ? listing : `/staff/session?id=${refId}`;

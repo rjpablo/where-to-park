@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Switch,
+  TouchableOpacity,
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { supabase } from '../../src/lib/supabase';
@@ -7,6 +15,12 @@ import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { Avatar } from '../../src/components/Avatar';
+import {
+  formatCountdown,
+  inviteErrorMessage,
+  lastSentFromCooldown,
+  resendSecondsLeft,
+} from '../../src/lib/staffInvite';
 
 export default function StaffScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
@@ -24,6 +38,22 @@ export default function StaffScreen() {
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [operatorName, setOperatorName] = React.useState('Operator');
+  // Last invite sent (rj t181u): same answer whether or not the account exists.
+  const [sent, setSent] = React.useState<{
+    email: string | null;
+    phone: string | null;
+    label: string;
+    at: number;
+  } | null>(null);
+  const [helpOpen, setHelpOpen] = React.useState(false);
+  const [now, setNow] = React.useState(Date.now());
+  const [sending, setSending] = React.useState(false);
+  const secondsLeft = resendSecondsLeft(sent?.at ?? null, now);
+  React.useEffect(() => {
+    if (!sent) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [sent]);
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -60,24 +90,43 @@ export default function StaffScreen() {
     load();
   }, [load]);
 
-  const invite = async () => {
+  const sendInvite = async (target: { email: string | null; phone: string | null }) => {
     setError(null);
     setNotice(null);
+    setSending(true);
     const { data, error: rpcError } = await supabase.rpc('invite_staff', {
       p_operator_id: operatorId,
-      p_email: email.trim() || null,
-      p_phone: phone.trim() || null,
+      p_email: target.email,
+      p_phone: target.phone,
       p_role: 'staff',
     });
-    if (rpcError || data?.error) {
-      setError(rpcError?.message || String(data?.error));
+    setSending(false);
+    const label = target.email || target.phone || '';
+    if (data?.error === 'cooldown') {
+      // Server-side 3-minute limit (e.g. sent from another device): show its countdown.
+      setSent({
+        ...target,
+        label,
+        at: lastSentFromCooldown(Number(data.retry_after_seconds) || 180, Date.now()),
+      });
+      setNow(Date.now());
+      setError(inviteErrorMessage('cooldown'));
       return;
     }
+    if (rpcError || data?.error) {
+      setError(rpcError ? rpcError.message : inviteErrorMessage(String(data?.error)));
+      return;
+    }
+    setSent({ ...target, label: data?.sent_to || label, at: Date.now() });
+    setNow(Date.now());
+    setHelpOpen(false);
     setEmail('');
     setPhone('');
-    setNotice('Staff invited');
     await load();
   };
+
+  const invite = () =>
+    sendInvite({ email: email.trim() || null, phone: email.trim() ? null : phone.trim() || null });
 
   const remove = async (member: any) => {
     setError(null);
@@ -160,6 +209,9 @@ export default function StaffScreen() {
       ))}
 
       <Text style={styles.heading}>Invite by email or phone</Text>
+      <Text style={styles.meta}>
+        They join the team after they accept the invite in their notifications.
+      </Text>
       <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
@@ -179,7 +231,49 @@ export default function StaffScreen() {
         placeholder="+63918…"
         testID="staff-phone"
       />
-      <Button title="Invite staff" onPress={invite} testID="staff-invite" />
+      <Button
+        title={sending ? 'Sending…' : 'Invite staff'}
+        onPress={invite}
+        disabled={sending}
+        testID="staff-invite"
+      />
+
+      {sent ? (
+        <View style={styles.sentBox} testID="staff-invite-sent">
+          <Text style={styles.sentText}>Invite sent to {sent.label}</Text>
+          <TouchableOpacity
+            onPress={() => setHelpOpen((o) => !o)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: helpOpen }}
+            testID="staff-invite-help-toggle"
+          >
+            <Text style={styles.link}>Didn't receive the invite?</Text>
+          </TouchableOpacity>
+          {helpOpen ? (
+            <View style={styles.helpBox} testID="staff-invite-help">
+              <Text style={styles.meta}>
+                Make sure {sent.label} is the email they use to sign in to Where To Park, or wait a
+                few minutes. They'll find the invite in their notifications. You can send it again 3
+                minutes after the last one.
+              </Text>
+              <Button
+                title={
+                  secondsLeft > 0
+                    ? `Resend invite in ${formatCountdown(secondsLeft)}`
+                    : sending
+                      ? 'Sending…'
+                      : 'Resend invite'
+                }
+                size="small"
+                variant="outline"
+                disabled={secondsLeft > 0 || sending}
+                onPress={() => sendInvite({ email: sent.email, phone: sent.phone })}
+                testID="staff-invite-resend"
+              />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       {error ? (
         <Text style={styles.error} testID="staff-error">
@@ -239,5 +333,15 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
   },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
+  sentBox: {
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface,
+    gap: theme.spacing.sm,
+  },
+  sentText: { ...theme.typography.body, color: theme.colors.success, fontWeight: '600' },
+  link: { ...theme.typography.body, color: theme.colors.primary, fontWeight: '600' },
+  helpBox: { gap: theme.spacing.sm },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.md },
 });

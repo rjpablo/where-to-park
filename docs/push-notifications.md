@@ -57,7 +57,7 @@ created, only the push is skipped. A type with no row in `push_settings` (`fee_p
 | 11 | `listing_reviewed` | trigger `locations_notify_reviewed`: verified, or rejected | listing owner(s) (not the admin who did it) | on | My listings |
 | 12 | `session_ending_soon` | cron `session-ending-soon` (every minute) → `notify_sessions_ending_soon()` | the driver linked to the session (`parking_sessions.driver_id`) | on | Location details |
 | 13 | `reservation_decision` | trigger `reservations_notify`: status becomes `confirmed` or `declined` | the driver | on | Location details |
-| 16 | `staff_added` | trigger `operator_members_notify`: a new manager/staff membership (`invite_staff`) | the person added | on | My listings |
+| 16 | `staff_added` | 🟧 `invite_staff` (0082): an invite to a team, answered with Accept / Decline in Notifications. Also trigger `operator_members_notify` for memberships added other ways (not when you accept your own invite) | the person invited / added | on | invite → Notifications; added → My listings |
 
 Rules and decisions:
 

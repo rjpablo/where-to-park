@@ -608,3 +608,11 @@ Public broadcast channel (no sign-in needed). Event `changed`, payload `{ id: UU
 - 0080 `oauth_display_name`: ignores a provider name containing '@'.
 - **Email privacy**: no client-readable table, view or RPC returns an email; emails stay in `auth.users`/`auth.identities` (no client grants). Your own email: `GET /auth/v1/user`. Tests: `supabase/tests/email_privacy.sql`, `scripts/test-email-privacy.js` (signs in as each test account and checks no response holds another account's email; `/auth/v1/admin/users` refused). Known: `invite_staff` answers `user_not_found` for an unknown email/phone, which tells an operator whether an account exists (no email is returned).
 
+## 🟧 Private staff invites (0082, rj t181u)
+
+- `invite_staff(p_operator_id, p_email?, p_phone?, p_role='staff', p_location_ids='{}')` (owners/managers). For any valid request it returns `{success: true, sent_to, resend_after_seconds: 180}`, whether or not the email/phone has an account. `member_id`, `profile_id` and `user_not_found` are gone. Errors that don't depend on the account: `not_authenticated`, `Permission denied`, `cannot_invite_owner`, `email_or_phone_required`, `invalid_email`, `invalid_phone`, `cannot_invite_self`, and `cooldown` + `retry_after_seconds` (3 minutes per inviter + team + email/phone, for every target).
+  - Account, not on the team: a pending invite, plus a `staff_added` notification with `ref_type 'staff_invite'`, `ref_id` = invite id, and `data {invite_id, operator_id, role, audience: 'invitee'}`.
+  - Already on the team: nothing changes. No account: nothing visible.
+- `respond_staff_invite(p_invite_id uuid, p_accept boolean) → {success, status, operator_id}` (the invited account only). Accept adds the membership. It also marks the invite's notifications read with `data.status`. Errors: `not_authenticated`, `not_found` (not your invite), `already_answered`.
+- `staff_invites` table: server only (no client grants).
+

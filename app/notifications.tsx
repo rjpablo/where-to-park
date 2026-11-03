@@ -16,6 +16,8 @@ export default function NotificationsScreen() {
   const { user, initialize } = useAuthStore();
   const [items, setItems] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [answering, setAnswering] = React.useState<string | null>(null);
+  const [inviteNotice, setInviteNotice] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -48,6 +50,11 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container} testID="notifications-ready">
+      {inviteNotice ? (
+        <Text style={styles.inviteNotice} testID="invite-notice">
+          {inviteNotice}
+        </Text>
+      ) : null}
       <FlatList
         contentContainerStyle={bottomInset}
         data={items}
@@ -79,6 +86,51 @@ export default function NotificationsScreen() {
             <Text style={styles.meta}>
               {formatLocalDateTime(item.created_at)} · {formatRelativeTime(item.created_at)}
             </Text>
+            {item.ref_type === 'staff_invite' && item.ref_id ? (
+              item.data?.status ? (
+                <Text style={styles.meta} testID={`invite-status-${item.ref_id}`}>
+                  {item.data.status === 'accepted' ? 'Accepted' : 'Declined'}
+                </Text>
+              ) : (
+                <View style={styles.inviteActions}>
+                  {(['accept', 'decline'] as const).map((a) => (
+                    <Button
+                      key={a}
+                      title={a === 'accept' ? 'Accept' : 'Decline'}
+                      size="small"
+                      variant={a === 'accept' ? 'primary' : 'outline'}
+                      disabled={!!answering}
+                      onPress={async () => {
+                        setAnswering(item.id);
+                        setInviteNotice(null);
+                        const { data, error } = await supabase.rpc('respond_staff_invite', {
+                          p_invite_id: item.ref_id,
+                          p_accept: a === 'accept',
+                        });
+                        setAnswering(null);
+                        if (error || data?.error) {
+                          setInviteNotice(
+                            data?.error === 'already_answered'
+                              ? 'This invite was already answered.'
+                              : 'Could not answer the invite. Try again.'
+                          );
+                        } else {
+                          setInviteNotice(
+                            a === 'accept'
+                              ? 'You joined the team. Find it under My listings.'
+                              : 'Invite declined.'
+                          );
+                          if (a === 'accept') await initialize();
+                        }
+                        await load();
+                        refreshSidebarCounts();
+                      }}
+                      testID={`invite-${a}-${item.ref_id}`}
+                    />
+                  ))}
+                </View>
+              )
+            ) : null}
             {!item.read_at ? (
               <Button
                 title="Mark read"
@@ -117,5 +169,11 @@ const styles = StyleSheet.create({
   rowTitle: { ...theme.typography.body, fontWeight: '600' },
   link: { color: theme.colors.primary },
   body: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 4 },
+  inviteActions: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.sm },
+  inviteNotice: {
+    ...theme.typography.body,
+    color: theme.colors.success,
+    marginBottom: theme.spacing.sm,
+  },
   meta: { ...theme.typography.caption, color: theme.colors.text.tertiary, marginVertical: 6 },
 });
