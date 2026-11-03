@@ -512,6 +512,11 @@ export default function LocationDetailScreen() {
             </Text>
           </TouchableOpacity>
           <Text style={styles.address}>{location.address}</Text>
+          {distanceLine ? (
+            <Text style={styles.distance} numberOfLines={2} testID="listing-distance">
+              {distanceLine}
+            </Text>
+          ) : null}
           {owner ? (
             <View style={styles.listedBy} testID="listing-owner">
               <Avatar
@@ -524,11 +529,6 @@ export default function LocationDetailScreen() {
                 Listed by {owner.display_name || 'the owner'}
               </Text>
             </View>
-          ) : null}
-          {distanceLine ? (
-            <Text style={styles.distance} numberOfLines={2} testID="listing-distance">
-              {distanceLine}
-            </Text>
           ) : null}
           <Text
             style={styles.viewers}
