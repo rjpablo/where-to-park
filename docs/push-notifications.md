@@ -22,6 +22,12 @@ any RPC / trigger inserts a row into public.notifications
                       └─ Firebase Cloud Messaging HTTP v1 (key uploaded to EAS) → device
                  sets notifications.pushed_at; deletes DeviceNotRegistered tokens;
                  saves ok tickets in push_tickets
+🟧 new chat message (0081, rj t180u): NO notifications row
+  └─ AFTER INSERT trigger on chat_messages  chat_messages_notify → notify_chat_message()
+       (only if push_settings chat_message is on and the recipient has a push token)
+       └─ public.push_webhook_post({push: {recipient_id, type:'chat_message', title, body,
+            ref_type:'chat_thread', ref_id, data}})  → pg_net → send-push (same secret)
+            └─ send-push pushes it as-is (only type chat_message is accepted this way)
 pg_cron  push-receipts  (*/15)  → send-push {action:'receipts'} → Expo getReceipts
                                    → deletes DeviceNotRegistered tokens
 pg_cron  refresh-overdue (every minute) → refresh_overdue() → "Scheduled end reached" rows
@@ -44,7 +50,7 @@ created, only the push is skipped. A type with no row in `push_settings` (`fee_p
 | 3 | `scheduled_end` | `refresh_overdue()` (cron `refresh-overdue`, every minute) | listing staff | **off** (not picked; switch kept) | Session page |
 | 4 | `verification_needed` | `create_location` | every admin | on | Verification queue |
 | 5 | `contact_submission` | `submit_contact` | every admin | on | the contact message |
-| 6 | `chat_message` | trigger `chat_messages_notify` (people's text/photo messages; not system events) | driver writes → listing staff; staff writes → the driver. Never the sender | on | the chat thread |
+| 6 | `chat_message` | trigger `chat_messages_notify` (people's text/photo messages; not system events). 🟧 **Push only, no in-app notification** (0081) | driver writes → listing staff; staff writes → the driver. Never the sender | on | the chat thread |
 | 7 | `reservation_request` | trigger `reservations_notify`: status becomes `pending_approval` | listing staff (not the driver) | on | the listing's hub |
 | 9 | `no_show` | trigger `reservations_notify`: status becomes `no_show` | listing staff and the driver | on | staff: listing hub; driver: Location details |
 | 10 | `report` | trigger `reports_notify`: a report on a **listing** | listing owner(s) and managers (the reporter isn't named; not the reporter) | on | the listing's hub |
@@ -55,12 +61,17 @@ created, only the push is skipped. A type with no row in `push_settings` (`fee_p
 
 Rules and decisions:
 
-- **Chat burst control (6)**: a message makes a notification only if the recipient has no
-  *unread* chat notification for that thread from the last **10 minutes**. A burst of messages
-  is one push; a reply after 10 minutes (or after they opened the thread) pushes again.
-  Opening a thread (`mark_thread_read`) now also marks its chat notifications read, so the
-  Notifications count doesn't stay up for messages already read. Chat notifications also show
-  in the Notifications list.
+- 🟧 **Chat messages are push-only (0081, rj t180u: "Don't generate notifications for
+  messages. We already have push notifications for it and the actual message")**: no
+  `notifications` row is made for a chat message, so nothing shows in the Notifications list
+  or its unread counts. Unread messages are still counted on Messages (`my_unread_messages`).
+  The chat trigger posts the push directly (diagram above); a BEFORE INSERT trigger
+  (`notifications_no_chat`) silently drops any `chat_message` notification from elsewhere.
+  The 14 existing chat notification rows on staging were deleted. Switch off = no push.
+- **Chat burst control (6)**: 🟧 a message is pushed only if the recipient has no other
+  *unread message* in that thread from the last **10 minutes** (was: no unread chat
+  notification). A burst of messages is one push; a reply after 10 minutes (or after they
+  opened the thread) pushes again.
 - **Ending soon (12)**: sent when an **active, started** session with a linked driver is within
   30 minutes of its End, once per End time (`data.end_epoch`). If the session is extended, the
   new End gets its own reminder when it is 30 minutes away. A session created with an End less

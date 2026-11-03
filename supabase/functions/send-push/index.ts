@@ -5,6 +5,8 @@
 // must carry the x-push-secret header matching the PUSH_WEBHOOK_SECRET function secret.
 //
 // POST { notification_id }   -> push the row to the recipient's tokens, set pushed_at
+// POST { push: { recipient_id, type, title, body, ref_type, ref_id, data } }
+//                            -> push without a notifications row (chat messages, 0081)
 // POST { action: 'receipts' } -> read Expo receipts, drop DeviceNotRegistered tokens
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
@@ -14,6 +16,7 @@ import {
   buildMessages,
   chunk,
   deadTokensFromReceipts,
+  directPushRow,
   readTickets,
   safeEqual,
   type ExpoReceipt,
@@ -48,7 +51,7 @@ Deno.serve(async (req) => {
     return json(401, { error: 'unauthorized' });
   }
 
-  let payload: { notification_id?: string; action?: string };
+  let payload: { notification_id?: string; action?: string; push?: unknown };
   try {
     payload = await req.json();
   } catch {
@@ -94,26 +97,35 @@ Deno.serve(async (req) => {
     return json(200, { checked: rows?.length || 0, removed_tokens: removed });
   }
 
-  if (!payload.notification_id) return json(400, { error: 'notification_id_required' });
-
-  const { data: n, error: nErr } = await admin
-    .from('notifications')
-    .select('id, recipient_id, type, title, body, ref_type, ref_id, data, pushed_at')
-    .eq('id', payload.notification_id)
-    .maybeSingle();
-  if (nErr) return json(500, { error: nErr.message });
-  if (!n) return json(404, { error: 'not_found' });
-  if (n.pushed_at) return json(200, { skipped: 'already_pushed' });
+  let n: (NotificationRow & { pushed_at?: string | null }) | null = null;
+  if (payload.push !== undefined) {
+    n = directPushRow(payload.push);
+    if (!n) return json(400, { error: 'invalid_push' });
+  } else {
+    if (!payload.notification_id) return json(400, { error: 'notification_id_required' });
+    const { data: row, error: nErr } = await admin
+      .from('notifications')
+      .select('id, recipient_id, type, title, body, ref_type, ref_id, data, pushed_at')
+      .eq('id', payload.notification_id)
+      .maybeSingle();
+    if (nErr) return json(500, { error: nErr.message });
+    if (!row) return json(404, { error: 'not_found' });
+    if (row.pushed_at) return json(200, { skipped: 'already_pushed' });
+    n = row as NotificationRow;
+  }
 
   const { data: tokenRows } = await admin
     .from('push_tokens')
     .select('token')
     .eq('profile_id', n.recipient_id);
-  const messages = buildMessages(n as NotificationRow, (tokenRows || []).map((r: any) => r.token));
+  const messages = buildMessages(
+    n as NotificationRow,
+    (tokenRows || []).map((r: any) => r.token)
+  );
   if (!messages.length) return json(200, { sent: 0 });
 
   const dead: string[] = [];
-  const pending: { ticket_id: string; token: string; notification_id: string }[] = [];
+  const pending: { ticket_id: string; token: string; notification_id: string | null }[] = [];
   for (const batch of chunk(messages)) {
     const res = await expoPost(EXPO_SEND_URL, batch);
     const result = readTickets(batch, (res?.data || []) as ExpoTicket[]);
@@ -122,7 +134,12 @@ Deno.serve(async (req) => {
   }
   if (dead.length) await admin.from('push_tokens').delete().in('token', dead);
   if (pending.length) await admin.from('push_tickets').upsert(pending);
-  await admin.from('notifications').update({ pushed_at: new Date().toISOString() }).eq('id', n.id);
+  if (n.id) {
+    await admin
+      .from('notifications')
+      .update({ pushed_at: new Date().toISOString() })
+      .eq('id', n.id);
+  }
 
   return json(200, { sent: messages.length, tickets: pending.length, removed_tokens: dead.length });
 });

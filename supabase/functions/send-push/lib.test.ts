@@ -4,6 +4,7 @@ import {
   buildMessages,
   chunk,
   deadTokensFromReceipts,
+  directPushRow,
   pushData,
   readTickets,
   safeEqual,
@@ -81,4 +82,38 @@ test('safeEqual', () => {
   assert.equal(safeEqual('abc', 'abcd'), false);
   assert.equal(safeEqual('', ''), false);
   assert.equal(safeEqual(null, 'x'), false);
+});
+
+test('direct chat push (0081): no notifications row, tap data kept, others refused', () => {
+  const row = directPushRow({
+    recipient_id: '6d3e0df0-87b9-417a-9263-c419c27fa4e7',
+    type: 'chat_message',
+    title: 'New message from Sarah · Lot',
+    body: 'hi',
+    ref_type: 'chat_thread',
+    ref_id: 'd6016687-f2f4-4b0c-a967-f98c6f9d4db4',
+    data: { location_id: 'L1', driver_id: 'D1', audience: 'operator' },
+  });
+  assert.ok(row);
+  assert.equal(row!.id, null);
+  const [m] = buildMessages(row!, ['ExponentPushToken[a]']);
+  assert.equal(m.title, 'New message from Sarah · Lot');
+  assert.deepEqual(m.data, {
+    location_id: 'L1',
+    driver_id: 'D1',
+    audience: 'operator',
+    type: 'chat_message',
+    ref_type: 'chat_thread',
+    ref_id: 'd6016687-f2f4-4b0c-a967-f98c6f9d4db4',
+  });
+  assert.equal(directPushRow({ recipient_id: 'x', type: 'chat_message', title: 't' }), null);
+  assert.equal(
+    directPushRow({
+      recipient_id: '6d3e0df0-87b9-417a-9263-c419c27fa4e7',
+      type: 'report',
+      title: 't',
+    }),
+    null,
+    'only chat messages are pushed without a row'
+  );
 });

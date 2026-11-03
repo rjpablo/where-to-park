@@ -9,7 +9,8 @@ export const EXPO_BATCH = 100;
 export const ANDROID_CHANNEL_ID = 'default';
 
 export type NotificationRow = {
-  id: string;
+  /** null for a direct push that has no notifications row (chat messages, 0081). */
+  id: string | null;
   recipient_id: string;
   type: string;
   title: string;
@@ -34,14 +35,13 @@ export type ExpoTicket =
   | { status: 'error'; message?: string; details?: { error?: string } };
 
 export type ExpoReceipt =
-  | { status: 'ok' }
-  | { status: 'error'; message?: string; details?: { error?: string } };
+  { status: 'ok' } | { status: 'error'; message?: string; details?: { error?: string } };
 
 /** What a tap needs to deep-link: the row's type and ref plus its own data. */
 export function pushData(n: NotificationRow): Record<string, unknown> {
   return {
     ...(n.data && typeof n.data === 'object' ? n.data : {}),
-    notification_id: n.id,
+    ...(n.id ? { notification_id: n.id } : {}),
     type: n.type,
     ref_type: n.ref_type ?? null,
     ref_id: n.ref_id ?? null,
@@ -60,6 +60,32 @@ export function buildMessages(n: NotificationRow, tokens: string[]): ExpoMessage
     channelId: ANDROID_CHANNEL_ID,
     priority: 'high',
   }));
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Types that are pushed without a notifications row (0081: new chat messages). */
+export const DIRECT_PUSH_TYPES = new Set(['chat_message']);
+
+/**
+ * A direct push from Postgres (`{ push: {...} }`, no notifications row). Returns the row
+ * to send, or null when the payload is not a valid direct push.
+ */
+export function directPushRow(p: unknown): NotificationRow | null {
+  if (!p || typeof p !== 'object') return null;
+  const v = p as Record<string, unknown>;
+  if (typeof v.recipient_id !== 'string' || !UUID.test(v.recipient_id)) return null;
+  if (typeof v.type !== 'string' || !DIRECT_PUSH_TYPES.has(v.type)) return null;
+  if (typeof v.title !== 'string' || !v.title.trim()) return null;
+  return {
+    id: null,
+    recipient_id: v.recipient_id,
+    type: v.type,
+    title: v.title.slice(0, 200),
+    body: typeof v.body === 'string' ? v.body.slice(0, 300) : null,
+    ref_type: typeof v.ref_type === 'string' ? v.ref_type : null,
+    ref_id: typeof v.ref_id === 'string' ? v.ref_id : null,
+    data: v.data && typeof v.data === 'object' ? (v.data as Record<string, unknown>) : null,
+  };
 }
 
 export function chunk<T>(items: T[], size = EXPO_BATCH): T[][] {
