@@ -154,33 +154,12 @@ test('refund amounts (0052)', async () => {
   assert.match(walkInErrorMessage('refund_needs_ended'), /after the session ends/);
 });
 
-test('negative balances and ended balance', async () => {
-  const { isNegativeBalance, endedBalance } = await import('./walkIn.ts');
+test('negative balances', async () => {
+  const { isNegativeBalance } = await import('./walkIn.ts');
   assert.equal(isNegativeBalance(-5), true);
   assert.equal(isNegativeBalance('-0.001'), false);
   assert.equal(isNegativeBalance(0), false);
   assert.equal(isNegativeBalance(10), false);
-  const folio = {
-    folio_charges: [
-      { amount: 0, type: 'parking_fee' },
-      { amount: 50, type: 'parking_fee', voided_at: 'x' },
-    ],
-    payments: [
-      { amount: 20, direction: 'payment' },
-      { amount: 15, direction: 'refund' },
-    ],
-  };
-  assert.equal(endedBalance(folio), -5);
-  assert.equal(
-    endedBalance({
-      folio_charges: [
-        { amount: 100, type: 'parking_fee' },
-        { amount: -20, type: 'waiver' },
-      ],
-      payments: [{ amount: 80 }],
-    }),
-    0
-  );
 });
 
 test('session set rate label and split breakdown lines (0057)', () => {
@@ -232,8 +211,8 @@ test('sessionReturnRoute: back to Availability when opened from its Sessions tab
     pathname: '/operator/availability',
     params: { locationId: 'L', ended: 'ABC' },
   });
-  assert.equal(sessionReturnRoute(undefined, {}).pathname, '/staff/sessions');
-  assert.equal(sessionReturnRoute('other', {}).pathname, '/staff/sessions');
+  assert.equal(sessionReturnRoute(undefined, {}).pathname, '/operator/availability');
+  assert.equal(sessionReturnRoute('other', {}).pathname, '/operator/availability');
 });
 
 test('plate_active: friendly message naming the plate, and the session to open', () => {

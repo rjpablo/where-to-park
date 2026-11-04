@@ -70,15 +70,10 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
       : LISTINGS;
   },
   'staff/checkin': (p) => listingParent(p),
-  'staff/sessions': (p) => listingParent(p),
-  // One session: back to that listing's Active Sessions.
+  // One session: back to that listing's Availability screen (🟧 Session board dropped).
   'staff/session': (p) => {
     const id = one(p, 'locationId');
-    if (!id) return LISTINGS;
-    // Opened from the Availability Sessions tab: back there.
-    return one(p, 'from') === 'availability'
-      ? `/operator/availability?locationId=${encodeURIComponent(id)}`
-      : `/staff/sessions?locationId=${encodeURIComponent(id)}`;
+    return id ? `/operator/availability?locationId=${encodeURIComponent(id)}` : LISTINGS;
   },
   // Edit details / Apply payment (rj t131u): back to that session's page.
   'staff/session-edit': (p) => sessionParent(p),

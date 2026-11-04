@@ -12,7 +12,6 @@ test('listing subpages fall back to that listing', () => {
     'operator/staff',
     'operator/availability',
     'staff/checkin',
-    'staff/sessions',
   ]) {
     assert.equal(backFallback(r, { locationId: L }), `/operator/hub/${L}`, r);
     assert.equal(backFallback(r, {}), '/operator/listings', `${r} without a listing`);
@@ -64,10 +63,10 @@ test('screens without Back have no fallback', () => {
   assert.ok(!BACK_FALLBACK_ROUTES.includes('search'));
 });
 
-test('a session falls back to Active Sessions', () => {
+test('a session falls back to Availability (Session board dropped)', () => {
   assert.equal(
     backFallback('staff/session', { locationId: L, id: 's' }),
-    `/staff/sessions?locationId=${L}`
+    `/operator/availability?locationId=${L}`
   );
   assert.equal(backFallback('staff/session', {}), '/operator/listings');
 });

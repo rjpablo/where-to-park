@@ -106,7 +106,6 @@ export default function RootLayout() {
             options={{ title: 'Available slots editor' }}
           />
           <Stack.Screen name="staff/checkin" options={{ title: 'Check In' }} />
-          <Stack.Screen name="staff/sessions" options={{ title: 'Active Sessions' }} />
           <Stack.Screen name="staff/session" options={{ title: 'Session' }} />
           <Stack.Screen name="staff/session-edit" options={{ title: 'Edit details' }} />
           <Stack.Screen name="staff/session-pay" options={{ title: 'Apply payment' }} />

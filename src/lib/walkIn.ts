@@ -216,26 +216,6 @@ export function isNegativeBalance(balance: unknown): boolean {
   return Number.isFinite(n) && n < -0.005;
 }
 
-/** Ended session balance from its folio: charges (incl. waivers) minus net payments. */
-export function endedBalance(
-  folio:
-    | {
-        folio_charges?: { amount: unknown; type: string; voided_at?: string | null }[] | null;
-        payments?: { amount: unknown; direction?: string | null }[] | null;
-      }
-    | null
-    | undefined
-): number {
-  const charges = (folio?.folio_charges || [])
-    .filter((c) => !c.voided_at)
-    .reduce((t, c) => t + Number(c.amount || 0), 0);
-  const paid = (folio?.payments || []).reduce(
-    (t, p) => t + (p.direction === 'refund' ? -1 : 1) * Number(p.amount || 0),
-    0
-  );
-  return Math.round((charges - paid) * 100) / 100;
-}
-
 /** Session page: the stored set rate (0057 keeps it for display/history). */
 export function setRateLabel(s: {
   set_rate_name?: string | null;
@@ -276,17 +256,14 @@ export function filterByPlate<T extends { plate?: string | null }>(items: T[], q
 }
 
 /**
- * Where check-in / end / cancel return to: the Availability screen when the flow was opened
- * from its Sessions tab (`from=availability`), else the session board (Active Sessions).
+ * Where check-in / end / cancel return to: the listing's Availability screen (🟧 rj: the
+ * Session board was dropped; Availability lists the active sessions).
  */
 export function sessionReturnRoute(
-  from: string | null | undefined,
+  _from: string | null | undefined,
   params: Record<string, string>
-): { pathname: '/operator/availability' | '/staff/sessions'; params: Record<string, string> } {
-  return {
-    pathname: from === 'availability' ? '/operator/availability' : '/staff/sessions',
-    params,
-  };
+): { pathname: '/operator/availability'; params: Record<string, string> } {
+  return { pathname: '/operator/availability', params };
 }
 
 /** 0062: the plate already has a started, open session at this listing. */

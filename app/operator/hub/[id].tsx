@@ -111,7 +111,7 @@ export default function ListingHubScreen() {
 
   const openSessions = () => {
     setDeleteOpen(false);
-    router.push({ pathname: '/staff/sessions', params: { locationId: location.id } });
+    router.push({ pathname: '/operator/availability', params: { locationId: location.id } });
   };
 
   if (!user) {
@@ -214,18 +214,6 @@ export default function ListingHubScreen() {
           </>
         ) : null}
         <Button
-          title="Session board"
-          variant="outline"
-          onPress={() => go('/staff/sessions', { locationId: location.id })}
-          testID="hub-sessions"
-        />
-        <Button
-          title="Walk-in check-in"
-          variant="outline"
-          onPress={() => go('/staff/checkin', { locationId: location.id })}
-          testID="hub-checkin"
-        />
-        <Button
           title="Messages"
           variant="outline"
           onPress={() => go('/operator/inbox', { locationId: location.id })}
@@ -252,7 +240,7 @@ export default function ListingHubScreen() {
                   {blocked.message}
                 </Text>
                 <Button
-                  title="Open the session board"
+                  title="Open Availability"
                   variant="outline"
                   onPress={openSessions}
                   testID="delete-open-sessions"

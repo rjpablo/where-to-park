@@ -7,7 +7,7 @@ import { isNegativeBalance, isReservation, sessionWaived, startsIn } from '../li
 /**
  * The body of an active-session card: plate, vehicle, Reservation / OVERDUE / Waived badges,
  * start (or 'Starts … (in …)'), scheduled end, listing, parking so far, extra fees, balance
- * and the overdue note. Used by the session board and the Availability Sessions tab.
+ * and the overdue note. Used by the Availability Sessions tab.
  */
 export function SessionSummary({ item, preview }: { item: any; preview: any | null }) {
   const balance = Number(preview?.live_balance ?? 0);

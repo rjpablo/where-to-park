@@ -2,8 +2,7 @@ import { supabase } from './supabase';
 
 /**
  * Active (and overdue) sessions of a listing, newest start first, with each session's
- * live balance preview. Shared by the session board (Walk-in check-in › Active Sessions)
- * and the Availability screen's Sessions tab.
+ * live balance preview. Used by the Availability screen's Sessions tab.
  */
 export async function fetchActiveSessions(
   locationId: string | null | undefined
