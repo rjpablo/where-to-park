@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "556547607795",
+    "project_id": "where-to-park-513416",
+    "storage_bucket": "where-to-park-513416.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:556547607795:android:ff1fa32bdd4dc6ed9ebb86",
+        "android_client_info": {
+          "package_name": "com.thebadcompany.wheretopark"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "556547607795-h6b1ne6ppat7jvjb0ajcrt3e6phf290m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHpYw3RqzDItHGVojQw1gGZNGL6vkdsGs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "556547607795-h6b1ne6ppat7jvjb0ajcrt3e6phf290m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

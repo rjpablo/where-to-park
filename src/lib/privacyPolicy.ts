@@ -1,0 +1,791 @@
+// Where To Park privacy policy (rj t167u), carried over verbatim from
+// https://www.freeprivacypolicy.com/live/410ecee6-f219-41da-a645-949918523c63
+// (only formatting changed). Rendered by app/privacy.tsx. To update, regenerate from the source.
+
+export type PolicySegment = { text: string; bold?: boolean; href?: string };
+export type PolicyBlock = {
+  /** li: list item; lic: another paragraph of the list item above; credit: generator credit. */
+  type: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'li' | 'lic' | 'credit';
+  segments: PolicySegment[];
+  /** Nested list level (2 = list inside a list item). */
+  depth?: number;
+};
+
+export const PRIVACY_POLICY_SOURCE_URL =
+  'https://www.freeprivacypolicy.com/live/410ecee6-f219-41da-a645-949918523c63';
+
+export const PRIVACY_POLICY: PolicyBlock[] = [
+  { type: 'h1', segments: [{ text: 'Privacy Policy' }] },
+  { type: 'p', segments: [{ text: 'Last updated: November 02, 2026' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'This Privacy Policy describes Our policies and procedures on the collection, use and disclosure of Your information when You use the Service and tells You about Your privacy rights and how the law protects You.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'We use Your Personal Data to provide and improve the Service. We collect, use, and disclose Your information as described in this Privacy Policy and, where required by applicable law, only where We have a valid legal basis to do so, including Your consent (where consent is required). This Privacy Policy has been created with the help of the ',
+      },
+      {
+        text: 'Privacy Policy Generator',
+        href: 'https://www.termsfeed.com/privacy-policy-generator/',
+      },
+      { text: '.' },
+    ],
+  },
+  { type: 'h2', segments: [{ text: 'Interpretation and Definitions' }] },
+  { type: 'h3', segments: [{ text: 'Interpretation' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'The words whose initial letters are capitalized have meanings defined under the following conditions. The following definitions shall have the same meaning regardless of whether they appear in singular or in plural.',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Definitions' }] },
+  { type: 'p', segments: [{ text: 'For the purposes of this Privacy Policy:' }] },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Account', bold: true },
+      {
+        text: ' means a unique account created for You to access Our Service or parts of Our Service.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Affiliate', bold: true },
+      {
+        text: ' means an entity that controls, is controlled by, or is under common control with a party, where "control" means ownership of 50% or more of the shares, equity interest or other securities entitled to vote for election of directors or other managing authority.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Application', bold: true },
+      { text: ' refers to Where To Park, the software program provided by the Company.' },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Company', bold: true },
+      {
+        text: ' (referred to as either "the Company", "We", "Us" or "Our" in this Privacy Policy) refers to Where To Park.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [{ text: 'Country/State', bold: true }, { text: ' refers to: Philippines.' }],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Device', bold: true },
+      {
+        text: ' means any device that can access the Service, such as a computer, a cell phone or a digital tablet.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Personal Data', bold: true },
+      {
+        text: ' (or "Personal Information") is any information that relates to an identified or identifiable individual.',
+      },
+    ],
+  },
+  {
+    type: 'lic',
+    segments: [
+      {
+        text: 'We use "Personal Data" and "Personal Information" interchangeably unless a law uses a specific term.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [{ text: 'Service', bold: true }, { text: ' refers to the Application.' }],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Service Provider', bold: true },
+      {
+        text: ' means any natural or legal person who processes the data on behalf of the Company. It refers to third-party companies or individuals employed by the Company to facilitate the Service, to provide the Service on behalf of the Company, to perform services related to the Service or to assist the Company in analyzing how the Service is used.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Usage Data', bold: true },
+      {
+        text: ' refers to data collected automatically, either generated by the use of the Service or from the Service infrastructure itself (for example, the duration of a page visit).',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'User', bold: true },
+      { text: ' means any individual who accesses or uses the Service.' },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'You', bold: true },
+      {
+        text: ' means the individual accessing or using the Service, or the company, or other legal entity on behalf of which such individual is accessing or using the Service, as applicable.',
+      },
+    ],
+  },
+  { type: 'h2', segments: [{ text: 'Collecting and Using Your Personal Information' }] },
+  { type: 'h3', segments: [{ text: 'Types of Data Collected' }] },
+  { type: 'h4', segments: [{ text: 'Personal Data' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'While using Our Service, We may ask You to provide Us with certain personally identifiable information that can be used to contact or identify You. Personally identifiable information may include, but is not limited to:',
+      },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'Email address' }] },
+  { type: 'li', segments: [{ text: 'First name and last name' }] },
+  { type: 'li', segments: [{ text: 'Address, State, Province, ZIP/Postal code, City' }] },
+  { type: 'h4', segments: [{ text: 'Usage Data' }] },
+  {
+    type: 'p',
+    segments: [{ text: 'Usage Data is collected automatically when using the Service.' }],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: "Usage Data may include information such as Your Device's Internet Protocol address (e.g. IP address), browser type, browser version, the pages of Our Service that You visit, the time and date of Your visit, the time spent on those pages, unique device identifiers and other diagnostic data.",
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: "When You access the Service by or through a mobile device, We may collect certain information automatically, including, but not limited to, the type of mobile device You use, Your mobile device's unique ID, the IP address of Your mobile device, Your mobile operating system, the type of mobile Internet browser You use, unique device identifiers and other diagnostic data.",
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'We may also collect information that Your browser sends whenever You visit Our Service or when You access the Service by or through a mobile device.',
+      },
+    ],
+  },
+  { type: 'h4', segments: [{ text: 'Information Collected While Using the Application' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'While using Our Application, in order to provide features of Our Application, We may collect, with Your prior permission:',
+      },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'Information regarding Your location' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: "We use this information to provide features of Our Service and to improve and customize Our Service. The information may be uploaded to the Company's servers and/or a Service Provider's server or it may be simply stored on Your device.",
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'You can enable or disable access to this information at any time, through Your Device settings.',
+      },
+    ],
+  },
+  { type: 'h4', segments: [{ text: 'Tracking Technologies and Cookies' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'We use tracking technologies (such as cookies) to track the activity and to improve Our Service. The technologies We use may include:',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Use of Your Personal Data' }] },
+  {
+    type: 'p',
+    segments: [{ text: 'The Company may use Personal Data for the following purposes:' }],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'To provide and maintain Our Service', bold: true },
+      { text: ', including to monitor the usage of Our Service.' },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'To manage Your Account:', bold: true },
+      {
+        text: ' to manage Your registration as a user of the Service. The Personal Data You provide can give You access to different functionalities of the Service that are available to You as a registered user.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'For the performance of a contract:', bold: true },
+      {
+        text: ' the development, compliance and undertaking of the purchase contract for the products, items or services You have purchased or of any other contract with Us through the Service.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'To contact You:', bold: true },
+      {
+        text: " To contact You by email, telephone calls, SMS, or other equivalent forms of electronic communication, such as a mobile application's push notifications regarding updates or informative communications related to the functionalities, products or contracted services, including the security updates, when necessary or reasonable for their implementation.",
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'To provide You', bold: true },
+      {
+        text: ' with news, special offers, and general information about other goods, services and events which We offer that are similar to those that You have already purchased or inquired about. We send such marketing communications only where permitted by applicable law: where prior consent is required (for example, under the laws applicable in the EEA and the UK), We will send them only with Your consent; otherwise, We may send them until You opt out. You may opt out or withdraw Your consent at any time by using the unsubscribe link in any marketing email We send or by contacting Us.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'To manage Your requests:', bold: true },
+      { text: ' To attend and manage Your requests to Us.' },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'For business transfers:', bold: true },
+      {
+        text: ' We may use Your Personal Data to evaluate or conduct a merger, divestiture, restructuring, reorganization, dissolution, or other sale or transfer of some or all of Our assets, whether as a going concern or as part of bankruptcy, liquidation, or similar proceeding, in which Personal Data held by Us about Our Service users is among the assets transferred.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'For other purposes', bold: true },
+      {
+        text: ': We may use Your information for other purposes, such as data analysis, identifying usage trends, determining the effectiveness of Our promotional campaigns, and evaluating and improving Our Service, products, services, marketing and Your experience.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [{ text: 'We may share Your Personal Data in the following situations:' }],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'With Service Providers:', bold: true },
+      {
+        text: ' We may share Your Personal Data with Service Providers to monitor and analyze the use of Our Service, and to contact You.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'For business transfers:', bold: true },
+      {
+        text: ' We may share or transfer Your Personal Data in connection with, or during negotiations of, any merger, sale of Company assets, financing, or acquisition of all or a portion of Our business to another company.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'With Affiliates:', bold: true },
+      {
+        text: ' We may share Your Personal Data with Our affiliates, in which case We will require those affiliates to honor this Privacy Policy. Affiliates include Our parent company and any other subsidiaries, joint venture partners or other companies that We control or that are under common control with Us.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'With other users:', bold: true },
+      {
+        text: ' If Our Service offers public areas, when You share Personal Data or otherwise interact in the public areas with other users, such information may be viewed by all users and may be publicly distributed outside the Service.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'With Your consent', bold: true },
+      { text: ': We may disclose Your Personal Data for any other purpose with Your consent.' },
+    ],
+  },
+  { type: 'h4', segments: [{ text: 'Text Messages Privacy Notice' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'You have the option to receive text (SMS) messages from Us. If You opt in to text messages, We will send You updates, notifications, and other communications as described below. When You opt in, We will collect and store the information You provide in connection with text messaging, such as Your phone number, the date and method of Your consent, and message delivery and read information.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'No mobile information will be shared with or sold to third parties or affiliates for marketing or promotional purposes. The phone numbers and consent records We collect for texting are never shared with anyone for any purpose, except the Service Providers that technically have to handle them to deliver the texts.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Consent to receive text messages is not a condition of any purchase or use of Our Service. If You consent to receive SMS from Us, You agree to receive text messages from Us related to:',
+      },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'Customer care and support' }] },
+  {
+    type: 'li',
+    segments: [{ text: 'Account notifications, such as activity, status, or renewal reminders' }],
+  },
+  {
+    type: 'li',
+    segments: [{ text: 'Delivery notifications and updates on the status of a delivery' }],
+  },
+  {
+    type: 'li',
+    segments: [{ text: 'Authentication messages, such as one-time passwords (OTP) and passcodes' }],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Security alerts, such as suspicious login attempts or unusual account activity' },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Marketing and promotional offers, discounts, and other promotional content' },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Reply STOP to opt-out. Reply HELP for support. Message & data rates may apply. Messaging frequency may vary. Carriers are not liable for delayed or undelivered messages.',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Retention of Your Personal Data' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'The Company will retain Your Personal Data only for as long as is necessary for the purposes set out in this Privacy Policy. We will retain and use Your Personal Data to the extent necessary to comply with Our legal obligations (for example, if We are required to retain Your data to comply with applicable laws), resolve disputes, and enforce Our legal agreements and policies.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Where possible, We apply shorter retention periods and/or reduce identifiability by deleting, aggregating, or anonymizing data. Unless otherwise stated, the retention periods below are maximum periods ("up to") and We may delete or anonymize data sooner when it is no longer needed for the relevant purpose. We apply different retention periods to different categories of Personal Data based on the purpose of processing and legal obligations:',
+      },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'Account Information' }] },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'User Accounts: retained for the duration of Your Account relationship plus up to 24 months after account closure to handle any post-termination issues or resolve disputes.',
+      },
+    ],
+    depth: 2,
+  },
+  { type: 'li', segments: [{ text: 'Customer Support Data' }] },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Support tickets and correspondence: up to 24 months from the date of ticket closure to resolve follow-up inquiries, track service quality, and defend against potential legal claims.',
+      },
+    ],
+    depth: 2,
+  },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Chat transcripts: up to 24 months for quality assurance and staff training purposes.',
+      },
+    ],
+    depth: 2,
+  },
+  { type: 'li', segments: [{ text: 'Usage Data' }] },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Application usage statistics: up to 24 months to understand feature adoption and service improvements.',
+      },
+    ],
+    depth: 2,
+  },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Server logs (IP addresses, access times): up to 24 months for security monitoring and troubleshooting purposes.',
+      },
+    ],
+    depth: 2,
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Usage Data is retained in accordance with the retention periods described above, and may be retained longer only where necessary for security, fraud prevention, or legal compliance.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'We may retain Personal Data beyond the periods stated above for different reasons:',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Legal obligation: We are required by law to retain specific data (e.g., financial records for tax authorities).',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Legal claims: Data is necessary to establish, exercise, or defend legal claims.' },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [{ text: 'Your explicit request: You ask Us to retain specific information.' }],
+  },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Technical limitations: Data exists in backup systems that are scheduled for routine deletion.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'You may request information about how long We will retain Your Personal Data by contacting Us.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'When retention periods expire, We securely delete or anonymize Personal Data according to the following procedures:',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Deletion: Personal Data is removed from Our systems and no longer actively processed.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Backup retention: Residual copies may remain in encrypted backups for a limited period consistent with Our backup retention schedule and are not restored except where necessary for security, disaster recovery, or legal compliance.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      {
+        text: 'Anonymization: In some cases, We convert Personal Data into anonymous statistical data that cannot be linked back to You. This anonymized data may be retained indefinitely for research and analytics.',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Transfer of Your Personal Data' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: "Your information, including Personal Data, is processed at the Company's operating offices and in any other places where the parties involved in the processing are located. This means that this information may be transferred to — and maintained on — computers located outside of Your state, province, country or other governmental jurisdiction where the data protection laws may differ from those of Your jurisdiction.",
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Where required by applicable law, We will ensure that international transfers of Your Personal Data are subject to appropriate safeguards and, where relevant, supplementary measures. The Company will take all steps reasonably necessary to ensure that Your data is treated securely and in accordance with this Privacy Policy and no transfer of Your Personal Data will take place to an organization or a country unless there are adequate controls in place, including the security of Your data and other personal information.',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Delete Your Personal Data' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'You have the right to delete or request that We assist in deleting the Personal Data that We have collected about You.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Our Service may give You the ability to delete certain information about You from within the Service.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'You may update, amend, or delete Your information at any time by signing in to Your Account, if You have one, and visiting the account settings section that allows You to manage Your personal information. You may also contact Us to request access to, correct, or delete any Personal Data that You have provided to Us.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Please note, however, that We may need to retain certain information when We have a legal obligation or lawful basis to do so.',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Disclosure of Your Personal Data' }] },
+  { type: 'h4', segments: [{ text: 'Business Transactions' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'If the Company is involved in a merger, acquisition or asset sale, Your Personal Data may be transferred. We will provide notice before Your Personal Data is transferred and becomes subject to a different Privacy Policy.',
+      },
+    ],
+  },
+  { type: 'h4', segments: [{ text: 'Law Enforcement' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'Under certain circumstances, the Company may disclose Your Personal Data if required to do so by law or in response to valid requests by public authorities (e.g. a court or a government agency).',
+      },
+    ],
+  },
+  { type: 'h4', segments: [{ text: 'Other Legal Requirements' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'The Company may disclose Your Personal Data in the good-faith belief that such action is necessary to:',
+      },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'Comply with a legal obligation' }] },
+  { type: 'li', segments: [{ text: 'Protect and defend the rights or property of the Company' }] },
+  {
+    type: 'li',
+    segments: [
+      { text: 'Prevent or investigate possible wrongdoing in connection with the Service' },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [{ text: 'Protect the personal safety of Users of the Service or the public' }],
+  },
+  { type: 'li', segments: [{ text: 'Protect against legal liability' }] },
+  { type: 'h3', segments: [{ text: 'Security of Your Personal Data' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'The security of Your Personal Data is important to Us, but remember that no method of transmission over the Internet, or method of electronic storage, is 100% secure. While We strive to use commercially reasonable means to protect Your Personal Data, We cannot guarantee its absolute security.',
+      },
+    ],
+  },
+  {
+    type: 'h2',
+    segments: [{ text: 'Detailed Information on the Processing of Your Personal Data' }],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'The Service Providers We use may have access to Your Personal Data. These third-party vendors collect, store, use, process and transfer information about Your activity on Our Service in accordance with their Privacy Policies.',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Usage, Performance and Miscellaneous' }] },
+  {
+    type: 'p',
+    segments: [
+      { text: 'We may use third-party Service Providers to maintain and improve Our Service.' },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'Google Places', bold: true }] },
+  {
+    type: 'lic',
+    segments: [
+      {
+        text: 'Google Places is a service that returns information about places using HTTP requests. It is operated by Google.',
+      },
+    ],
+  },
+  {
+    type: 'lic',
+    segments: [
+      {
+        text: 'Google Places service may collect information from You and from Your Device for security purposes.',
+      },
+    ],
+  },
+  {
+    type: 'lic',
+    segments: [
+      {
+        text: 'The information gathered by Google Places is held in accordance with the Privacy Policy of Google: ',
+      },
+      {
+        text: 'https://www.google.com/intl/en/policies/privacy/',
+        href: 'https://www.google.com/intl/en/policies/privacy/',
+      },
+    ],
+  },
+  { type: 'h2', segments: [{ text: "Children's and Minors' Privacy" }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'The Service is not directed to, and We do not knowingly collect Personal Information from, anyone under the age of 16.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'If You are a parent or guardian and You believe Your child has provided Us with Personal Information, please contact Us. If We become aware that We have collected Personal Information from anyone under the age of 16, We will take steps to remove that information from Our servers as soon as reasonably possible.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: "Some countries and states set a higher age at which an individual can consent to the processing of their own Personal Information. Where We rely on consent as a legal basis and the law applicable to a User sets an age higher than 16, We may require the consent of that User's parent or guardian before We collect and use their Personal Information.",
+      },
+    ],
+  },
+  { type: 'h2', segments: [{ text: 'Links to Other Websites' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: "Our Service may contain links to other websites that are not operated by Us. If You click on a third-party link, You will be directed to that third party's site. We strongly advise You to review the Privacy Policy of every site You visit.",
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'We have no control over and assume no responsibility for the content, privacy policies or practices of any third-party sites or services.',
+      },
+    ],
+  },
+  { type: 'h2', segments: [{ text: 'Changes to this Privacy Policy' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'We may update Our Privacy Policy from time to time. We will notify You of any changes by posting the new Privacy Policy on this page.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'We will let You know via email and/or a prominent notice on Our Service, prior to the change becoming effective and update the "Last updated" date at the top of this Privacy Policy.',
+      },
+    ],
+  },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'You are advised to review this Privacy Policy periodically for any changes. Changes to this Privacy Policy are effective when they are posted on this page.',
+      },
+    ],
+  },
+  { type: 'h2', segments: [{ text: 'Contact Us' }] },
+  {
+    type: 'p',
+    segments: [
+      { text: 'If You have any questions about this Privacy Policy, You can contact Us:' },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'By email: rjpablo.dev@gmail.com' }] },
+  {
+    type: 'credit',
+    segments: [
+      { text: 'Generated using ' },
+      {
+        text: 'Free Privacy Policy Generator',
+        href: 'https://www.freeprivacypolicy.com/free-privacy-policy-generator/',
+      },
+    ],
+  },
+];
