@@ -276,3 +276,5 @@ removed afterwards (`/workspace/qa-sql/push_verify.py`, `push_cleanup.py` on the
 5. Sign out → the token row is gone; sign in as another account → the row moves to it.
 6. Debug: `select status_code, content, error_msg from net._http_response order by created
    desc limit 5;` and the function logs (Supabase dashboard › Edge Functions › send-push).
+
+🟧 **Taps are handled once (rj)**: the app clears the OS's 'last notification response' after opening its screen and remembers the last handled push id (`wtp-push-last-handled`), so a later normal launch opens Find Parking instead of re-opening an old push.
