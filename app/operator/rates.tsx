@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { DateTimeField } from '../../src/components/DateTimeField';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
@@ -246,22 +247,23 @@ export default function RatesScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-        <TextInput
-          style={styles.input}
+        <Text style={styles.label}>Date</Text>
+        <DateTimeField
+          mode="date"
           value={quoteDate}
-          onChangeText={setQuoteDate}
-          placeholder="YYYY-MM-DD"
+          onChange={setQuoteDate}
+          style={styles.picker}
           testID="quote-date"
         />
-        <Text style={styles.label}>Start time (HH:MM, 24-hour)</Text>
-        <TextInput
-          style={styles.input}
+        <Text style={styles.label}>Start time</Text>
+        <DateTimeField
+          mode="time"
           value={quoteTime}
-          onChangeText={setQuoteTime}
-          placeholder="HH:MM"
+          onChange={setQuoteTime}
+          style={styles.picker}
           testID="quote-time"
         />
+        <Text style={styles.meta}>Philippine time, 24-hour.</Text>
         <Text style={styles.label}>Hours</Text>
         <TextInput
           style={styles.input}
@@ -498,6 +500,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     marginBottom: theme.spacing.sm,
   },
+  picker: { marginBottom: theme.spacing.sm },
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
