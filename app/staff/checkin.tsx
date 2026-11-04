@@ -8,8 +8,10 @@ import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { WalkInForm, type WalkInValues } from '../../src/components/WalkInForm';
 import { Button } from '../../src/components/Button';
 import {
+  fullAreaPrompt,
   plateActiveMessage,
   plateConflict,
+  type FullAreaPrompt,
   sessionReturnRoute,
   walkInErrorMessage,
 } from '../../src/lib/walkIn';
@@ -44,7 +46,10 @@ export default function CheckInScreen() {
       });
   }, [locationId]);
 
-  const checkIn = async (v: WalkInValues): Promise<string | null> => {
+  const checkIn = async (
+    v: WalkInValues,
+    opts: { allowFull: boolean }
+  ): Promise<string | null | FullAreaPrompt> => {
     if (!locationId) return 'Pick a listing from My listings';
     const { data, error } = await supabase.rpc('start_walk_in', {
       p_location_id: locationId,
@@ -55,6 +60,7 @@ export default function CheckInScreen() {
       p_started_at: v.startAt,
       p_rate_id: v.rateId,
       p_area_id: v.areaId,
+      p_allow_full: opts.allowFull,
     });
     setConflict(null);
     if (error) return error.message;
@@ -62,6 +68,9 @@ export default function CheckInScreen() {
       setConflict(plateConflict(data));
       return plateActiveMessage(data.plate);
     }
+    // 0083: no spots left / switched Full -> the form asks "Create the session anyway?".
+    const full = fullAreaPrompt(data);
+    if (full) return full;
     if (data?.error === 'no_longer_available' && data?.area_id)
       return walkInErrorMessage('no_longer_available_area');
     if (data?.error) return walkInErrorMessage(data.error);
@@ -84,7 +93,7 @@ export default function CheckInScreen() {
       <View style={styles.form}>
         {locationId ? (
           <>
-            {/* Full switch on: still allowed (manual override); the form warns per area. */}
+            {/* Full area (no spots left or switched Full): allowed after confirming (0083). */}
             <WalkInForm
               locationId={locationId}
               showNote

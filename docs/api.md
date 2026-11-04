@@ -616,3 +616,9 @@ Public broadcast channel (no sign-in needed). Event `changed`, payload `{ id: UU
 - `respond_staff_invite(p_invite_id uuid, p_accept boolean) → {success, status, operator_id}` (the invited account only). Accept adds the membership. It also marks the invite's notifications read with `data.status`. Errors: `not_authenticated`, `not_found` (not your invite), `already_answered`.
 - `staff_invites` table: server only (no client grants).
 
+## 🟧 Full areas: confirm instead of block (0083, rj t184u)
+
+- `start_walk_in(..., p_area_id, p_allow_full boolean DEFAULT false)` and `update_walk_in_session(..., p_area_id, p_allow_full boolean DEFAULT false)`. When the area has no space left (started sessions + held + unavailable ≥ capacity; for a future start, overlapping sessions), or is switched Full (start now), they return `{error: 'area_full', reason: 'no_spaces' | 'marked_full', area, area_id, available?}` (`available` ≥ 0). Call again with `p_allow_full: true` to create or move the session anyway. `update_walk_in_session` checks only when the area changes. Other errors are unchanged.
+- `set_area_counts`: refuses only an increase in held/unavailable spaces beyond the free ones (`no_longer_available`, `available` ≥ 0). Lowering is always allowed.
+- Free-space values (`area_free`, `area_counted`, `free_spaces`, `counted_spaces`, `available_count`, `search_nearby`) are never negative. `area_occupied` is the real count and can exceed capacity.
+

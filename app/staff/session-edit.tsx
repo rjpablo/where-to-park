@@ -9,8 +9,10 @@ import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import {
   canEditSession,
+  fullAreaPrompt,
   plateActiveMessage,
   plateConflict,
+  type FullAreaPrompt,
   walkInErrorMessage,
 } from '../../src/lib/walkIn';
 
@@ -38,7 +40,10 @@ export default function SessionEditScreen() {
     });
   }, [id]);
 
-  const save = async (v: WalkInValues): Promise<string | null> => {
+  const save = async (
+    v: WalkInValues,
+    opts: { allowFull: boolean }
+  ): Promise<string | null | FullAreaPrompt> => {
     setConflict(null);
     const { data, error: e } = await supabase.rpc('update_walk_in_session', {
       p_session_id: id,
@@ -48,12 +53,16 @@ export default function SessionEditScreen() {
       p_plate: v.plate,
       p_rate_id: v.rateId,
       p_area_id: v.areaId,
+      p_allow_full: opts.allowFull,
     });
     if (e) return e.message;
     if (data?.error === 'plate_active') {
       setConflict(plateConflict(data));
       return plateActiveMessage(data.plate);
     }
+    // 0083: moving to a full area -> "Move the session there anyway?".
+    const full = fullAreaPrompt(data);
+    if (full) return full;
     if (data?.error === 'no_longer_available' && data?.area_id)
       return walkInErrorMessage('no_longer_available_area');
     if (data?.error) return walkInErrorMessage(data.error);
@@ -108,6 +117,8 @@ export default function SessionEditScreen() {
             }}
             submitLabel="Save changes"
             onSubmit={save}
+            fullQuestion="Move the session there anyway?"
+            fullConfirmLabel="Move anyway"
           />
           {conflict ? (
             <Button

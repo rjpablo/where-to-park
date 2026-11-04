@@ -353,3 +353,30 @@ export function presetsForLocation<
     (p) => p.active !== false && (!p.location_id || p.location_id === locationId)
   );
 }
+
+/** 0083 (rj t184u): the server's answer when the chosen area is full; the app asks to confirm. */
+export type FullAreaPrompt = {
+  fullArea: { area: string; reason: 'no_spaces' | 'marked_full' };
+};
+
+export function fullAreaPrompt(data: unknown): FullAreaPrompt | null {
+  const d = data as { error?: unknown; area?: unknown; reason?: unknown } | null;
+  if (!d || d.error !== 'area_full') return null;
+  return {
+    fullArea: {
+      area: typeof d.area === 'string' && d.area.trim() ? d.area : 'This area',
+      reason: d.reason === 'marked_full' ? 'marked_full' : 'no_spaces',
+    },
+  };
+}
+
+export function isFullAreaPrompt(v: unknown): v is FullAreaPrompt {
+  return !!v && typeof v === 'object' && 'fullArea' in (v as object);
+}
+
+/** "<Area> has no spots left." / "<Area> is marked Full." */
+export function fullAreaTitle(p: FullAreaPrompt): string {
+  return p.fullArea.reason === 'marked_full'
+    ? `${p.fullArea.area} is marked Full.`
+    : `${p.fullArea.area} has no spots left.`;
+}

@@ -23,6 +23,9 @@ import {
   rateOptionLabel,
   sessionTimes,
   walkInErrorMessage,
+  fullAreaPrompt,
+  fullAreaTitle,
+  isFullAreaPrompt,
 } from './walkIn.ts';
 
 test('Manila date/time both ways', () => {
@@ -299,4 +302,16 @@ test('area errors (0067) have plain messages', () => {
   assert.match(walkInErrorMessage('vehicle_not_allowed'), /isn't allowed in this area/);
   assert.match(walkInErrorMessage('no_longer_available_area'), /in this area/);
   assert.match(walkInErrorMessage('area_not_found'), /Pick another area/);
+});
+
+test('full area (0083): server answer -> confirm prompt', () => {
+  assert.equal(fullAreaPrompt({ error: 'no_longer_available' }), null);
+  assert.equal(fullAreaPrompt(null), null);
+  const a = fullAreaPrompt({ error: 'area_full', reason: 'no_spaces', area: 'Basement' });
+  assert.ok(a && isFullAreaPrompt(a));
+  assert.equal(fullAreaTitle(a!), 'Basement has no spots left.');
+  const b = fullAreaPrompt({ error: 'area_full', reason: 'marked_full', area: '' });
+  assert.equal(fullAreaTitle(b!), 'This area is marked Full.');
+  assert.equal(isFullAreaPrompt('No space'), false);
+  assert.equal(isFullAreaPrompt(null), false);
 });

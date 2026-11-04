@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { Button } from './Button';
 import { FilterDropdown } from './FilterDropdown';
 import { supabase } from '../lib/supabase';
@@ -10,8 +10,11 @@ import {
   keepRateChoice,
   manilaDateTime,
   rateOptionLabel,
+  fullAreaTitle,
+  isFullAreaPrompt,
   sessionTimes,
   walkInErrorMessage,
+  type FullAreaPrompt,
   type RateOption,
 } from '../lib/walkIn';
 import { formatLocalDateTime, formatPeso } from '../utils/formatters';
@@ -43,8 +46,15 @@ type Props = {
   submitLabel: string;
   /** Button label when the start is in the future (a reservation, 0049). */
   reservationSubmitLabel?: string;
-  /** Returns an error message to show, or null on success. */
-  onSubmit: (v: WalkInValues) => Promise<string | null>;
+  /** Returns an error message to show, null on success, or a full-area prompt (0083): the
+   *  form then asks to confirm and submits again with allowFull. */
+  onSubmit: (
+    v: WalkInValues,
+    opts: { allowFull: boolean }
+  ) => Promise<string | null | FullAreaPrompt>;
+  /** Full-area dialog question and button (default: create the session). */
+  fullQuestion?: string;
+  fullConfirmLabel?: string;
   /** Bump to reload rate options and the amount (e.g. after a save elsewhere). */
   refreshKey?: number;
   /** Check-in: warn when the chosen area is switched Full (still allowed). */
@@ -65,6 +75,8 @@ export function WalkInForm({
   onSubmit,
   refreshKey,
   warnFull,
+  fullQuestion = 'Create the session anyway?',
+  fullConfirmLabel = 'Create anyway',
 }: Props) {
   const start0 = manilaDateTime(initial?.startAt || new Date().toISOString());
   const end0 = manilaDateTime(initial?.endAt);
@@ -82,6 +94,11 @@ export function WalkInForm({
   const [quoteError, setQuoteError] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
+  // 0083: the area is full; the values waiting for "Create anyway".
+  const [pendingFull, setPendingFull] = React.useState<{
+    prompt: FullAreaPrompt;
+    values: WalkInValues;
+  } | null>(null);
   const [tick, setTick] = React.useState(0);
   // rj t139u: area picker, defaulting to the given area (the one selected on the
   // Availability screen, or the session's), else Main.
@@ -220,9 +237,8 @@ export function WalkInForm({
     if (!vehicle) return setError('Choose a vehicle type');
     if (!plate.trim()) return setError('Plate number is required');
     if ('error' in times) return setError(times.error);
-    setSaving(true);
-    try {
-      const msg = await onSubmit({
+    await send(
+      {
         vehicleType: vehicle,
         plate: plate.trim(),
         startAt: times.startAt,
@@ -230,8 +246,21 @@ export function WalkInForm({
         rateId,
         note: note.trim(),
         areaId,
-      });
-      setError(msg);
+      },
+      false
+    );
+  };
+
+  const send = async (values: WalkInValues, allowFull: boolean) => {
+    setSaving(true);
+    try {
+      const res = await onSubmit(values, { allowFull });
+      if (isFullAreaPrompt(res)) {
+        setPendingFull({ prompt: res, values });
+        setError(null);
+      } else {
+        setError(res);
+      }
     } finally {
       setSaving(false);
     }
@@ -262,8 +291,8 @@ export function WalkInForm({
       )}
       {warnFull && area?.marked_full ? (
         <Text style={styles.warning} testID="checkin-full-warning">
-          {area.name} is marked FULL. You can still check this car in; drivers keep seeing it as
-          Full until it is switched back.
+          {area.name} is marked FULL. You can still check this car in after confirming; drivers keep
+          seeing it as Full until it is switched back.
         </Text>
       ) : null}
 
@@ -437,11 +466,69 @@ export function WalkInForm({
         loading={saving}
         testID="walkin-submit"
       />
+
+      <Modal
+        visible={!!pendingFull}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !saving && setPendingFull(null)}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="walkin-full-dialog">
+            <Text style={styles.dialogTitle}>
+              {pendingFull ? fullAreaTitle(pendingFull.prompt) : ''}
+            </Text>
+            <Text style={styles.dialogBody}>{fullQuestion}</Text>
+            <Button
+              title={fullConfirmLabel}
+              onPress={() => {
+                if (!pendingFull) return;
+                const v = pendingFull.values;
+                setPendingFull(null);
+                send(v, true);
+              }}
+              disabled={saving}
+              testID="walkin-full-confirm"
+            />
+            <TouchableOpacity
+              onPress={() => setPendingFull(null)}
+              disabled={saving}
+              style={styles.cancel}
+              testID="walkin-full-cancel"
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  dialog: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+  },
+  dialogTitle: { ...theme.typography.h3 },
+  dialogBody: { ...theme.typography.body, color: theme.colors.text.secondary },
+  cancel: {
+    alignSelf: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  cancelText: { ...theme.typography.body, fontWeight: '600', color: theme.colors.text.secondary },
   warning: {
     color: '#991b1b',
     backgroundColor: '#fee2e2',
