@@ -13,6 +13,7 @@
       "@maplibre/maplibre-react-native",
       "expo-location",
       "expo-secure-store",
+      "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
         {

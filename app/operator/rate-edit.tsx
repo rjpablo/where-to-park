@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { DateTimeField } from '../../src/components/DateTimeField';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
@@ -255,20 +256,24 @@ export default function RateEditScreen() {
             })}
           </View>
 
-          <Text style={styles.label}>Effective from (optional YYYY-MM-DD)</Text>
-          <TextInput
-            style={styles.input}
+          <Text style={styles.label}>Effective from (optional)</Text>
+          <DateTimeField
+            mode="date"
             value={v.from}
-            onChangeText={(x) => set('from', x)}
-            placeholder="YYYY-MM-DD"
+            onChange={(x) => set('from', x)}
+            placeholder="Any date"
+            allowEmpty
+            style={styles.picker}
             testID="rate-from"
           />
           <Text style={styles.label}>Effective to (optional, inclusive)</Text>
-          <TextInput
-            style={styles.input}
+          <DateTimeField
+            mode="date"
             value={v.to}
-            onChangeText={(x) => set('to', x)}
-            placeholder="YYYY-MM-DD"
+            onChange={(x) => set('to', x)}
+            placeholder="Any date"
+            allowEmpty
+            style={styles.picker}
             testID="rate-to"
           />
         </>
@@ -312,6 +317,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     marginBottom: theme.spacing.sm,
   },
+  picker: { marginBottom: theme.spacing.sm },
   meta: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,

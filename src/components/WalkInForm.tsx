@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { Button } from './Button';
+import { DateTimeField } from './DateTimeField';
 import { FilterDropdown } from './FilterDropdown';
 import { supabase } from '../lib/supabase';
 import { theme } from '../lib/theme';
@@ -331,20 +332,22 @@ export function WalkInForm({
         testID="walkin-plate"
       />
 
-      <Text style={styles.label}>Start * (date YYYY-MM-DD, time HH:MM)</Text>
+      <Text style={styles.label}>Start *</Text>
       <View style={styles.row}>
-        <TextInput
-          style={[styles.input, styles.date]}
+        <DateTimeField
+          mode="date"
           value={startDate}
-          onChangeText={setStartDate}
-          placeholder="YYYY-MM-DD"
+          onChange={setStartDate}
+          placeholder="Date"
+          style={styles.date}
           testID="walkin-start-date"
         />
-        <TextInput
-          style={[styles.input, styles.time]}
+        <DateTimeField
+          mode="time"
           value={startTime}
-          onChangeText={setStartTime}
-          placeholder="HH:MM"
+          onChange={setStartTime}
+          placeholder="Time"
+          style={styles.time}
           testID="walkin-start-time"
         />
         <Button
@@ -358,18 +361,20 @@ export function WalkInForm({
 
       <Text style={styles.label}>End (optional)</Text>
       <View style={styles.row}>
-        <TextInput
-          style={[styles.input, styles.date]}
+        <DateTimeField
+          mode="date"
           value={endDate}
-          onChangeText={setEndDate}
-          placeholder="YYYY-MM-DD"
+          onChange={setEndDate}
+          placeholder="Date"
+          style={styles.date}
           testID="walkin-end-date"
         />
-        <TextInput
-          style={[styles.input, styles.time]}
+        <DateTimeField
+          mode="time"
           value={endTime}
-          onChangeText={setEndTime}
-          placeholder="HH:MM"
+          onChange={setEndTime}
+          placeholder="Time"
+          style={styles.time}
           testID="walkin-end-time"
         />
         {endDate || endTime ? (
@@ -562,8 +567,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: theme.colors.surface,
   },
-  date: { flexGrow: 1, minWidth: 140 },
-  time: { width: 90 },
+  date: { flexGrow: 1, flexBasis: 160, minWidth: 140 },
+  time: { flexGrow: 1, flexBasis: 110, minWidth: 110 },
   dropdown: { maxWidth: '100%', paddingVertical: theme.spacing.sm },
   amountBox: {
     marginTop: theme.spacing.md,
