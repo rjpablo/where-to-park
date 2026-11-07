@@ -43,6 +43,18 @@ export interface MapFocusTarget {
 export interface MapHandle {
   /** Move the camera to a place, framing its bounds when known. */
   focus: (target: MapFocusTarget) => void;
+  /**
+   * Pan by `dyPx` pixels down the screen (positive is south) without changing
+   * zoom. Not a user gesture.
+   */
+  nudge: (dyPx: number) => void;
+  /** Camera, zoom, and bounds right now. */
+  readViewport: () => MapViewport | null;
+  /**
+   * The current gesture is over. An in-flight pan or its leftover inertia must
+   * not count as the user moving the map again.
+   */
+  settle: () => void;
 }
 
 export interface MapProps {
@@ -61,8 +73,6 @@ export interface MapProps {
   overlayInsets?: { top: number; right: number; bottom: number; left: number };
   /** The user's current location, drawn as a blue puck (null/undefined hides it). */
   userLocation?: { coordinate: Coordinate; accuracyM?: number } | null;
-  /** Temporary marker, e.g. the place picked in the search box. */
-  focusMarker?: Coordinate | null;
 }
 
 export interface MapPinPickerProps {

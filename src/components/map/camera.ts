@@ -70,6 +70,24 @@ export function cameraForPoints(
   return { center: [lngFromX(cx), latFromY(cy)], zoom };
 }
 
+/**
+ * The coordinate `dxPx` pixels right and `dyPx` pixels down from `center`
+ * at `zoom` (Web Mercator, 512px tiles). A negative `dyPx` is up the screen,
+ * which is north.
+ */
+export function coordinateOffset(
+  center: { latitude: number; longitude: number },
+  zoom: number,
+  dxPx: number,
+  dyPx: number
+): { latitude: number; longitude: number } {
+  const world = TILE * 2 ** zoom;
+  return {
+    longitude: lngFromX(mercX(center.longitude) + dxPx / world),
+    latitude: latFromY(mercY(center.latitude) + dyPx / world),
+  };
+}
+
 /** Great-circle distance in metres. */
 export function distanceMeters(a: LngLat, b: LngLat): number {
   const R = 6371008.8;

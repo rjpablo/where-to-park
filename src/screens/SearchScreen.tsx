@@ -100,6 +100,8 @@ const SHEET_PEEK_MAX_FRACTION = 0.5;
 const SHEET_LAYER = 30;
 // Gap between the ◎ button and the top of the Minimized sheet.
 const RECENTER_GAP = 16;
+/** Screen size of the centre cursor (the Search this area spot). */
+const CENTRE_CURSOR = 28;
 /** Default search origin until the driver searches or opens a link with coordinates. */
 const BAGUIO_CENTRE: SearchCenter = { lat: 16.4023, lng: 120.596 };
 
@@ -151,9 +153,6 @@ export function SearchScreen() {
   // effect can tell a new search from a filter/sort re-run.
   const lastSearchKey = useRef<string | null>(null);
   const latestViewport = useRef<MapViewport | null>(null);
-  const [placeMarker, setPlaceMarker] = useState<Coordinate | null>(
-    openingLink ? { latitude: openingLink.lat, longitude: openingLink.lng } : null
-  );
   // After jumping to a searched place, offer "Search this area" there too.
   const offerSearchAfterMove = useRef(false);
   // Name from the search box, kept until the driver pans, recenters, or clears it.
@@ -212,16 +211,26 @@ export function SearchScreen() {
   }).current;
 
   const handleViewportChange = useCallback((viewport: MapViewport) => {
+    const user = viewport.isUserInteraction;
     const first = latestViewport.current == null;
     latestViewport.current = viewport;
-    setMapCenter(viewport.center);
-    // First visible area known: re-run so the slider max matches it.
-    if (first) setSearchNonce((n) => n + 1);
-    // A pan drops the picked place name; the next search reverse-geocodes instead.
-    if (viewport.isUserInteraction) pickedName.current = null;
-    // Offer "Search this area" only after the user's own pan or zoom (or a place jump).
-    if (viewport.isUserInteraction || offerSearchAfterMove.current) {
+    // A place pick or the current-location button asked for the button, even
+    // when that jump is not a finger on the map.
+    if (offerSearchAfterMove.current) {
       offerSearchAfterMove.current = false;
+      setMapCenter(viewport.center);
+      setMovedViewport(viewport);
+      return;
+    }
+    setMapCenter(viewport.center);
+    // Opening the map is not a reason to offer another search.
+    if (first) {
+      setSearchNonce((n) => n + 1);
+      return;
+    }
+    // Hidden by a parking search. A pan or zoom of the map brings it back.
+    if (user) {
+      pickedName.current = null;
       setMovedViewport(viewport);
     }
   }, []);
@@ -241,7 +250,6 @@ export function SearchScreen() {
 
   const handlePlaceSelect = useCallback((place: PlaceSuggestion) => {
     pickedName.current = place.name;
-    setPlaceMarker(place.coordinate);
     offerSearchAfterMove.current = true;
     mapRef.current?.focus(place);
   }, []);
@@ -311,7 +319,6 @@ export function SearchScreen() {
       placeLabelRef.current = linked.place;
       setLocation(center);
       setPlaceLabel(linked.place);
-      setPlaceMarker({ latitude: center.lat, longitude: center.lng });
       setMovedViewport(null);
       setSearchNonce((n) => n + 1);
       mapRef.current?.focus({
@@ -329,9 +336,14 @@ export function SearchScreen() {
 
   const searchThisArea = () => {
     if (!movedViewport) return;
-    const { center } = movedViewport;
-    latestViewport.current = movedViewport;
-    const next: SearchCenter = { lat: center.latitude, lng: center.longitude };
+    // Inertia from the pan that revealed the button must not bring it back.
+    mapRef.current?.settle();
+    // The live camera, not the viewport from when the button appeared.
+    const view = mapRef.current?.readViewport() ?? latestViewport.current;
+    if (!view) return;
+    latestViewport.current = view;
+    // The cursor sits on the map centre, so that centre is the search point.
+    const next: SearchCenter = { lat: view.center.latitude, lng: view.center.longitude };
     locationRef.current = next;
     // The search effect recomputes the slider max for this centre and viewport.
     setLocation(next);
@@ -610,7 +622,6 @@ export function SearchScreen() {
         ref={mapRef}
         region={region}
         initialZoom={SEARCH_START_ZOOM}
-        focusMarker={placeMarker}
         pins={pins}
         onPinPress={handlePinPress}
         style={styles.map}
@@ -620,6 +631,17 @@ export function SearchScreen() {
         overlayInsets={overlayInsets}
         onViewportChange={handleViewportChange}
       />
+
+      <View
+        pointerEvents="none"
+        style={styles.centreCursor}
+        testID="map-centre-cursor"
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+      >
+        <View style={styles.centreCursorRing} />
+        <View style={styles.centreCursorDot} />
+      </View>
 
       <View
         style={[styles.topOverlay, suggestionsOpen && styles.topOverlayRaised]}
@@ -632,7 +654,6 @@ export function SearchScreen() {
           onSelect={handlePlaceSelect}
           onClear={() => {
             pickedName.current = null;
-            setPlaceMarker(null);
           }}
         />
         {movedViewport ? (
@@ -817,6 +838,41 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  // Fixed at the centre of the map. The results sheet does not move it.
+  centreCursor: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: CENTRE_CURSOR,
+    height: CENTRE_CURSOR,
+    marginLeft: -CENTRE_CURSOR / 2,
+    marginTop: -CENTRE_CURSOR / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    elevation: 12,
+  },
+  centreCursorRing: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    backgroundColor: 'transparent',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.45,
+    shadowRadius: 2,
+  },
+  centreCursorDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
   },
   // Right side, RECENTER_GAP above the Minimized sheet; below the sheet's layer.
   recenterWrap: {

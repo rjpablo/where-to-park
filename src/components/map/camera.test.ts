@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cameraForPoints, distanceMeters, type LngLat } from './camera.ts';
+import { cameraForPoints, coordinateOffset, distanceMeters, type LngLat } from './camera.ts';
 
 const size = { width: 400, height: 800 };
 
@@ -64,6 +64,17 @@ test('identical points use the fallback zoom and max zoom caps', () => {
     { maxZoom: 18 }
   )!;
   assert.equal(close.zoom, 18);
+});
+
+test('coordinateOffset shifts up the screen to the north and back', () => {
+  const origin = { latitude: 16.41, longitude: 120.59 };
+  const zoom = 13.25;
+  const north = coordinateOffset(origin, zoom, 0, -100);
+  assert.ok(north.latitude > origin.latitude);
+  assert.ok(Math.abs(north.longitude - origin.longitude) < 1e-9);
+  const back = coordinateOffset(north, zoom, 0, 100);
+  assert.ok(Math.abs(back.latitude - origin.latitude) < 1e-6);
+  assert.ok(Math.abs(back.longitude - origin.longitude) < 1e-6);
 });
 
 test('distanceMeters is roughly right', () => {
