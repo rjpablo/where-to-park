@@ -65,11 +65,6 @@ import { navigateLabel, preferredNavApp } from '../../src/lib/navigation';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { Avatar } from '../../src/components/Avatar';
 import { loadShortcuts, useShortcutsStore } from '../../src/stores/shortcutsStore';
-import {
-  loadMyMemberships,
-  roleForLocation,
-  type OperatorRole,
-} from '../../src/lib/operatorAccess';
 
 const GRID_GAP = 4;
 
@@ -87,8 +82,6 @@ export default function LocationDetailScreen() {
   const removeShortcutFor = useShortcutsStore((s) => s.remove);
   const [shortcutBusy, setShortcutBusy] = useState(false);
   const [shortcutNotice, setShortcutNotice] = useState<string | null>(null);
-  // Owners, managers and staff assigned to this listing get 'Manage listing'.
-  const [manageRole, setManageRole] = useState<OperatorRole | null>(null);
   const [location, setLocation] = useState<any>(null);
   // "Listed by" (rj t179u): owner's name + photo only (listing_owner, migration 0079).
   const [owner, setOwner] = useState<{
@@ -332,27 +325,11 @@ export default function LocationDetailScreen() {
   }, [searchOrigin]);
 
   const listingId: string | undefined = location?.id;
-  const listingOperator: string | undefined = location?.operator_id;
   const userId = user?.id ?? null;
 
   useEffect(() => {
     loadShortcuts(userId);
   }, [userId]);
-
-  useEffect(() => {
-    setManageRole(null);
-    if (!userId || !listingId || !listingOperator) return;
-    let cancelled = false;
-    loadMyMemberships(userId)
-      .then((ms) => {
-        if (!cancelled)
-          setManageRole(roleForLocation(ms, { id: listingId, operator_id: listingOperator }));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, listingId, listingOperator]);
 
   const hasShortcut = !!listingId && shortcutItems.some((s) => s.locationId === listingId);
   const toggleShortcut = async () => {
@@ -569,7 +546,6 @@ export default function LocationDetailScreen() {
             </View>
           ) : null}
 
-          {/* Listing actions: shortcut for everyone; Manage listing for its operator team. */}
           <View style={styles.listingActions}>
             <TouchableOpacity
               onPress={toggleShortcut}
@@ -583,18 +559,6 @@ export default function LocationDetailScreen() {
                 {hasShortcut ? '★ Remove shortcut' : '☆ Add shortcut'}
               </Text>
             </TouchableOpacity>
-            {manageRole ? (
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({ pathname: '/operator/hub/[id]', params: { id: location.id } })
-                }
-                style={styles.actionChip}
-                accessibilityRole="button"
-                testID="manage-listing"
-              >
-                <Text style={styles.actionChipText}>⚙ Manage listing</Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
           {shortcutNotice ? (
             <Text style={styles.shortcutNotice} testID="shortcut-notice">
