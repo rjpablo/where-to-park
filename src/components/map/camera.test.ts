@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cameraForPoints, coordinateOffset, distanceMeters, type LngLat } from './camera.ts';
+import {
+  cameraForPoints,
+  cameraOnCenter,
+  coordinateOffset,
+  distanceMeters,
+  type LngLat,
+} from './camera.ts';
 
 const size = { width: 400, height: 800 };
 
@@ -64,6 +70,30 @@ test('identical points use the fallback zoom and max zoom caps', () => {
     { maxZoom: 18 }
   )!;
   assert.equal(close.zoom, 18);
+});
+
+test('cameraOnCenter keeps the coordinate on the screen centre', () => {
+  const coordinate = { latitude: 16.411, longitude: 120.597 };
+  const cam = cameraOnCenter(
+    {
+      coordinate,
+      zoom: 15,
+      bounds: {
+        ne: { latitude: 16.42, longitude: 120.61 },
+        sw: { latitude: 16.4, longitude: 120.58 },
+      },
+    },
+    size
+  );
+  const s = project([coordinate.longitude, coordinate.latitude], cam);
+  assert.ok(Math.abs(s.x - size.width / 2) < 1e-6);
+  assert.ok(Math.abs(s.y - size.height / 2) < 1e-6);
+  const shifted = cameraForPoints([[coordinate.longitude, coordinate.latitude]], size, {
+    insets: { top: 72, right: 0, bottom: 500, left: 0 },
+    fallbackZoom: 15,
+  })!;
+  const off = project([coordinate.longitude, coordinate.latitude], shifted);
+  assert.ok(Math.abs(off.y - size.height / 2) > 50);
 });
 
 test('coordinateOffset shifts up the screen to the north and back', () => {

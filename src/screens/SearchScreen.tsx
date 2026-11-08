@@ -239,7 +239,8 @@ export function SearchScreen() {
   const recenter = useCallback((coordinate: { latitude: number; longitude: number }) => {
     pickedName.current = null;
     offerSearchAfterMove.current = true;
-    mapRef.current?.focus({ coordinate, zoom: RECENTER_ZOOM });
+    // The centre cursor marks the map centre, so the puck is placed there.
+    mapRef.current?.focus({ coordinate, zoom: RECENTER_ZOOM }, { atCenter: true });
   }, []);
   const {
     permission,
@@ -251,7 +252,7 @@ export function SearchScreen() {
   const handlePlaceSelect = useCallback((place: PlaceSuggestion) => {
     pickedName.current = place.name;
     offerSearchAfterMove.current = true;
-    mapRef.current?.focus(place);
+    mapRef.current?.focus(place, { atCenter: true });
   }, []);
 
   // Writes lat/lng/place on the web and keeps the document title in step.
@@ -321,10 +322,13 @@ export function SearchScreen() {
       setPlaceLabel(linked.place);
       setMovedViewport(null);
       setSearchNonce((n) => n + 1);
-      mapRef.current?.focus({
-        coordinate: { latitude: center.lat, longitude: center.lng },
-        zoom: SEARCH_START_ZOOM,
-      });
+      mapRef.current?.focus(
+        {
+          coordinate: { latitude: center.lat, longitude: center.lng },
+          zoom: SEARCH_START_ZOOM,
+        },
+        { atCenter: true }
+      );
     } else if (linked.place && linked.place !== placeLabelRef.current) {
       placeLabelRef.current = linked.place;
       setPlaceLabel(linked.place);

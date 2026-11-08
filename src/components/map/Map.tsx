@@ -24,6 +24,7 @@ import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './st
 import {
   cameraForPlace,
   cameraForPoints,
+  cameraOnCenter,
   coordinateOffset,
   NO_INSETS,
   type LngLat,
@@ -133,8 +134,10 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   }, [centerCoordinate, initialZoom, commandCamera]);
 
   useImperativeHandle(ref, () => ({
-    focus: (target) => {
-      const camera = cameraForPlace(target, sizeRef.current, insetsRef.current);
+    focus: (target, options) => {
+      const camera = options?.atCenter
+        ? cameraOnCenter(target, sizeRef.current)
+        : cameraForPlace(target, sizeRef.current, insetsRef.current);
       if (!camera) return;
       commandCamera(camera.center, camera.zoom, (center, zoom) => {
         cameraRef.current?.flyTo({ center, zoom, duration: 1200 });

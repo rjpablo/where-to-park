@@ -11,7 +11,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapHandle, MapProps } from './types';
 import { BAGUIO, DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL } from './style';
-import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
+import { cameraForPlace, cameraForPoints, cameraOnCenter, NO_INSETS, type LngLat } from './camera';
 import {
   CLUSTER_LABEL_EXPRESSION,
   CLUSTER_PROPERTIES,
@@ -438,15 +438,14 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   }, [pins, mapLoaded, clusterPins, onPinPress]);
 
   useImperativeHandle(ref, () => ({
-    focus: (target) => {
+    focus: (target, options) => {
       const m = map.current;
       if (!m) return;
       const container = m.getContainer();
-      const camera = cameraForPlace(
-        target,
-        { width: container.clientWidth, height: container.clientHeight },
-        insetsRef.current
-      );
+      const size = { width: container.clientWidth, height: container.clientHeight };
+      const camera = options?.atCenter
+        ? cameraOnCenter(target, size)
+        : cameraForPlace(target, size, insetsRef.current);
       if (camera) {
         markProgrammatic();
         m.flyTo({ center: camera.center, zoom: camera.zoom, duration: 1200 });

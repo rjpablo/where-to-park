@@ -100,6 +100,37 @@ export function distanceMeters(a: LngLat, b: LngLat): number {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/**
+ * Camera that puts `coordinate` on the map centre (the centre cursor).
+ * Bounds, when present, only choose the zoom; they do not slide the point
+ * toward the uncovered part of the map.
+ */
+export function cameraOnCenter(
+  target: {
+    coordinate: { latitude: number; longitude: number };
+    bounds?: {
+      ne: { latitude: number; longitude: number };
+      sw: { latitude: number; longitude: number };
+    };
+    zoom?: number;
+  },
+  size: Size
+): { center: LngLat; zoom: number } {
+  const zoom = target.zoom ?? 16;
+  const center: LngLat = [target.coordinate.longitude, target.coordinate.latitude];
+  if (!target.bounds || size.width <= 0 || size.height <= 0) return { center, zoom };
+  const { ne, sw } = target.bounds;
+  const framed = cameraForPoints(
+    [
+      [ne.longitude, ne.latitude],
+      [sw.longitude, sw.latitude],
+    ],
+    size,
+    { margin: 24, maxZoom: 17, fallbackZoom: zoom }
+  );
+  return { center, zoom: framed?.zoom ?? zoom };
+}
+
 /** Camera for a picked place: frame its bounds, else centre it at `zoom`. */
 export function cameraForPlace(
   target: {

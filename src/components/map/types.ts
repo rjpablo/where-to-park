@@ -41,8 +41,12 @@ export interface MapFocusTarget {
 
 /** Imperative map controls (via ref). */
 export interface MapHandle {
-  /** Move the camera to a place, framing its bounds when known. */
-  focus: (target: MapFocusTarget) => void;
+  /**
+   * Move the camera to a place, framing its bounds when known.
+   * `atCenter` puts the coordinate on the map centre instead of shifting it
+   * clear of overlays.
+   */
+  focus: (target: MapFocusTarget, options?: { atCenter?: boolean }) => void;
   /**
    * Pan by `dyPx` pixels down the screen (positive is south) without changing
    * zoom. Not a user gesture.
