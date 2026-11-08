@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
+import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import { useSearchStore } from '../stores/searchStore';
@@ -812,6 +813,19 @@ export function SearchScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          <View style={styles.distanceNote} testID="distance-note">
+            <Ionicons
+              name="information-circle-outline"
+              size={14}
+              color={theme.colors.text.secondary}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
+            <Text style={styles.distanceNoteText}>
+              Distance and estimated travel time are from the search location, not your current
+              location.
+            </Text>
+          </View>
 
           <BottomSheetFlatList
             data={listData}
@@ -999,8 +1013,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
     gap: theme.spacing.xs,
+  },
+  distanceNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+  },
+  distanceNoteText: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+    flex: 1,
   },
   sortLabel: {
     ...theme.typography.bodySmall,
