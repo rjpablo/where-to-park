@@ -595,8 +595,8 @@ export default function LocationDetailScreen() {
                 title="Reserve a spot"
                 onPress={() => {
                   const path = `/reserve/${id}`;
-                  if (!user) router.push(`/auth?next=${encodeURIComponent(path)}`);
-                  else router.push(path);
+                  if (!user) router.push(`/auth?next=${encodeURIComponent(path)}` as never);
+                  else router.push(path as never);
                 }}
                 testID="reserve-spot"
                 style={{ marginBottom: theme.spacing.sm }}

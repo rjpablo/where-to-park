@@ -61,11 +61,32 @@ test('0074 types (rj t176u)', () => {
   );
   assert.equal(notificationRoute({ type: 'reservation_request', ...L }), `/operator/hub/${S}`);
   assert.equal(
+    notificationRoute({ type: 'reservation_request', ref_type: 'session', ref_id: S, ...L }),
+    `/staff/session?id=${S}`
+  );
+  assert.equal(
     notificationRoute({ type: 'no_show', ...L, audience: 'operator' }),
     `/operator/hub/${S}`
   );
   assert.equal(notificationRoute({ type: 'no_show', ...L, audience: 'driver' }), `/location/${S}`);
   assert.equal(notificationRoute({ type: 'reservation_decision', ...L }), `/location/${S}`);
+  assert.equal(
+    notificationRoute({
+      type: 'reservation_decision',
+      ref_type: 'session',
+      ref_id: S,
+      audience: 'driver',
+    }),
+    `/sessions/${S}`
+  );
+  assert.equal(
+    notificationRoute({
+      type: 'reservation_decision',
+      ref_type: 'session',
+      ref_id: S,
+    }),
+    `/staff/session?id=${S}`
+  );
   assert.equal(
     notificationRoute({
       type: 'session_ending_soon',

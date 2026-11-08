@@ -254,7 +254,7 @@ export default function ReserveScreen() {
       return;
     }
     showToast(sessionId ? 'Reservation updated' : 'Reservation request sent', 'success');
-    router.replace(`/sessions/${data.session_id}`);
+    router.replace(`/sessions/${data.session_id}` as never);
   };
 
   if (!initialized || !user || loading) {

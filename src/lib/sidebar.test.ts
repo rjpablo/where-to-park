@@ -56,6 +56,7 @@ test('items: driver vs operator vs admin are role-appropriate', () => {
     'messages',
     'notifications',
     'list_space',
+    'sessions',
     'vehicles',
     'contact',
     'sign_out',
