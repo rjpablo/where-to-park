@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Switch } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../../src/components/Button';
 import { FacilityPhotoField } from '../../../src/components/FacilityPhotoField';
 import { MapPinPicker } from '../../../src/components/map/MapPinPicker';
+import { reservationErrorMessage } from '../../../src/lib/reservations';
 import { supabase } from '../../../src/lib/supabase';
 import { firstParam } from '../../../src/lib/params';
 import {
@@ -25,6 +26,7 @@ export default function EditLocationScreen() {
   const [name, setName] = React.useState('');
   const [address, setAddress] = React.useState('');
   const [rules, setRules] = React.useState('');
+  const [allowReservations, setAllowReservations] = React.useState(false);
   const [capacity, setCapacity] = React.useState('');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   // The pin as last saved (null until loaded); 'Restore saved pin' goes back here.
@@ -44,13 +46,19 @@ export default function EditLocationScreen() {
       try {
         const { data, error: fetchError } = await supabase
           .from('locations')
-          .select('name, address, rules, capacity, location_photos(storage_path, is_cover)')
+          .select(
+            'name, address, rules, capacity, location_photos(storage_path, is_cover), location_policies(reservations_enabled)'
+          )
           .eq('id', id)
           .single();
         if (fetchError) throw fetchError;
         setName(data.name);
         setAddress(data.address);
         setRules(data.rules || '');
+        const policy = Array.isArray(data.location_policies)
+          ? data.location_policies[0]
+          : data.location_policies;
+        setAllowReservations(policy?.reservations_enabled === true);
         setCapacity(String(data.capacity));
         const cover =
           (data.location_photos || []).find((p: any) => p.is_cover) || data.location_photos?.[0];
@@ -121,6 +129,14 @@ export default function EditLocationScreen() {
         setError(String(data.error));
         return;
       }
+      const { data: flagData, error: flagError } = await supabase.rpc('set_reservation_requests', {
+        p_location_id: id,
+        p_enabled: allowReservations,
+      });
+      if (flagError || flagData?.error) {
+        setError(flagError?.message || reservationErrorMessage(flagData?.error));
+        return;
+      }
       setSuccess('Location updated');
       setSavedPin(pin);
       if (photo?.base64 && photoDirty) {
@@ -187,6 +203,21 @@ export default function EditLocationScreen() {
         testID="edit-rules"
       />
 
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.switchLabel}>Allow reservation requests</Text>
+          <Text style={styles.switchHint}>
+            Drivers can ask for a future stay. You approve or reject each request.
+          </Text>
+        </View>
+        <Switch
+          value={allowReservations}
+          onValueChange={setAllowReservations}
+          accessibilityLabel="Allow reservation requests"
+          testID="edit-reservations"
+        />
+      </View>
+
       <Text style={styles.label}>Facility photo</Text>
       <FacilityPhotoField
         photo={photo}
@@ -242,6 +273,19 @@ export default function EditLocationScreen() {
 }
 
 const styles = StyleSheet.create({
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  switchLabel: { ...theme.typography.body, fontWeight: '600', color: theme.colors.text.primary },
+  switchHint: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+  },
   areasNote: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,
