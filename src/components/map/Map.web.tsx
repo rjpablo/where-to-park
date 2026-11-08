@@ -1,10 +1,17 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { View, StyleSheet } from 'react-native';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapHandle, MapProps } from './types';
 import { BAGUIO, DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL } from './style';
-import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
+import { cameraForPlace, cameraForPoints, cameraOnCenter, NO_INSETS, type LngLat } from './camera';
 import {
   CLUSTER_LABEL_EXPRESSION,
   CLUSTER_PROPERTIES,
@@ -84,7 +91,6 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
     clusterPins = true,
     overlayInsets = NO_INSETS,
     onViewportChange,
-    focusMarker,
     userLocation,
   },
   ref
@@ -98,6 +104,30 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   const markers = useRef<maplibregl.Marker[]>([]);
   const onMapPressRef = useRef(onMapPress);
   const [mapLoaded, setMapLoaded] = useState(false);
+  // Set when the pointer or wheel is on the map. Cleared by a move we started.
+  const userIntent = useRef(false);
+  // Camera at pointer-down. A later programmatic pan must not be compared to it.
+  const gestureCamera = useRef<{ lat: number; lng: number; zoom: number } | null>(null);
+  const gestureTimer = useRef<number | null>(null);
+  // focus, nudge, and region flyTos. Their moveend is not the user moving the map.
+  const programmaticMoves = useRef(0);
+  // Increments whenever a gesture is dismissed. Pending checks compare it.
+  const programmaticEpoch = useRef(0);
+
+  const dismissGesture = useCallback(() => {
+    programmaticEpoch.current += 1;
+    userIntent.current = false;
+    gestureCamera.current = null;
+    if (gestureTimer.current != null) {
+      window.clearTimeout(gestureTimer.current);
+      gestureTimer.current = null;
+    }
+  }, []);
+
+  const markProgrammatic = useCallback(() => {
+    programmaticMoves.current += 1;
+    dismissGesture();
+  }, [dismissGesture]);
 
   onMapPressRef.current = onMapPress;
 
@@ -150,10 +180,70 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
         isUserInteraction,
       });
     };
+    // MapLibre often omits originalEvent on moveend (inertia). A pointer or
+    // wheel on the map is the user. focus, nudge, and settle clear that.
+    const canvas = map.current.getCanvasContainer();
+    const snapshot = () => {
+      const current = map.current;
+      if (!current) return null;
+      const center = current.getCenter();
+      return { lat: center.lat, lng: center.lng, zoom: current.getZoom() };
+    };
+    const cameraChanged = (
+      from: { lat: number; lng: number; zoom: number } | null,
+      to: { lat: number; lng: number; zoom: number } | null
+    ) =>
+      !!from &&
+      !!to &&
+      (Math.abs(from.lat - to.lat) > 1e-7 ||
+        Math.abs(from.lng - to.lng) > 1e-7 ||
+        Math.abs(from.zoom - to.zoom) > 0.01);
+    const arm = () => {
+      userIntent.current = true;
+      if (!gestureCamera.current) gestureCamera.current = snapshot();
+    };
+    canvas.addEventListener('pointerdown', arm, true);
+    canvas.addEventListener(
+      'pointermove',
+      (event: PointerEvent) => {
+        if (event.buttons) arm();
+      },
+      true
+    );
+    canvas.addEventListener('wheel', arm, { passive: true, capture: true });
+    const endGesture = () => {
+      const origin = gestureCamera.current;
+      const epoch = programmaticEpoch.current;
+      if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
+      gestureTimer.current = window.setTimeout(() => {
+        gestureTimer.current = null;
+        // A focus, sheet pan, or parking search since the finger went up owns
+        // that camera change.
+        if (programmaticEpoch.current !== epoch) {
+          gestureCamera.current = null;
+          return;
+        }
+        if (cameraChanged(origin, snapshot())) emitViewport(true);
+        gestureCamera.current = null;
+      }, 450);
+    };
+    canvas.addEventListener('pointerup', endGesture, true);
+    canvas.addEventListener('pointercancel', endGesture, true);
     // Report the first viewport too, so callers know the visible area at start.
     map.current.on('load', () => emitViewport(false));
-    // Programmatic flyTo/easeTo calls have no originating DOM event.
-    map.current.on('moveend', (e: any) => emitViewport(!!e?.originalEvent));
+    map.current.on('moveend', (e: any) => {
+      if (programmaticMoves.current > 0) {
+        programmaticMoves.current -= 1;
+        userIntent.current = false;
+        emitViewport(false);
+        return;
+      }
+      // Camera drift from a sheet pan is not a user move. Only a pointer,
+      // wheel, or control click (originalEvent) is.
+      const user = userIntent.current || !!e?.originalEvent;
+      userIntent.current = false;
+      emitViewport(user);
+    });
     const fallback = setTimeout(() => setMapLoaded(true), 2500);
 
     map.current.on('idle', () => {
@@ -167,6 +257,7 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
 
     return () => {
       clearTimeout(fallback);
+      if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
       markers.current.forEach((m) => m.remove());
       markers.current = [];
       map.current?.remove();
@@ -347,39 +438,55 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   }, [pins, mapLoaded, clusterPins, onPinPress]);
 
   useImperativeHandle(ref, () => ({
-    focus: (target) => {
+    focus: (target, options) => {
       const m = map.current;
       if (!m) return;
       const container = m.getContainer();
-      const camera = cameraForPlace(
-        target,
-        { width: container.clientWidth, height: container.clientHeight },
-        insetsRef.current
-      );
-      if (camera) m.flyTo({ center: camera.center, zoom: camera.zoom, duration: 1200 });
+      const size = { width: container.clientWidth, height: container.clientHeight };
+      const camera = options?.atCenter
+        ? cameraOnCenter(target, size)
+        : cameraForPlace(target, size, insetsRef.current);
+      if (camera) {
+        markProgrammatic();
+        m.flyTo({ center: camera.center, zoom: camera.zoom, duration: 1200 });
+      }
+    },
+    nudge: (dyPx: number) => {
+      if (!dyPx) return;
+      markProgrammatic();
+      // Positive y moves the camera to the point currently below the centre (south).
+      map.current?.panBy([0, dyPx], { duration: 0 });
+    },
+    settle: () => {
+      const m = map.current;
+      dismissGesture();
+      // Leftover inertia would otherwise end after the parking search and look
+      // like a new pan. Stopping it fires moveend, which the counter swallows.
+      if (m?.isEasing()) {
+        programmaticMoves.current += 1;
+        m.stop();
+      }
+    },
+    readViewport: () => {
+      const m = map.current;
+      if (!m) return null;
+      try {
+        const bounds = m.getBounds();
+        const center = m.getCenter();
+        return {
+          center: { latitude: center.lat, longitude: center.lng },
+          zoom: m.getZoom(),
+          bounds: {
+            ne: { latitude: bounds.getNorth(), longitude: bounds.getEast() },
+            sw: { latitude: bounds.getSouth(), longitude: bounds.getWest() },
+          },
+          isUserInteraction: false,
+        };
+      } catch {
+        return null;
+      }
     },
   }));
-
-  // Temporary marker for a searched place.
-  const focusMarkerRef = useRef<maplibregl.Marker | null>(null);
-  useEffect(() => {
-    focusMarkerRef.current?.remove();
-    focusMarkerRef.current = null;
-    if (!map.current || !focusMarker) return;
-    const el = document.createElement('canvas');
-    const data = pinImageData('pin-place');
-    if (data) {
-      el.width = data.width;
-      el.height = data.height;
-      el.style.width = `${PIN_WIDTH}px`;
-      el.style.height = `${PIN_HEIGHT}px`;
-      el.getContext('2d')?.putImageData(data, 0, 0);
-    }
-    el.setAttribute('data-testid', 'focus-place-marker');
-    focusMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-      .setLngLat([focusMarker.longitude, focusMarker.latitude])
-      .addTo(map.current);
-  }, [focusMarker, mapLoaded]);
 
   // Current-location puck: a DOM marker so it needs no style images.
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
@@ -418,12 +525,13 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   useEffect(() => {
     if (!map.current || !region) return;
 
+    markProgrammatic();
     map.current.flyTo({
       center: [region.longitude, region.latitude],
       zoom: initialZoom,
       duration: 1000,
     });
-  }, [region, initialZoom]);
+  }, [region, initialZoom, markProgrammatic]);
 
   return (
     <View style={[styles.container, style]}>

@@ -1,8 +1,9 @@
 /**
- * Where a tapped push notification opens (rj t173u). The push `data` carries the
- * notifications row's type, ref_type and ref_id (plus the row's own data, e.g.
- * location_id) — see supabase/functions/send-push/lib.ts › pushData.
- * Anything unknown opens the Notifications list.
+ * Where a tapped notification opens (rj t173u). Push `data` is flat: the row's type,
+ * ref_type and ref_id, plus its own data (location_id, audience, …) — see
+ * supabase/functions/send-push/lib.ts › pushData. The Notifications list passes a row
+ * through notificationRowRoute, which flattens `data` the same way.
+ * Anything unknown stays on the Notifications list.
  */
 export type PushData = {
   notification_id?: unknown;
@@ -13,6 +14,14 @@ export type PushData = {
   driver_id?: unknown;
   audience?: unknown;
   [key: string]: unknown;
+};
+
+/** A notifications table row (data is the jsonb column, not yet flattened). */
+export type NotificationRowLike = {
+  type?: unknown;
+  ref_type?: unknown;
+  ref_id?: unknown;
+  data?: unknown;
 };
 
 export const NOTIFICATIONS_ROUTE = '/notifications';
@@ -54,16 +63,38 @@ export function notificationRoute(data: PushData | null | undefined): string {
     case 'no_show':
       return forDriver ? listing : hub;
     case 'reservation_decision':
-    case 'session_ending_soon':
       return listing;
-    case 'listing_reviewed':
+    case 'fee_paid':
+    case 'listing_reviewed': {
+      const loc = locationId || (refType === 'location' ? refId : null);
+      return loc ? `/location/${loc}` : NOTIFICATIONS_ROUTE;
+    }
     case 'staff_added':
       // 0082: an invite is answered (Accept / Decline) in the Notifications list.
       return refType === 'staff_invite' ? NOTIFICATIONS_ROUTE : '/operator/listings';
+    case 'session_ending_soon':
+    case 'session_ended':
+    case 'session_extended':
+    case 'scheduled_end':
+    case 'overdue':
+      return refId ? `/staff/session?id=${refId}` : NOTIFICATIONS_ROUTE;
   }
-  if (refType === 'session' && refId) {
-    return forDriver ? listing : `/staff/session?id=${refId}`;
-  }
+  if (refType === 'session' && refId) return `/staff/session?id=${refId}`;
   if (refType === 'location' && refId) return `/location/${refId}`;
   return NOTIFICATIONS_ROUTE;
+}
+
+/** Same destinations as a push tap, from a notifications row. */
+export function notificationRowRoute(row: NotificationRowLike | null | undefined): string {
+  if (!row || typeof row !== 'object') return NOTIFICATIONS_ROUTE;
+  const extra =
+    row.data && typeof row.data === 'object' && !Array.isArray(row.data)
+      ? (row.data as PushData)
+      : {};
+  return notificationRoute({
+    ...extra,
+    type: row.type,
+    ref_type: row.ref_type,
+    ref_id: row.ref_id,
+  });
 }

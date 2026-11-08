@@ -219,6 +219,12 @@ export default function ListingHubScreen() {
           onPress={() => go('/operator/inbox', { locationId: location.id })}
           testID="hub-messages"
         />
+        <Button
+          title="View location details"
+          variant="outline"
+          onPress={() => go('/location/[id]', { id: location.id })}
+          testID="hub-location"
+        />
         {canDeleteListing(role) ? (
           <Button
             title="Delete listing"

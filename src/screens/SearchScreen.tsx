@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  Platform,
+} from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
+import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import { useSearchStore } from '../stores/searchStore';
@@ -41,7 +50,17 @@ import {
   distanceAfterSearch,
   sliderMaxKm,
 } from '../lib/distance';
-import type { PlaceSuggestion } from '../lib/geocoding';
+import { getGeocoder, type PlaceSuggestion } from '../lib/geocoding';
+import { firstParam } from '../lib/params';
+import {
+  parseSearchLink,
+  sameSearchCenter,
+  searchCenterKey,
+  searchDocumentDescription,
+  searchDocumentTitle,
+  searchLinkParams,
+  type SearchCenter,
+} from '../lib/searchLink';
 import { distanceMeters } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
@@ -82,9 +101,24 @@ const SHEET_PEEK_MAX_FRACTION = 0.5;
 const SHEET_LAYER = 30;
 // Gap between the ◎ button and the top of the Minimized sheet.
 const RECENTER_GAP = 16;
+/** Screen size of the centre cursor (the Search this area spot). */
+const CENTRE_CURSOR = 28;
+/** Default search origin until the driver searches or opens a link with coordinates. */
+const BAGUIO_CENTRE: SearchCenter = { lat: 16.4023, lng: 120.596 };
 
 export function SearchScreen() {
   const router = useRouter();
+  const routeParams = useLocalSearchParams<{
+    lat?: string | string[];
+    lng?: string | string[];
+    place?: string | string[];
+  }>();
+  // First paint only: a link already in the URL, so the map and the first search
+  // start there. Later links are applied in the effect below.
+  const openingLink = useRef(parseSearchLink(routeParams)).current;
+  const openingCenter = openingLink
+    ? { lat: openingLink.lat, lng: openingLink.lng }
+    : BAGUIO_CENTRE;
   const {
     results,
     loading,
@@ -99,22 +133,38 @@ export function SearchScreen() {
     sheetPosition,
     setSheetPosition,
   } = useSearchStore();
-  // Search origin: Baguio City centre until the user searches another area.
-  const [location, setLocation] = useState({ lat: 16.4023, lng: 120.596 });
+  // Search origin: Baguio, unless the URL already names a centre.
+  const [location, setLocation] = useState(openingCenter);
+  const locationRef = useRef(openingCenter);
+  locationRef.current = location;
+  const [placeLabel, setPlaceLabel] = useState<string | null>(openingLink?.place ?? null);
+  const placeLabelRef = useRef(placeLabel);
+  placeLabelRef.current = placeLabel;
   const [searchNonce, setSearchNonce] = useState(0);
   const [movedViewport, setMovedViewport] = useState<MapViewport | null>(null);
   const mapRef = useRef<MapHandle>(null);
   const sheetRef = useRef<BottomSheet>(null);
-  const [mapCenter, setMapCenter] = useState<Coordinate>({ latitude: 16.4023, longitude: 120.596 });
+  const [mapCenter, setMapCenter] = useState<Coordinate>({
+    latitude: openingCenter.lat,
+    longitude: openingCenter.lng,
+  });
   // Slider max = distance from the search centre to the farthest visible corner.
   const [distanceMaxKm, setDistanceMaxKm] = useState(MAX_DISTANCE_KM);
   // Identifies the current search (centre + 'Search this area' nonce) so the
   // effect can tell a new search from a filter/sort re-run.
   const lastSearchKey = useRef<string | null>(null);
   const latestViewport = useRef<MapViewport | null>(null);
-  const [placeMarker, setPlaceMarker] = useState<Coordinate | null>(null);
   // After jumping to a searched place, offer "Search this area" there too.
   const offerSearchAfterMove = useRef(false);
+  // Name from the search box, kept until the driver pans, recenters, or clears it.
+  const pickedName = useRef<string | null>(null);
+  // Centre we last wrote into the URL, so that write does not search again.
+  const localPublish = useRef<string | null>(null);
+  // Coordinates we already reverse-geocoded (or that arrived with a name).
+  const reversedFor = useRef<string | null>(
+    openingLink?.place ? searchCenterKey(openingCenter) : null
+  );
+  const linkSeq = useRef(0);
   const authUser = useAuthStore((s) => s.user);
   // Row Navigate buttons use the same map app as the details page (phone default for guests).
   const navApp = preferredNavApp(authUser?.preferred_nav_app);
@@ -153,34 +203,45 @@ export function SearchScreen() {
     [currentSheetPx]
   );
 
-  // Initial camera only; later moves come from the user, clusters or place search.
-  const region: MapRegion = useMemo(
-    () => ({
-      latitude: 16.4023,
-      longitude: 120.596,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
-    }),
-    []
-  );
+  // Initial camera only; later moves come from the user, clusters, place search, or a link.
+  const region = useRef<MapRegion>({
+    latitude: openingCenter.lat,
+    longitude: openingCenter.lng,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  }).current;
 
   const handleViewportChange = useCallback((viewport: MapViewport) => {
+    const user = viewport.isUserInteraction;
     const first = latestViewport.current == null;
     latestViewport.current = viewport;
-    setMapCenter(viewport.center);
-    // First visible area known: re-run so the slider max matches it.
-    if (first) setSearchNonce((n) => n + 1);
-    // Offer "Search this area" only after the user's own pan or zoom (or a place jump).
-    if (viewport.isUserInteraction || offerSearchAfterMove.current) {
+    // A place pick or the current-location button asked for the button, even
+    // when that jump is not a finger on the map.
+    if (offerSearchAfterMove.current) {
       offerSearchAfterMove.current = false;
+      setMapCenter(viewport.center);
+      setMovedViewport(viewport);
+      return;
+    }
+    setMapCenter(viewport.center);
+    // Opening the map is not a reason to offer another search.
+    if (first) {
+      setSearchNonce((n) => n + 1);
+      return;
+    }
+    // Hidden by a parking search. A pan or zoom of the map brings it back.
+    if (user) {
+      pickedName.current = null;
       setMovedViewport(viewport);
     }
   }, []);
 
   // Current-location puck + recenter button.
   const recenter = useCallback((coordinate: { latitude: number; longitude: number }) => {
+    pickedName.current = null;
     offerSearchAfterMove.current = true;
-    mapRef.current?.focus({ coordinate, zoom: RECENTER_ZOOM });
+    // The centre cursor marks the map centre, so the puck is placed there.
+    mapRef.current?.focus({ coordinate, zoom: RECENTER_ZOOM }, { atCenter: true });
   }, []);
   const {
     permission,
@@ -190,19 +251,112 @@ export function SearchScreen() {
   } = useLocateMe(recenter);
 
   const handlePlaceSelect = useCallback((place: PlaceSuggestion) => {
-    setPlaceMarker(place.coordinate);
+    pickedName.current = place.name;
     offerSearchAfterMove.current = true;
-    mapRef.current?.focus(place);
+    mapRef.current?.focus(place, { atCenter: true });
   }, []);
+
+  // Writes lat/lng/place on the web and keeps the document title in step.
+  // A picked name is used as-is. Otherwise one reverse lookup fills it in;
+  // the parking search does not wait for that lookup.
+  const publishSearchLink = useCallback(
+    async (center: SearchCenter, knownName: string | null) => {
+      const seq = ++linkSeq.current;
+      const key = searchCenterKey(center);
+      localPublish.current = key;
+      reversedFor.current = key;
+      const nameNow = knownName?.trim() || null;
+      placeLabelRef.current = nameNow;
+      setPlaceLabel(nameNow);
+      if (Platform.OS === 'web') {
+        router.setParams({
+          ...searchLinkParams({ ...center, place: nameNow }),
+          // Drop a previous name while a new one is still being looked up.
+          place: nameNow ?? '',
+        });
+      }
+      if (nameNow) return;
+      let resolved: string | null = null;
+      try {
+        resolved = await getGeocoder().reverse({
+          latitude: center.lat,
+          longitude: center.lng,
+        });
+      } catch {
+        resolved = null;
+      }
+      if (seq !== linkSeq.current) return;
+      if (!sameSearchCenter(center, locationRef.current)) return;
+      const name = resolved?.trim() || null;
+      if (!name) return;
+      placeLabelRef.current = name;
+      setPlaceLabel(name);
+      if (Platform.OS === 'web') router.setParams({ place: name });
+    },
+    [router]
+  );
+
+  const latParam = firstParam(routeParams.lat);
+  const lngParam = firstParam(routeParams.lng);
+  const placeParam = firstParam(routeParams.place);
+  // A URL with coordinates (including one that arrives while this screen is open)
+  // becomes the search. Our own address update is ignored.
+  useEffect(() => {
+    const linked = parseSearchLink({ lat: latParam, lng: lngParam, place: placeParam });
+    if (!linked) return;
+    const center: SearchCenter = { lat: linked.lat, lng: linked.lng };
+    const key = searchCenterKey(center);
+    const same = sameSearchCenter(center, locationRef.current);
+    if (same && localPublish.current === key) {
+      if (linked.place && linked.place !== placeLabelRef.current) {
+        placeLabelRef.current = linked.place;
+        setPlaceLabel(linked.place);
+      }
+      return;
+    }
+    if (!same) {
+      localPublish.current = null;
+      pickedName.current = null;
+      locationRef.current = center;
+      placeLabelRef.current = linked.place;
+      setLocation(center);
+      setPlaceLabel(linked.place);
+      setMovedViewport(null);
+      setSearchNonce((n) => n + 1);
+      mapRef.current?.focus(
+        {
+          coordinate: { latitude: center.lat, longitude: center.lng },
+          zoom: SEARCH_START_ZOOM,
+        },
+        { atCenter: true }
+      );
+    } else if (linked.place && linked.place !== placeLabelRef.current) {
+      placeLabelRef.current = linked.place;
+      setPlaceLabel(linked.place);
+    }
+    if (!linked.place && reversedFor.current !== key) {
+      void publishSearchLink(center, null);
+    }
+  }, [latParam, lngParam, placeParam, publishSearchLink]);
 
   const searchThisArea = () => {
     if (!movedViewport) return;
-    const { center } = movedViewport;
-    latestViewport.current = movedViewport;
+    // Inertia from the pan that revealed the button must not bring it back.
+    mapRef.current?.settle();
+    // The live camera, not the viewport from when the button appeared.
+    const view = mapRef.current?.readViewport() ?? latestViewport.current;
+    if (!view) return;
+    latestViewport.current = view;
+    // The cursor sits on the map centre, so that centre is the search point.
+    const next: SearchCenter = { lat: view.center.latitude, lng: view.center.longitude };
+    locationRef.current = next;
     // The search effect recomputes the slider max for this centre and viewport.
-    setLocation({ lat: center.latitude, lng: center.longitude });
+    setLocation(next);
     setMovedViewport(null);
     setSearchNonce((n) => n + 1);
+    const known = pickedName.current;
+    pickedName.current = null;
+    void publishSearchLink(next, known);
   };
 
   // rj t140u: Full listings are only shown (grey pin / row) while 'Show Full' is on.
@@ -462,12 +616,17 @@ export function SearchScreen() {
 
   return (
     <View style={styles.container} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
+      {Platform.OS === 'web' ? (
+        <Head>
+          <title>{searchDocumentTitle(placeLabel)}</title>
+          <meta name="description" content={searchDocumentDescription(placeLabel)} />
+        </Head>
+      ) : null}
       {/* Map with location pins */}
       <Map
         ref={mapRef}
         region={region}
         initialZoom={SEARCH_START_ZOOM}
-        focusMarker={placeMarker}
         pins={pins}
         onPinPress={handlePinPress}
         style={styles.map}
@@ -479,14 +638,28 @@ export function SearchScreen() {
       />
 
       <View
+        pointerEvents="none"
+        style={styles.centreCursor}
+        testID="map-centre-cursor"
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+      >
+        <View style={styles.centreCursorRing} />
+        <View style={styles.centreCursorDot} />
+      </View>
+
+      <View
         style={[styles.topOverlay, suggestionsOpen && styles.topOverlayRaised]}
         pointerEvents="box-none"
       >
         <PlaceSearchBox
           near={mapCenter}
+          label={placeLabel}
           onSuggestionsVisibleChange={setSuggestionsOpen}
           onSelect={handlePlaceSelect}
-          onClear={() => setPlaceMarker(null)}
+          onClear={() => {
+            pickedName.current = null;
+          }}
         />
         {movedViewport ? (
           <TouchableOpacity
@@ -640,6 +813,19 @@ export function SearchScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          <View style={styles.distanceNote} testID="distance-note">
+            <Ionicons
+              name="information-circle-outline"
+              size={14}
+              color={theme.colors.text.secondary}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
+            <Text style={styles.distanceNoteText}>
+              Distance and estimated travel time are from the search location, not your current
+              location.
+            </Text>
+          </View>
 
           <BottomSheetFlatList
             data={listData}
@@ -670,6 +856,41 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  // Fixed at the centre of the map. The results sheet does not move it.
+  centreCursor: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: CENTRE_CURSOR,
+    height: CENTRE_CURSOR,
+    marginLeft: -CENTRE_CURSOR / 2,
+    marginTop: -CENTRE_CURSOR / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    elevation: 12,
+  },
+  centreCursorRing: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    backgroundColor: 'transparent',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.45,
+    shadowRadius: 2,
+  },
+  centreCursorDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
   },
   // Right side, RECENTER_GAP above the Minimized sheet; below the sheet's layer.
   recenterWrap: {
@@ -792,8 +1013,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
     gap: theme.spacing.xs,
+  },
+  distanceNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+  },
+  distanceNoteText: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+    flex: 1,
   },
   sortLabel: {
     ...theme.typography.bodySmall,

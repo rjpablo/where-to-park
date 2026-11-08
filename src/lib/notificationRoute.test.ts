@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { notificationRoute } from './notificationRoute.ts';
+import { notificationRoute, notificationRowRoute } from './notificationRoute.ts';
 
 const S = '11111111-2222-3333-4444-555555555555';
 
@@ -74,11 +74,11 @@ test('0074 types (rj t176u)', () => {
       ...L,
       audience: 'driver',
     }),
-    `/location/${S}`
+    `/staff/session?id=${S}`
   );
   assert.equal(
-    notificationRoute({ type: 'listing_reviewed', ref_type: 'location', ref_id: S }),
-    '/operator/listings'
+    notificationRoute({ type: 'listing_reviewed', ref_type: 'location', ref_id: S, ...L }),
+    `/location/${S}`
   );
   assert.equal(notificationRoute({ type: 'staff_added' }), '/operator/listings');
   assert.equal(
@@ -91,4 +91,35 @@ test('0074 types (rj t176u)', () => {
   );
   assert.equal(notificationRoute({ type: 'chat_message', ...L, audience: 'driver' }), `/chat/${S}`);
   assert.equal(notificationRoute({ type: 'reservation_request' }), '/operator/listings');
+});
+
+test('a notifications row flattens data the same way a push does', () => {
+  assert.equal(
+    notificationRowRoute({
+      type: 'listing_reviewed',
+      ref_type: 'location',
+      ref_id: S,
+      data: { location_id: S, audience: 'operator', outcome: 'verified' },
+    }),
+    `/location/${S}`
+  );
+  assert.equal(
+    notificationRowRoute({
+      type: 'no_show',
+      ref_type: 'reservation',
+      ref_id: 'res-1',
+      data: { location_id: S, audience: 'driver' },
+    }),
+    `/location/${S}`
+  );
+  assert.equal(
+    notificationRowRoute({
+      type: 'staff_added',
+      ref_type: 'staff_invite',
+      ref_id: 'abc-1',
+      data: { audience: 'invitee' },
+    }),
+    '/notifications'
+  );
+  assert.equal(notificationRowRoute(null), '/notifications');
 });
