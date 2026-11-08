@@ -89,6 +89,7 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen name="location/[id]" options={{ title: 'Location Details' }} />
+          <Stack.Screen name="reserve/[locationId]" options={{ title: 'Reserve a spot' }} />
           <Stack.Screen name="operator/listings" options={{ title: 'My listings' }} />
           <Stack.Screen name="operator/hub/[id]" options={{ title: 'Listing' }} />
           <Stack.Screen name="operator/onboarding" options={{ title: 'List Your Space' }} />
