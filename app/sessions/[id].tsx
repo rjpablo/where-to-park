@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { PlannedPrice } from '../../src/components/PlannedPrice';
 import { SlideToConfirm } from '../../src/components/SlideToConfirm';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { embeddedOne } from '../../src/lib/embed';
@@ -16,7 +17,7 @@ import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { showToast } from '../../src/stores/toastStore';
 import { useAuthStore } from '../../src/stores/authStore';
-import { formatLocalDateTime, formatPeso } from '../../src/utils/formatters';
+import { formatLocalDateTime } from '../../src/utils/formatters';
 
 type SessionRow = {
   id: string;
@@ -116,8 +117,6 @@ export default function DriverSessionScreen() {
 
   const kind = driverSessionKind(row);
   const place = embeddedOne(row.locations)?.name || 'Parking';
-  const amount = Number(row.rate_snapshot?.amount);
-  const planned = Number.isFinite(amount) ? formatPeso(amount) : null;
 
   return (
     <ScrollView
@@ -141,10 +140,8 @@ export default function DriverSessionScreen() {
       {row.scheduled_end_at ? (
         <Text style={styles.line}>Ends {formatLocalDateTime(row.scheduled_end_at)}</Text>
       ) : null}
-      {planned && (kind === 'waiting' || kind === 'approved') ? (
-        <Text style={styles.line} testID="driver-session-price">
-          Planned price {planned}
-        </Text>
+      {kind === 'waiting' || kind === 'approved' ? (
+        <PlannedPrice price={row.rate_snapshot} testID="driver-session-price" />
       ) : null}
       {error ? (
         <Text style={styles.error} testID="driver-session-error">

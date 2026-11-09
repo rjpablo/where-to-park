@@ -188,6 +188,26 @@ test('session set rate label and split breakdown lines (0057)', () => {
     ['M: 2 mo · ₱8,000.00']
   );
   assert.deepEqual(priceBreakdownLines(null), []);
+  assert.deepEqual(
+    priceBreakdownLines(
+      {
+        breakdown: [
+          {
+            rate_name: 'Valet',
+            rate_type: 'flat_then_hourly',
+            hours: 5,
+            amount: 180,
+            first_hours: 3,
+            first_amount: 100,
+            succeeding_hours: 2,
+            succeeding_amount: 80,
+          },
+        ],
+      },
+      'Valet'
+    ),
+    ['Flat for first 3h · ₱100.00', '2 succeeding hours · ₱80.00']
+  );
 });
 
 test('filterByPlate: case- and space-insensitive substring; empty query keeps all', () => {

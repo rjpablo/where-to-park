@@ -14,6 +14,7 @@ import {
   rateSummary,
 } from '../../src/lib/rates';
 import { daysLabel } from '../../src/lib/rateForm';
+import { plannedPriceDetail } from '../../src/lib/reservations';
 import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import {
   manilaTimeNow,
@@ -292,6 +293,16 @@ export default function RatesScreen() {
                 {quote.billed_hours}h billed
               </Text>
             )}
+            {(plannedPriceDetail(quote)?.lines ?? [])
+              .filter(
+                (line) =>
+                  line.label.includes('Flat for first') || line.label.includes('succeeding hour')
+              )
+              .map((line) => (
+                <Text key={line.label} style={styles.meta} testID="quote-flat-part">
+                  {line.label} · {formatPeso(line.amount)}
+                </Text>
+              ))}
             <Text style={styles.meta} testID="quote-for">
               {quotedFor}
             </Text>
