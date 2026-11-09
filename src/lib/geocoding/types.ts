@@ -21,6 +21,10 @@ export interface SuggestOptions {
   signal?: AbortSignal;
 }
 
+export interface ReverseOptions {
+  signal?: AbortSignal;
+}
+
 /**
  * Swappable geocoding provider, mirroring the swappable map adapter in
  * src/components/map. Implementations must respect their service's usage policy.
@@ -34,4 +38,6 @@ export interface GeocodingProvider {
   /** Recommended debounce for as-you-type requests (ms). */
   readonly debounceMs: number;
   suggest(query: string, options?: SuggestOptions): Promise<PlaceSuggestion[]>;
+  /** Short place name for a coordinate, or null when the provider has no name. */
+  reverse(coordinate: Coordinate, options?: ReverseOptions): Promise<string | null>;
 }

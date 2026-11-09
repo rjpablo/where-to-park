@@ -54,8 +54,8 @@ created, only the push is skipped. A type with no row in `push_settings` (`fee_p
 | 7 | `reservation_request` | trigger `reservations_notify`: status becomes `pending_approval` | listing staff (not the driver) | on | the listing's hub |
 | 9 | `no_show` | trigger `reservations_notify`: status becomes `no_show` | listing staff and the driver | on | staff: listing hub; driver: Location details |
 | 10 | `report` | trigger `reports_notify`: a report on a **listing** | listing owner(s) and managers (the reporter isn't named; not the reporter) | on | the listing's hub |
-| 11 | `listing_reviewed` | trigger `locations_notify_reviewed`: verified, or rejected | listing owner(s) (not the admin who did it) | on | My listings |
-| 12 | `session_ending_soon` | cron `session-ending-soon` (every minute) → `notify_sessions_ending_soon()` | the driver linked to the session (`parking_sessions.driver_id`) | on | Location details |
+| 11 | `listing_reviewed` | trigger `locations_notify_reviewed`: verified, or rejected | listing owner(s) (not the admin who did it) | on | Location details |
+| 12 | `session_ending_soon` | cron `session-ending-soon` (every minute) → `notify_sessions_ending_soon()` | the driver linked to the session (`parking_sessions.driver_id`) | on | Session page |
 | 13 | `reservation_decision` | trigger `reservations_notify`: status becomes `confirmed` or `declined` | the driver | on | Location details |
 | 16 | `staff_added` | 🟧 `invite_staff` (0082): an invite to a team, answered with Accept / Decline in Notifications. Also trigger `operator_members_notify` for memberships added other ways (not when you accept your own invite) | the person invited / added | on | invite → Notifications; added → My listings |
 

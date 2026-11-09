@@ -15,6 +15,11 @@ import { theme } from '../lib/theme';
 type Props = {
   /** Bias suggestions towards this point (the current map centre). */
   near?: Coordinate;
+  /**
+   * Place name from outside the box (a shared link, or the name resolved after
+   * Search this area). Undefined leaves the field alone. Null clears it.
+   */
+  label?: string | null;
   onSelect: (place: PlaceSuggestion) => void;
   onClear?: () => void;
   /** Called when the suggestions list opens or closes (the search screen lifts the box
@@ -23,7 +28,13 @@ type Props = {
 };
 
 /** Map place search with debounced as-you-type suggestions. */
-export function PlaceSearchBox({ near, onSelect, onClear, onSuggestionsVisibleChange }: Props) {
+export function PlaceSearchBox({
+  near,
+  label,
+  onSelect,
+  onClear,
+  onSuggestionsVisibleChange,
+}: Props) {
   const geocoder = getGeocoder();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -34,6 +45,7 @@ export function PlaceSearchBox({ near, onSelect, onClear, onSuggestionsVisibleCh
   nearRef.current = near;
   // The text shown after picking a place should not trigger another lookup.
   const skipNext = useRef(false);
+  const labelApplied = useRef(false);
 
   useEffect(() => {
     if (skipNext.current) {
@@ -69,6 +81,19 @@ export function PlaceSearchBox({ near, onSelect, onClear, onSuggestionsVisibleCh
       controller.abort();
     };
   }, [query, geocoder]);
+
+  // Applied after the query effect so filling the name does not start a lookup.
+  // The first empty label is the field's own starting state and is left alone.
+  useEffect(() => {
+    if (label === undefined) return;
+    if (!labelApplied.current && !label) return;
+    labelApplied.current = true;
+    skipNext.current = true;
+    setQuery(label ?? '');
+    setSuggestions([]);
+    setOpen(false);
+    setError(null);
+  }, [label]);
 
   const pick = (place: PlaceSuggestion) => {
     skipNext.current = true;

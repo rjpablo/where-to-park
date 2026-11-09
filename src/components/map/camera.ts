@@ -70,6 +70,24 @@ export function cameraForPoints(
   return { center: [lngFromX(cx), latFromY(cy)], zoom };
 }
 
+/**
+ * The coordinate `dxPx` pixels right and `dyPx` pixels down from `center`
+ * at `zoom` (Web Mercator, 512px tiles). A negative `dyPx` is up the screen,
+ * which is north.
+ */
+export function coordinateOffset(
+  center: { latitude: number; longitude: number },
+  zoom: number,
+  dxPx: number,
+  dyPx: number
+): { latitude: number; longitude: number } {
+  const world = TILE * 2 ** zoom;
+  return {
+    longitude: lngFromX(mercX(center.longitude) + dxPx / world),
+    latitude: latFromY(mercY(center.latitude) + dyPx / world),
+  };
+}
+
 /** Great-circle distance in metres. */
 export function distanceMeters(a: LngLat, b: LngLat): number {
   const R = 6371008.8;
@@ -80,6 +98,37 @@ export function distanceMeters(a: LngLat, b: LngLat): number {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(a[1])) * Math.cos(toRad(b[1])) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Camera that puts `coordinate` on the map centre (the centre cursor).
+ * Bounds, when present, only choose the zoom; they do not slide the point
+ * toward the uncovered part of the map.
+ */
+export function cameraOnCenter(
+  target: {
+    coordinate: { latitude: number; longitude: number };
+    bounds?: {
+      ne: { latitude: number; longitude: number };
+      sw: { latitude: number; longitude: number };
+    };
+    zoom?: number;
+  },
+  size: Size
+): { center: LngLat; zoom: number } {
+  const zoom = target.zoom ?? 16;
+  const center: LngLat = [target.coordinate.longitude, target.coordinate.latitude];
+  if (!target.bounds || size.width <= 0 || size.height <= 0) return { center, zoom };
+  const { ne, sw } = target.bounds;
+  const framed = cameraForPoints(
+    [
+      [ne.longitude, ne.latitude],
+      [sw.longitude, sw.latitude],
+    ],
+    size,
+    { margin: 24, maxZoom: 17, fallbackZoom: zoom }
+  );
+  return { center, zoom: framed?.zoom ?? zoom };
 }
 
 /** Camera for a picked place: frame its bounds, else centre it at `zoom`. */

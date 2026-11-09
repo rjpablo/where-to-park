@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../src/components/Button';
 import { useAuthStore } from '../src/stores/authStore';
+import { authDestination } from '../src/lib/authReturn';
 import { isNativeOAuthPending, readOAuthIntent } from '../src/lib/googleAuth';
 import { theme } from '../src/lib/theme';
 
@@ -38,7 +39,7 @@ export default function OAuthCallbackScreen() {
         }
         if (intent === 'link') router.replace('/profile?googleLinked=1' as never);
         else if (done?.isNew) router.replace('/auth?complete=1' as never);
-        else router.replace('/search');
+        else router.replace(authDestination(null) as never);
       } catch (e: any) {
         setError(e?.message || 'Google sign-in failed');
       }

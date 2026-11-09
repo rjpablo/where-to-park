@@ -29,7 +29,11 @@ export function SessionSummary({ item, preview }: { item: any; preview: any | nu
           <Text style={styles.sessionPlate}>{item.plate || 'Unknown'}</Text>
           <Text style={styles.sessionType}>{item.vehicle_type || 'car'}</Text>
         </View>
-        {reservation ? (
+        {reservation && item.approval_status === 'pending' ? (
+          <View style={styles.approvalBadge} testID={`approval-badge-${item.plate}`}>
+            <Text style={styles.approvalBadgeText}>For Approval</Text>
+          </View>
+        ) : reservation ? (
           <View style={styles.reservationBadge} testID={`reservation-badge-${item.plate}`}>
             <Text style={styles.reservationBadgeText}>Reservation</Text>
           </View>
@@ -117,6 +121,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
   },
+  approvalBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  approvalBadgeText: { ...theme.typography.caption, color: '#92400e', fontWeight: '700' },
   reservationBadgeText: { color: '#1e3a8a', fontWeight: '700', fontSize: 12 },
   waivedBadge: {
     paddingHorizontal: theme.spacing.sm,

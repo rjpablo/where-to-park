@@ -1,4 +1,11 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 // MapLibre React Native v11 (New Architecture only; MapLibre GL JS-style API).
 import {
@@ -14,7 +21,14 @@ import {
 } from '@maplibre/maplibre-react-native';
 import { MapHandle, MapProps, MapViewport } from './types';
 import { DEFAULT_MAP_ZOOM, MAP_LABEL_FONT, MAP_STYLE_URL, mapCenter } from './style';
-import { cameraForPlace, cameraForPoints, NO_INSETS, type LngLat } from './camera';
+import {
+  cameraForPlace,
+  cameraForPoints,
+  cameraOnCenter,
+  coordinateOffset,
+  NO_INSETS,
+  type LngLat,
+} from './camera';
 import {
   CLUSTER_LABEL_EXPRESSION,
   CLUSTER_PROPERTIES,
@@ -48,7 +62,6 @@ const PIN_IMAGES = {
   'pin-open': require('../../../assets/map/pin-open.png'),
   'pin-full': require('../../../assets/map/pin-full.png'),
   'pin-stale': require('../../../assets/map/pin-stale.png'),
-  'pin-place': require('../../../assets/map/pin-place.png'),
 };
 
 export const Map = forwardRef<MapHandle, MapProps>(function Map(
@@ -63,7 +76,6 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
     clusterPins = true,
     overlayInsets = NO_INSETS,
     onViewportChange,
-    focusMarker,
     userLocation,
   },
   ref
@@ -76,6 +88,38 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
   const insetsRef = useRef(overlayInsets);
   insetsRef.current = overlayInsets;
   const firstRegion = useRef(true);
+  const cameraState = useRef<{
+    center: { latitude: number; longitude: number };
+    zoom: number;
+  } | null>(
+    region
+      ? { center: { latitude: region.latitude, longitude: region.longitude }, zoom: initialZoom }
+      : null
+  );
+  // Camera commands we issued. Their region events must not rewind a newer nudge.
+  const ownMoves = useRef(0);
+  // Parking search: inertia still in flight must not look like a new pan.
+  const ignoreUncommandedUntil = useRef(0);
+  const viewportRef = useRef<MapViewport | null>(null);
+
+  const rememberCamera = useCallback((center: number[], zoom: number) => {
+    const [lng, lat] = center;
+    if (lng == null || lat == null || !Number.isFinite(zoom)) return;
+    cameraState.current = { center: { latitude: lat, longitude: lng }, zoom };
+  }, []);
+
+  const commandCamera = useCallback(
+    (
+      center: [number, number],
+      zoom: number,
+      move: (center: [number, number], zoom: number) => void
+    ) => {
+      rememberCamera(center, zoom);
+      ownMoves.current += 1;
+      move(center, zoom);
+    },
+    [rememberCamera]
+  );
 
   // Re-centre when the caller changes `region` (the camera is otherwise
   // uncontrolled so user pans and cluster zooms are not snapped back).
@@ -84,31 +128,41 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
       firstRegion.current = false;
       return;
     }
-    cameraRef.current?.flyTo({ center: centerCoordinate, zoom: initialZoom, duration: 1000 });
-  }, [centerCoordinate, initialZoom]);
+    commandCamera(centerCoordinate, initialZoom, (center, zoom) => {
+      cameraRef.current?.flyTo({ center, zoom, duration: 1000 });
+    });
+  }, [centerCoordinate, initialZoom, commandCamera]);
 
   useImperativeHandle(ref, () => ({
-    focus: (target) => {
-      const camera = cameraForPlace(target, sizeRef.current, insetsRef.current);
+    focus: (target, options) => {
+      const camera = options?.atCenter
+        ? cameraOnCenter(target, sizeRef.current)
+        : cameraForPlace(target, sizeRef.current, insetsRef.current);
       if (!camera) return;
-      cameraRef.current?.flyTo({ center: camera.center, zoom: camera.zoom, duration: 1200 });
+      commandCamera(camera.center, camera.zoom, (center, zoom) => {
+        cameraRef.current?.flyTo({ center, zoom, duration: 1200 });
+      });
+    },
+    nudge: (dyPx: number) => {
+      const current = cameraState.current;
+      if (!current || !dyPx) return;
+      const next = coordinateOffset(current.center, current.zoom, 0, dyPx);
+      commandCamera([next.longitude, next.latitude], current.zoom, (center, zoom) => {
+        cameraRef.current?.jumpTo({ center, zoom });
+      });
+    },
+    settle: () => {
+      // Inertia after the finger lifts still emits a region event. Ignore it.
+      ignoreUncommandedUntil.current = Date.now() + 500;
+    },
+    readViewport: () => {
+      const view = viewportRef.current;
+      const cam = cameraState.current;
+      if (!view) return null;
+      if (!cam) return view;
+      return { ...view, center: cam.center, zoom: cam.zoom };
     },
   }));
-
-  const focusShape = useMemo(
-    () =>
-      focusMarker
-        ? {
-            type: 'Feature' as const,
-            properties: {},
-            geometry: {
-              type: 'Point' as const,
-              coordinates: [focusMarker.longitude, focusMarker.latitude],
-            },
-          }
-        : null,
-    [focusMarker]
-  );
 
   const userShape = useMemo(
     () =>
@@ -145,7 +199,9 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
         fallbackZoom: Math.max(expansionZoom, 16),
       });
       if (!camera) return;
-      cameraRef.current?.easeTo({ center: camera.center, zoom: camera.zoom, duration: 600 });
+      commandCamera(camera.center, camera.zoom, (center, zoom) => {
+        cameraRef.current?.easeTo({ center, zoom, duration: 600 });
+      });
     } catch (err) {
       console.warn('Cluster expansion failed', err);
     }
@@ -209,16 +265,43 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
               view.getCenter(),
               view.getZoom(),
             ]);
-            onViewportChange(viewportFrom(center, zoom, bounds, false));
+            if (ownMoves.current === 0) rememberCamera(center, zoom);
+            const next = viewportFrom(center, zoom, bounds, false);
+            viewportRef.current = next;
+            onViewportChange(next);
           } catch (err) {
             console.warn('Initial viewport unavailable', err);
           }
         }}
         onRegionDidChange={(event) => {
           if (!onViewportChange) return;
-          const { center, zoom, bounds, userInteraction } = event.nativeEvent;
+          const { center, zoom, bounds } = event.nativeEvent;
           if (!center || !bounds) return;
-          onViewportChange(viewportFrom(center, zoom, bounds, !!userInteraction));
+          // Our own jump/fly/ease already stored the destination. A late event
+          // for an earlier move must not rewind it, or look like a user pan.
+          const [lng, lat] = center;
+          const commanded = cameraState.current;
+          const closeToCommand =
+            !!commanded &&
+            Math.abs(commanded.center.latitude - lat) < 1e-4 &&
+            Math.abs(commanded.center.longitude - lng) < 1e-4 &&
+            Math.abs(commanded.zoom - zoom) < 0.05;
+          const changed =
+            !commanded ||
+            Math.abs(commanded.center.latitude - lat) > 1e-7 ||
+            Math.abs(commanded.center.longitude - lng) > 1e-7 ||
+            Math.abs(commanded.zoom - zoom) > 0.01;
+          // A jump we issued, including one that lands a hair off the request.
+          const ownMove = ownMoves.current > 0 && closeToCommand;
+          const finishingGesture = Date.now() < ignoreUncommandedUntil.current;
+          if (ownMove) ownMoves.current -= 1;
+          else {
+            ownMoves.current = 0;
+            rememberCamera(center, zoom);
+          }
+          const next = viewportFrom(center, zoom, bounds, changed && !ownMove && !finishingGesture);
+          viewportRef.current = next;
+          onViewportChange(next);
         }}
         onPress={(event) => {
           const [longitude, latitude] = event.nativeEvent.lngLat || [];
@@ -326,20 +409,6 @@ export const Map = forwardRef<MapHandle, MapProps>(function Map(
                 'text-ignore-placement': true,
               }}
               paint={{ 'text-color': '#ffffff' }}
-            />
-          </GeoJSONSource>
-        )}
-        {focusShape && (
-          <GeoJSONSource id="focus-place" data={focusShape}>
-            <Layer
-              type="symbol"
-              id="focus-place-marker"
-              layout={{
-                'icon-image': 'pin-place',
-                'icon-anchor': 'bottom',
-                'icon-allow-overlap': true,
-                'icon-ignore-placement': true,
-              }}
             />
           </GeoJSONSource>
         )}

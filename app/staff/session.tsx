@@ -10,6 +10,10 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { FilterDropdown } from '../../src/components/FilterDropdown';
+import { SlideToConfirm } from '../../src/components/SlideToConfirm';
+import { AREA_SELECT, areaAllowsVehicle, sortAreas, type Area } from '../../src/lib/areas';
+import { reservationErrorMessage } from '../../src/lib/reservations';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
@@ -64,8 +68,13 @@ export default function SessionScreen() {
   const [removing, setRemoving] = React.useState(false);
   const [payAmount, setPayAmount] = React.useState('');
   const [cancelReason, setCancelReason] = React.useState('');
-  const [confirmCancel, setConfirmCancel] = React.useState(false);
+  const [cancelAttempt, setCancelAttempt] = React.useState(0);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
+  const [areas, setAreas] = React.useState<Area[]>([]);
+  const [areaError, setAreaError] = React.useState<string | null>(null);
+  const [approving, setApproving] = React.useState(false);
+  const [rejecting, setRejecting] = React.useState(false);
+  const [rejectAttempt, setRejectAttempt] = React.useState(0);
   const [payMethod, setPayMethod] = React.useState<PaymentMethod>('cash');
   const [payNote, setPayNote] = React.useState('');
   const [payError, setPayError] = React.useState<string | null>(null);
@@ -83,6 +92,11 @@ export default function SessionScreen() {
     }
     setError(null);
     setD(data);
+    const { data: areaRows } = await supabase
+      .from('areas')
+      .select(AREA_SELECT)
+      .eq('location_id', data.session.location_id);
+    setAreas(sortAreas((areaRows || []) as unknown as Area[]));
   }, [id]);
 
   useFocusEffect(
@@ -172,7 +186,7 @@ export default function SessionScreen() {
       });
       if (e || data?.error) {
         setCancelError(e?.message || walkInErrorMessage(data.error));
-        setConfirmCancel(false);
+        setCancelAttempt((n) => n + 1);
         await load();
         return;
       }
@@ -185,6 +199,56 @@ export default function SessionScreen() {
     } finally {
       setEnding(false);
     }
+  };
+
+  const approve = async () => {
+    setApproving(true);
+    setError(null);
+    try {
+      const { data, error: e } = await supabase.rpc('approve_reservation', { p_session_id: id });
+      if (e || data?.error) {
+        setError(reservationErrorMessage(data?.error || e?.message));
+        await load();
+        return;
+      }
+      setNotice('Reservation approved');
+      await load();
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const reject = async () => {
+    setRejecting(true);
+    setError(null);
+    try {
+      const { data, error: e } = await supabase.rpc('reject_reservation', { p_session_id: id });
+      if (e || data?.error) {
+        setError(reservationErrorMessage(data?.error || e?.message));
+        setRejectAttempt((n) => n + 1);
+        await load();
+        return;
+      }
+      setNotice('Reservation rejected');
+      await load();
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const changeArea = async (areaId: string) => {
+    if (!d || areaId === d.session.area_id) return;
+    setAreaError(null);
+    const { data, error: e } = await supabase.rpc('set_reservation_area', {
+      p_session_id: id,
+      p_area_id: areaId,
+    });
+    if (e || data?.error) {
+      setAreaError(reservationErrorMessage(data?.error || e?.message));
+      return;
+    }
+    setNotice('Area updated');
+    await load();
   };
 
   const end = async (withWaiver: boolean) => {
@@ -262,15 +326,19 @@ export default function SessionScreen() {
         <Text style={styles.headerMeta}>
           {VEHICLE_TYPE_LABELS[s.vehicle_type as VehicleType] || s.vehicle_type} · {s.location_name}
           {s.area_name ? ` (${s.area_name})` : ''} ·{' '}
-          {reservation
-            ? `Reservation · starts ${formatLocalDateTime(s.started_at)} (${startsIn(s.started_at)})`
-            : s.status === 'overdue'
-              ? 'Overdue'
-              : ended && s.cancelled_at
-                ? `Reservation cancelled ${formatLocalDateTime(s.cancelled_at)}`
-                : ended
-                  ? `Ended ${formatLocalDateTime(s.ended_at)}`
-                  : 'Active'}
+          {s.approval_status === 'rejected'
+            ? `Reservation rejected ${formatLocalDateTime(s.cancelled_at)}`
+            : reservation && s.approval_status === 'pending'
+              ? `For approval · starts ${formatLocalDateTime(s.started_at)} (${startsIn(s.started_at)})`
+              : reservation
+                ? `Reservation · starts ${formatLocalDateTime(s.started_at)} (${startsIn(s.started_at)})`
+                : s.status === 'overdue'
+                  ? 'Overdue'
+                  : ended && s.cancelled_at
+                    ? `Reservation cancelled ${formatLocalDateTime(s.cancelled_at)}`
+                    : ended
+                      ? `Ended ${formatLocalDateTime(s.ended_at)}`
+                      : 'Active'}
         </Text>
       </View>
 
@@ -497,6 +565,58 @@ export default function SessionScreen() {
       ) : null}
 
       {reservation ? (
+        <View style={styles.section} testID="reservation-area">
+          <Text style={styles.heading}>Area</Text>
+          <FilterDropdown
+            label="Area"
+            value={s.area_id}
+            options={areas
+              .filter((a) => a.id === s.area_id || areaAllowsVehicle(a, s.vehicle_type))
+              .map((a) => ({ value: a.id, label: a.name }))}
+            onChange={(value) => {
+              if (value) changeArea(value);
+            }}
+            highlightActive={false}
+            style={styles.areaDropdown}
+            testID="reservation-area-picker"
+          />
+          {areaError ? (
+            <Text style={styles.error} testID="reservation-area-error">
+              {areaError}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {reservation && s.approval_status === 'pending' ? (
+        <View style={styles.section} testID="reservation-approval">
+          <Text style={styles.heading}>For approval</Text>
+          {s.same_plate_overlap ? (
+            <Text style={styles.error} testID="same-plate-overlap">
+              This reservation overlaps another reservation for the same plate (
+              {s.same_plate_overlap.plate}), so it can't be approved.
+            </Text>
+          ) : (
+            <Button
+              title="Approve"
+              onPress={approve}
+              loading={approving}
+              testID="reservation-approve"
+            />
+          )}
+          <View style={{ marginTop: theme.spacing.md }}>
+            <SlideToConfirm
+              label="Slide to reject"
+              onConfirm={reject}
+              loading={rejecting}
+              resetKey={rejectAttempt}
+              testID="reservation-reject"
+            />
+          </View>
+        </View>
+      ) : null}
+
+      {reservation ? (
         <View style={styles.section} testID="reservation-cancel-box">
           <Text style={styles.heading}>Cancel reservation</Text>
           <Text style={styles.meta}>
@@ -515,31 +635,15 @@ export default function SessionScreen() {
               {cancelError}
             </Text>
           ) : null}
-          {confirmCancel ? (
-            <View style={styles.confirmRow}>
-              <Button
-                title="Yes, cancel reservation"
-                variant="danger"
-                onPress={cancelReservation}
-                loading={ending}
-                testID="cancel-yes"
-              />
-              <Button
-                title="Keep it"
-                variant="outline"
-                onPress={() => setConfirmCancel(false)}
-                testID="cancel-no"
-              />
-            </View>
-          ) : (
-            <Button
-              title="Cancel reservation"
-              variant="danger"
-              onPress={() => setConfirmCancel(true)}
+          <View style={{ marginTop: theme.spacing.sm }}>
+            <SlideToConfirm
+              label="Slide to cancel"
+              onConfirm={cancelReservation}
+              loading={ending}
+              resetKey={cancelAttempt}
               testID="reservation-cancel"
-              style={{ marginTop: theme.spacing.sm }}
             />
-          )}
+          </View>
         </View>
       ) : null}
 
@@ -606,6 +710,7 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  areaDropdown: { maxWidth: '100%', alignSelf: 'flex-start', marginTop: theme.spacing.xs },
   refundRow: { color: theme.colors.danger },
   actions: {
     flexDirection: 'row',
