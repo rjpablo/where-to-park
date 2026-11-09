@@ -298,28 +298,30 @@ export default function SessionScreen() {
   const ended = s.status === 'ended';
   // A future start is a reservation (0049): cancelled, not ended, before it starts.
   const reservation = !ended && !!s.reservation;
+  const pendingApproval = reservation && s.approval_status === 'pending';
   const open = canEditSession(s);
-  // Apply payment (only with a balance) and Add fee: above End session (rj t134u); a
-  // reservation has no End, so they sit under Edit details there.
-  const moneyButtons = open ? (
-    <View style={styles.moneyRow} testID="session-money-actions">
-      {canApplyPayment(s, d.balance) ? (
+  // Apply payment (only with a balance) and Add fee: above End session (rj t134u). A
+  // reservation that is still For Approval has neither; an approved one does.
+  const moneyButtons =
+    open && !pendingApproval ? (
+      <View style={styles.moneyRow} testID="session-money-actions">
+        {canApplyPayment(s, d.balance) ? (
+          <Button
+            title="Apply payment"
+            onPress={() => openPay()}
+            testID="session-pay"
+            style={styles.action}
+          />
+        ) : null}
         <Button
-          title="Apply payment"
-          onPress={() => openPay()}
-          testID="session-pay"
+          title="Add fee"
+          variant="outline"
+          onPress={openFee}
+          testID="session-add-fee"
           style={styles.action}
         />
-      ) : null}
-      <Button
-        title="Add fee"
-        variant="outline"
-        onPress={openFee}
-        testID="session-add-fee"
-        style={styles.action}
-      />
-    </View>
-  ) : null;
+      </View>
+    ) : null;
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="session-ready">
       <View style={styles.header}>
@@ -378,7 +380,7 @@ export default function SessionScreen() {
               Extra fees: {formatPeso(d.extra_fees)}
             </Text>
             {d.charges.map((c: any) => {
-              const removable = open && c.type === 'additional_fee';
+              const removable = open && !pendingApproval && c.type === 'additional_fee';
               return (
                 <View key={c.id}>
                   <View style={styles.feeRow} testID={`fee-row-${c.description}`}>
@@ -501,7 +503,7 @@ export default function SessionScreen() {
           />
         </View>
       ) : null}
-      {open && reservation ? (
+      {open && reservation && !pendingApproval ? (
         <View style={{ marginHorizontal: theme.spacing.md }}>{moneyButtons}</View>
       ) : null}
       {notice ? (
@@ -619,7 +621,7 @@ export default function SessionScreen() {
         </View>
       ) : null}
 
-      {reservation ? (
+      {reservation && !pendingApproval ? (
         <View style={styles.section} testID="reservation-cancel-box">
           <Button
             title="Cancel reservation"

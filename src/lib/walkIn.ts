@@ -319,12 +319,18 @@ export function canEditSessionDetails(
   return canEditSession(s) && !isReservation(s, now);
 }
 
-/** 'Apply payment' only while the session is open and there is a balance to pay. */
+/** 'Apply payment' while the session is open and a balance is owed. A reservation has to be
+ * approved first (a staff walk-in, with no approval state, already is). */
 export function canApplyPayment(
-  s: { status?: string | null } | null | undefined,
-  balance: unknown
+  s:
+    | { status?: string | null; started_at?: string | null; approval_status?: string | null }
+    | null
+    | undefined,
+  balance: unknown,
+  now: number = Date.now()
 ): boolean {
-  return canEditSession(s) && balanceToSettle(balance) > 0;
+  if (!canEditSession(s) || balanceToSettle(balance) <= 0) return false;
+  return !(isReservation(s, now) && s?.approval_status === 'pending');
 }
 
 /** Payment screen amount: the requested amount (e.g. from 'Apply payment of ₱X') when valid,

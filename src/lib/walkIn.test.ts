@@ -269,6 +269,10 @@ test('session page actions: edit while open; pay only with a balance; prefill', 
   assert.equal(canApplyPayment({ status: 'active' }, 0), false);
   assert.equal(canApplyPayment({ status: 'active' }, -20), false);
   assert.equal(canApplyPayment({ status: 'ended' }, 50), false);
+  const future = { status: 'active', started_at: '2026-11-10T00:00:00Z' };
+  assert.equal(canApplyPayment({ ...future, approval_status: 'pending' }, 50, at), false);
+  assert.equal(canApplyPayment({ ...future, approval_status: 'approved' }, 50, at), true);
+  assert.equal(canApplyPayment({ ...future, approval_status: null }, 50, at), true);
   assert.equal(paymentPrefill(undefined, '120.5'), '120.50');
   assert.equal(paymentPrefill('40', 120), '40.00');
   assert.equal(paymentPrefill('500', 120), '120.00');

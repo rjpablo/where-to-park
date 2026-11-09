@@ -110,6 +110,10 @@ export default function SessionFeeScreen() {
         <Text style={styles.meta} testID="session-fee-closed">
           This session has ended, so fees can no longer be added.
         </Text>
+      ) : s.reservation && s.approval_status === 'pending' ? (
+        <Text style={styles.meta} testID="session-fee-closed">
+          Approve the reservation before adding a fee.
+        </Text>
       ) : presets.length === 0 ? (
         <Text style={styles.meta} testID="session-fee-none">
           No extra fees are set up for this listing yet. Owners and managers can add them under Fees
