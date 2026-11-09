@@ -311,6 +311,14 @@ export function canEditSession(s: { status?: string | null } | null | undefined)
   return !!s && (s.status === 'active' || s.status === 'overdue');
 }
 
+/** A reservation's details stay fixed. Staff change its area on the session screen. */
+export function canEditSessionDetails(
+  s: { status?: string | null; started_at?: string | null } | null | undefined,
+  now: number = Date.now()
+): boolean {
+  return canEditSession(s) && !isReservation(s, now);
+}
+
 /** 'Apply payment' only while the session is open and there is a balance to pay. */
 export function canApplyPayment(
   s: { status?: string | null } | null | undefined,

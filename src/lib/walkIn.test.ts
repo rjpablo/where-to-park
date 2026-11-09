@@ -9,6 +9,7 @@ import {
   presetsForLocation,
   removableFees,
   canEditSession,
+  canEditSessionDetails,
   paymentPrefill,
   plateActiveMessage,
   plateConflict,
@@ -255,6 +256,15 @@ test('session page actions: edit while open; pay only with a balance; prefill', 
   assert.equal(canEditSession({ status: 'overdue' }), true);
   assert.equal(canEditSession({ status: 'ended' }), false);
   assert.equal(canEditSession(null), false);
+  const at = Date.parse('2026-11-09T00:00:00Z');
+  assert.equal(
+    canEditSessionDetails({ status: 'active', started_at: '2026-11-08T00:00:00Z' }, at),
+    true
+  );
+  assert.equal(
+    canEditSessionDetails({ status: 'active', started_at: '2026-11-10T00:00:00Z' }, at),
+    false
+  );
   assert.equal(canApplyPayment({ status: 'active' }, '50.00'), true);
   assert.equal(canApplyPayment({ status: 'active' }, 0), false);
   assert.equal(canApplyPayment({ status: 'active' }, -20), false);

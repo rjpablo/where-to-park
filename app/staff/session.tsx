@@ -26,6 +26,7 @@ import {
   isNegativeBalance,
   canApplyPayment,
   canEditSession,
+  canEditSessionDetails,
   paymentsDisplay,
   refundAmountError,
   startsIn,
@@ -489,7 +490,7 @@ export default function SessionScreen() {
         </Text>
       </View>
 
-      {open ? (
+      {canEditSessionDetails(s) ? (
         <View style={styles.actions} testID="session-actions">
           <Button
             title="Edit details"
