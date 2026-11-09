@@ -347,6 +347,19 @@ export default function SessionScreen() {
                       : 'Active'}
         </Text>
       </View>
+      <Button
+        title="Message"
+        variant="outline"
+        onPress={() =>
+          router.push(
+            (s.driver_id
+              ? `/chat/${s.location_id}?driverId=${s.driver_id}`
+              : `/chat/${s.location_id}`) as never
+          )
+        }
+        testID="session-chat"
+        style={{ marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm }}
+      />
 
       <View style={styles.section} testID="session-balance-box">
         <Text style={styles.row}>

@@ -144,6 +144,13 @@ export default function DriverSessionScreen() {
       {kind === 'waiting' || kind === 'approved' ? (
         <PlannedPrice price={row.rate_snapshot} startOpen testID="driver-session-price" />
       ) : null}
+      <Button
+        title="Message"
+        variant="outline"
+        onPress={() => router.push(`/chat/${row.location_id}` as never)}
+        testID="driver-session-chat"
+        style={{ marginTop: theme.spacing.md }}
+      />
       {error ? (
         <Text style={styles.error} testID="driver-session-error">
           {error}
