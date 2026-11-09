@@ -142,7 +142,7 @@ export default function DriverSessionScreen() {
         <Text style={styles.line}>Ends {formatLocalDateTime(row.scheduled_end_at)}</Text>
       ) : null}
       {kind === 'waiting' || kind === 'approved' ? (
-        <PlannedPrice price={row.rate_snapshot} testID="driver-session-price" />
+        <PlannedPrice price={row.rate_snapshot} startOpen testID="driver-session-price" />
       ) : null}
       {error ? (
         <Text style={styles.error} testID="driver-session-error">

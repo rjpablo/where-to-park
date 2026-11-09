@@ -14,7 +14,7 @@ import { Button } from '../../src/components/Button';
 import { FilterDropdown } from '../../src/components/FilterDropdown';
 import { SlideToConfirm } from '../../src/components/SlideToConfirm';
 import { AREA_SELECT, areaAllowsVehicle, sortAreas, type Area } from '../../src/lib/areas';
-import { reservationErrorMessage } from '../../src/lib/reservations';
+import { reservationErrorMessage, plannedPriceDetail } from '../../src/lib/reservations';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
@@ -33,7 +33,6 @@ import {
   sessionReturnRoute,
   walkInErrorMessage,
   type PaymentMethod,
-  priceBreakdownLines,
   setRateLabel,
 } from '../../src/lib/walkIn';
 import { VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
@@ -78,6 +77,8 @@ export default function SessionScreen() {
   const [approving, setApproving] = React.useState(false);
   const [rejecting, setRejecting] = React.useState(false);
   const [rejectAttempt, setRejectAttempt] = React.useState(0);
+  const [rejectOpen, setRejectOpen] = React.useState(false);
+  const [priceOpen, setPriceOpen] = React.useState(true);
   const [payMethod, setPayMethod] = React.useState<PaymentMethod>('cash');
   const [payNote, setPayNote] = React.useState('');
   const [payError, setPayError] = React.useState<string | null>(null);
@@ -356,11 +357,39 @@ export default function SessionScreen() {
             Set rate: {setRateLabel(s)}
           </Text>
         ) : null}
-        {priceBreakdownLines(d.price, s.set_rate_name).map((line, i) => (
-          <Text key={i} style={styles.meta} testID={`session-part-${i}`}>
-            {line}
-          </Text>
-        ))}
+        {(() => {
+          const calc = plannedPriceDetail(d.price);
+          const canCalc = !!calc && (calc.lines.length > 0 || !!calc.summary);
+          if (!canCalc || !calc) return null;
+          return (
+            <>
+              <TouchableOpacity
+                onPress={() => setPriceOpen((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: priceOpen }}
+                testID="session-price-toggle"
+              >
+                <Text style={styles.toggle}>
+                  {priceOpen ? '▾ Hide calculation' : '▸ How this is calculated'}
+                </Text>
+              </TouchableOpacity>
+              {priceOpen ? (
+                <View testID="session-price-calc">
+                  {calc.summary ? <Text style={styles.meta}>{calc.summary}</Text> : null}
+                  {calc.lines.map((line, i) => (
+                    <Text
+                      key={`${line.label}-${i}`}
+                      style={styles.meta}
+                      testID={`session-part-${i}`}
+                    >
+                      {line.label} · {formatPeso(line.amount)}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </>
+          );
+        })()}
         {s.rate_changed_from?.name ? (
           <Text style={styles.rateChanged} testID="session-rate-changed">
             Rate changed from {s.rate_changed_from.name} (deactivated). Its hours are now priced by
@@ -610,11 +639,10 @@ export default function SessionScreen() {
             />
           )}
           <View style={{ marginTop: theme.spacing.md }}>
-            <SlideToConfirm
-              label="Slide to reject"
-              onConfirm={reject}
-              loading={rejecting}
-              resetKey={rejectAttempt}
+            <Button
+              title="Reject"
+              variant="danger"
+              onPress={() => setRejectOpen(true)}
               testID="reservation-reject"
             />
           </View>
@@ -631,6 +659,34 @@ export default function SessionScreen() {
           />
         </View>
       ) : null}
+      <Modal
+        visible={rejectOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!rejecting) setRejectOpen(false);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="reservation-reject-dialog">
+            <Text style={styles.dialogTitle}>Reject this reservation?</Text>
+            <SlideToConfirm
+              label="Slide to reject"
+              onConfirm={reject}
+              loading={rejecting}
+              resetKey={rejectAttempt}
+              testID="reservation-reject-slide"
+            />
+            <Button
+              title="Keep it"
+              variant="outline"
+              onPress={() => setRejectOpen(false)}
+              disabled={rejecting}
+              testID="reservation-reject-keep"
+            />
+          </View>
+        </View>
+      </Modal>
       <Modal
         visible={cancelOpen}
         transparent
