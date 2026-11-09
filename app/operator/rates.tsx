@@ -296,7 +296,9 @@ export default function RatesScreen() {
             {(plannedPriceDetail(quote)?.lines ?? [])
               .filter(
                 (line) =>
-                  line.label.includes('Flat for first') || line.label.includes('succeeding hour')
+                  line.label.includes('Flat for first') ||
+                  line.label.includes('succeeding hour') ||
+                  line.label.startsWith('Overnight')
               )
               .map((line) => (
                 <Text key={line.label} style={styles.meta} testID="quote-flat-part">

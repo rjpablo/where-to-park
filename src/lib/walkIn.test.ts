@@ -188,6 +188,13 @@ test('session set rate label and split breakdown lines (0057)', () => {
     priceBreakdownLines({ breakdown: [{ rate_name: 'M', months: 2, amount: 8000 }] }, 'X'),
     ['M: 2 mo · ₱8,000.00']
   );
+  assert.deepEqual(
+    priceBreakdownLines(
+      { breakdown: [{ rate_name: 'Overnight', rate_type: 'overnight', nights: 1, amount: 200 }] },
+      null
+    ),
+    ['Overnight: 1 night · ₱200.00']
+  );
   assert.deepEqual(priceBreakdownLines(null), []);
   assert.deepEqual(
     priceBreakdownLines(

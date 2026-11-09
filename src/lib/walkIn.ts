@@ -247,11 +247,22 @@ export function priceBreakdownLines(
       Number(p.first_hours) > 0 &&
       Number.isFinite(Number(p.first_amount))
   );
-  if (!flat && parts.length === 1 && (!setRateName || parts[0].rate_name === setRateName))
+  const overnight = parts.some((p) => p?.rate_type === 'overnight');
+  if (
+    !flat &&
+    !overnight &&
+    parts.length === 1 &&
+    (!setRateName || parts[0].rate_name === setRateName)
+  )
     return [];
   const named = parts.length > 1;
   return parts.flatMap((p) => {
     const amount = Number(p.amount || 0);
+    const nights = Number(p.nights);
+    if (p.rate_type === 'overnight') {
+      const n = nights > 0 ? nights : 1;
+      return [`Overnight: ${n} ${n === 1 ? 'night' : 'nights'} · ${withCommas(amount)}`];
+    }
     const firstHours = Number(p.first_hours);
     const firstAmount = Number(p.first_amount);
     if (p.rate_type === 'flat_then_hourly' && firstHours > 0 && Number.isFinite(firstAmount)) {

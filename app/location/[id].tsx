@@ -21,6 +21,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
 import { rateSummary } from '../../src/lib/rates';
 import { reservationsAllowed } from '../../src/lib/reservations';
+import { OvernightSetting } from '../../src/components/OvernightSetting';
 import {
   deleteReviewPhoto,
   locationPhotoPublicUrl,
@@ -672,6 +673,18 @@ export default function LocationDetailScreen() {
                 <Text style={styles.placeholderText}>Contact location for rates</Text>
               )}
             </View>
+
+            <OvernightSetting
+              locationId={String(id)}
+              operatorId={location.operator_id}
+              policy={
+                Array.isArray(location.location_policies)
+                  ? location.location_policies[0]
+                  : location.location_policies
+              }
+              userId={userId}
+              onSaved={loadLocation}
+            />
 
             {/* Rules & Policies */}
             {location.location_policies?.length > 0 && (

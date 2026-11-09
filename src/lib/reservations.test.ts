@@ -109,4 +109,18 @@ test('planned price explains billed hours and each rate', () => {
   );
   assert.equal(plannedPriceDetail(null), null);
   assert.equal(plannedPriceDetail({ amount: 50 })?.lines.length, 0);
+  assert.deepEqual(
+    plannedPriceDetail({
+      amount: 280,
+      billed_hours: 2,
+      breakdown: [
+        { rate_name: 'Day', hours: 2, amount: 80 },
+        { rate_name: 'Overnight', rate_type: 'overnight', nights: 1, hours: 8, amount: 200 },
+      ],
+    })?.lines,
+    [
+      { label: 'Day: 2h', amount: 80 },
+      { label: 'Overnight: 1 night', amount: 200 },
+    ]
+  );
 });
