@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TextInput,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
@@ -69,6 +70,7 @@ export default function SessionScreen() {
   const [payAmount, setPayAmount] = React.useState('');
   const [cancelReason, setCancelReason] = React.useState('');
   const [cancelAttempt, setCancelAttempt] = React.useState(0);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [areas, setAreas] = React.useState<Area[]>([]);
   const [areaError, setAreaError] = React.useState<string | null>(null);
@@ -618,34 +620,58 @@ export default function SessionScreen() {
 
       {reservation ? (
         <View style={styles.section} testID="reservation-cancel-box">
-          <Text style={styles.heading}>Cancel reservation</Text>
-          <Text style={styles.meta}>
-            This reservation hasn't started, so it can't be ended yet. Cancelling closes it with no
-            parking fee. Payments already applied stay recorded (refund them outside the app).
-          </Text>
-          <TextInput
-            style={[styles.input, { marginTop: theme.spacing.sm }]}
-            value={cancelReason}
-            onChangeText={setCancelReason}
-            placeholder="Reason (optional)"
-            testID="cancel-reason"
+          <Button
+            title="Cancel reservation"
+            variant="danger"
+            onPress={() => setCancelOpen(true)}
+            testID="reservation-cancel"
           />
-          {cancelError ? (
-            <Text style={styles.error} testID="cancel-error">
-              {cancelError}
+        </View>
+      ) : null}
+      <Modal
+        visible={cancelOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!ending) setCancelOpen(false);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="reservation-cancel-dialog">
+            <Text style={styles.dialogTitle}>Cancel this reservation?</Text>
+            <Text style={styles.meta}>
+              It hasn't started, so cancelling closes it with no parking fee. Payments already
+              applied stay recorded.
             </Text>
-          ) : null}
-          <View style={{ marginTop: theme.spacing.sm }}>
+            <TextInput
+              style={styles.input}
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              placeholder="Reason (optional)"
+              testID="cancel-reason"
+            />
+            {cancelError ? (
+              <Text style={styles.error} testID="cancel-error">
+                {cancelError}
+              </Text>
+            ) : null}
             <SlideToConfirm
               label="Slide to cancel"
               onConfirm={cancelReservation}
               loading={ending}
               resetKey={cancelAttempt}
-              testID="reservation-cancel"
+              testID="reservation-cancel-slide"
+            />
+            <Button
+              title="Keep it"
+              variant="outline"
+              onPress={() => setCancelOpen(false)}
+              disabled={ending}
+              testID="reservation-cancel-keep"
             />
           </View>
         </View>
-      ) : null}
+      </Modal>
 
       {!ended && !reservation ? (
         <View style={styles.section} testID="session-end-box">
@@ -710,6 +736,22 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  dialog: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+  },
+  dialogTitle: { ...theme.typography.h3, color: theme.colors.text.primary },
   areaDropdown: { maxWidth: '100%', alignSelf: 'flex-start', marginTop: theme.spacing.xs },
   refundRow: { color: theme.colors.danger },
   actions: {

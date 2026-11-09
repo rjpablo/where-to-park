@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { PlannedPrice } from '../../src/components/PlannedPrice';
@@ -54,6 +54,7 @@ export default function DriverSessionScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
   const [cancelAttempt, setCancelAttempt] = React.useState(0);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     if (!id || !user) return;
@@ -158,16 +159,42 @@ export default function DriverSessionScreen() {
         />
       ) : null}
       {kind === 'waiting' || kind === 'approved' ? (
-        <View style={{ marginTop: theme.spacing.md }}>
-          <SlideToConfirm
-            label="Slide to cancel"
-            onConfirm={cancel}
-            loading={cancelling}
-            resetKey={cancelAttempt}
-            testID="driver-session-cancel"
-          />
-        </View>
+        <Button
+          title="Cancel reservation"
+          variant="danger"
+          onPress={() => setCancelOpen(true)}
+          style={{ marginTop: theme.spacing.md }}
+          testID="driver-session-cancel"
+        />
       ) : null}
+      <Modal
+        visible={cancelOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!cancelling) setCancelOpen(false);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="driver-session-cancel-dialog">
+            <Text style={styles.dialogTitle}>Cancel this reservation?</Text>
+            <SlideToConfirm
+              label="Slide to cancel"
+              onConfirm={cancel}
+              loading={cancelling}
+              resetKey={cancelAttempt}
+              testID="driver-session-cancel-slide"
+            />
+            <Button
+              title="Keep it"
+              variant="outline"
+              onPress={() => setCancelOpen(false)}
+              disabled={cancelling}
+              testID="driver-session-cancel-keep"
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -190,4 +217,20 @@ const styles = StyleSheet.create({
   plate: { ...theme.typography.h2, color: theme.colors.text.primary },
   line: { ...theme.typography.body, color: theme.colors.text.primary, marginTop: theme.spacing.xs },
   error: { ...theme.typography.bodySmall, color: theme.colors.danger, marginTop: theme.spacing.md },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  dialog: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+  },
+  dialogTitle: { ...theme.typography.h3, color: theme.colors.text.primary },
 });
