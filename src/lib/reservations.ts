@@ -103,3 +103,89 @@ export function reservationErrorMessage(code: unknown): string {
   const c = String(code ?? '');
   return ERRORS[c] || c || 'Something went wrong';
 }
+
+export type PlannedPriceLine = { label: string; amount: number };
+
+/** What to show under the total: billed time, the sentence that explains it, and each rate. */
+export type PlannedPriceDetail = {
+  amount: number | null;
+  summary: string | null;
+  note: string | null;
+  lines: PlannedPriceLine[];
+};
+
+function finite(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** One rate in a price breakdown. A flat rate becomes the flat window plus succeeding hours. */
+function pricePartLines(part: Record<string, unknown>, named: boolean): PlannedPriceLine[] {
+  const amount = finite(part.amount);
+  if (amount == null) return [];
+  const name = String(part.rate_name || 'Rate');
+  const months = finite(part.months);
+  if (months != null && months > 0) return [{ label: `${name}: ${months} mo`, amount }];
+
+  if (part.rate_type === 'overnight') {
+    const nights = finite(part.nights);
+    const n = nights != null && nights > 0 ? nights : 1;
+    return [{ label: `Overnight: ${n} ${n === 1 ? 'night' : 'nights'}`, amount }];
+  }
+
+  const firstHours = finite(part.first_hours);
+  const firstAmount = finite(part.first_amount);
+  if (
+    part.rate_type === 'flat_then_hourly' &&
+    firstHours != null &&
+    firstHours > 0 &&
+    firstAmount != null
+  ) {
+    const prefix = named ? `${name} · ` : '';
+    const lines: PlannedPriceLine[] = [
+      { label: `${prefix}Flat for first ${firstHours}h`, amount: firstAmount },
+    ];
+    const succeedingHours = finite(part.succeeding_hours);
+    const succeedingAmount = finite(part.succeeding_amount);
+    if (succeedingHours != null && succeedingHours > 0 && succeedingAmount != null) {
+      lines.push({
+        label: `${prefix}${succeedingHours} succeeding ${succeedingHours === 1 ? 'hour' : 'hours'}`,
+        amount: succeedingAmount,
+      });
+    }
+    return lines;
+  }
+
+  const hours = finite(part.hours);
+  if (hours != null) return [{ label: `${name}: ${hours}h`, amount }];
+  return [{ label: name, amount }];
+}
+
+/** Reads a session_price / reservation quote object. Null when it has nothing to show. */
+export function plannedPriceDetail(price: unknown): PlannedPriceDetail | null {
+  if (!price || typeof price !== 'object') return null;
+  const row = price as Record<string, unknown>;
+  const amount = finite(row.amount);
+  const parts = Array.isArray(row.breakdown) ? row.breakdown : [];
+  const named = parts.length > 1;
+  const lines: PlannedPriceLine[] = [];
+  let monthly = false;
+  for (const part of parts) {
+    if (!part || typeof part !== 'object') continue;
+    const p = part as Record<string, unknown>;
+    if (finite(p.months) != null && finite(p.months)! > 0) monthly = true;
+    lines.push(...pricePartLines(p, named));
+  }
+  const billedMonths = finite(row.billed_months);
+  const billedHours = finite(row.billed_hours);
+  let summary: string | null = null;
+  if (monthly || (billedMonths != null && billedMonths > 0)) {
+    const n = billedMonths != null && billedMonths > 0 ? billedMonths : null;
+    summary =
+      n == null ? 'Billed in started months' : `${n} ${n === 1 ? 'month' : 'months'} billed`;
+  } else if (billedHours != null && billedHours > 0) {
+    summary = `${billedHours} ${billedHours === 1 ? 'hour' : 'hours'} billed`;
+  }
+  if (amount == null && lines.length === 0 && !summary) return null;
+  return { amount, summary, note: null, lines };
+}

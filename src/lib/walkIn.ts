@@ -152,7 +152,9 @@ const ERRORS: Record<string, string> = {
   'Permission denied': "You don't have access to this listing's sessions.",
   session_not_active: 'This session has already ended.',
   folio_not_open: 'This session has already ended.',
+  name_required: 'Enter a name for this fee.',
   amount_required: 'Enter an amount more than ₱0',
+  not_approved: 'Approve the reservation before adding a fee.',
   payment_exceeds_balance: 'The payment is more than the balance.',
   waiver_not_allowed: 'Staff cannot waive at this operator. Settle the balance with payments.',
   'No rate found': 'No rate covers this stay.',
@@ -229,19 +231,54 @@ export function setRateLabel(s: {
  * Per-rate lines of a session's split price (0057, session_price 'breakdown'), e.g.
  * 'Standard Rate: 2h · ₱100.00'. Empty when one part is all at the set rate (nothing to break down).
  */
+function withCommas(amount: number): string {
+  return `₱${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+}
+
 export function priceBreakdownLines(
   price: { breakdown?: unknown } | null | undefined,
   setRateName?: string | null
 ): string[] {
   const parts: any[] = Array.isArray(price?.breakdown) ? (price!.breakdown as any[]) : [];
   if (parts.length === 0) return [];
-  if (parts.length === 1 && (!setRateName || parts[0].rate_name === setRateName)) return [];
-  return parts.map((p) => {
+  const flat = parts.some(
+    (p) =>
+      p?.rate_type === 'flat_then_hourly' &&
+      Number(p.first_hours) > 0 &&
+      Number.isFinite(Number(p.first_amount))
+  );
+  const overnight = parts.some((p) => p?.rate_type === 'overnight');
+  if (
+    !flat &&
+    !overnight &&
+    parts.length === 1 &&
+    (!setRateName || parts[0].rate_name === setRateName)
+  )
+    return [];
+  const named = parts.length > 1;
+  return parts.flatMap((p) => {
+    const amount = Number(p.amount || 0);
+    const nights = Number(p.nights);
+    if (p.rate_type === 'overnight') {
+      const n = nights > 0 ? nights : 1;
+      return [`Overnight: ${n} ${n === 1 ? 'night' : 'nights'} · ${withCommas(amount)}`];
+    }
+    const firstHours = Number(p.first_hours);
+    const firstAmount = Number(p.first_amount);
+    if (p.rate_type === 'flat_then_hourly' && firstHours > 0 && Number.isFinite(firstAmount)) {
+      const prefix = named ? `${p.rate_name} · ` : '';
+      const lines = [`${prefix}Flat for first ${firstHours}h · ${withCommas(firstAmount)}`];
+      const succeedingHours = Number(p.succeeding_hours);
+      const succeedingAmount = Number(p.succeeding_amount);
+      if (succeedingHours > 0 && Number.isFinite(succeedingAmount)) {
+        lines.push(
+          `${prefix}${succeedingHours} succeeding ${succeedingHours === 1 ? 'hour' : 'hours'} · ${withCommas(succeedingAmount)}`
+        );
+      }
+      return lines;
+    }
     const qty = p.months ? `${p.months} mo` : `${p.hours}h`;
-    const amt = Number(p.amount || 0)
-      .toFixed(2)
-      .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return `${p.rate_name}: ${qty} · ₱${amt}`;
+    return [`${p.rate_name}: ${qty} · ${withCommas(amount)}`];
   });
 }
 
@@ -287,12 +324,26 @@ export function canEditSession(s: { status?: string | null } | null | undefined)
   return !!s && (s.status === 'active' || s.status === 'overdue');
 }
 
-/** 'Apply payment' only while the session is open and there is a balance to pay. */
-export function canApplyPayment(
-  s: { status?: string | null } | null | undefined,
-  balance: unknown
+/** A reservation's details stay fixed. Staff change its area on the session screen. */
+export function canEditSessionDetails(
+  s: { status?: string | null; started_at?: string | null } | null | undefined,
+  now: number = Date.now()
 ): boolean {
-  return canEditSession(s) && balanceToSettle(balance) > 0;
+  return canEditSession(s) && !isReservation(s, now);
+}
+
+/** 'Apply payment' while the session is open and a balance is owed. A reservation has to be
+ * approved first (a staff walk-in, with no approval state, already is). */
+export function canApplyPayment(
+  s:
+    | { status?: string | null; started_at?: string | null; approval_status?: string | null }
+    | null
+    | undefined,
+  balance: unknown,
+  now: number = Date.now()
+): boolean {
+  if (!canEditSession(s) || balanceToSettle(balance) <= 0) return false;
+  return !(isReservation(s, now) && s?.approval_status === 'pending');
 }
 
 /** Payment screen amount: the requested amount (e.g. from 'Apply payment of ₱X') when valid,

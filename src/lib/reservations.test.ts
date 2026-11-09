@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { areaForVehicle, driverSessionKind, reservationsAllowed } from './reservations.ts';
+import {
+  areaForVehicle,
+  driverSessionKind,
+  plannedPriceDetail,
+  reservationsAllowed,
+} from './reservations.ts';
 
 const now = Date.parse('2026-11-09T00:00:00Z');
 const future = '2026-11-10T00:00:00Z';
@@ -52,5 +57,70 @@ test('driver sessions group by approval, then by whether they have started', () 
       now
     ),
     'cancelled'
+  );
+});
+
+test('planned price explains billed hours and each rate', () => {
+  const detail = plannedPriceDetail({
+    amount: 180,
+    billed_hours: 3,
+    billed_months: null,
+    breakdown: [
+      { rate_name: 'Day', hours: 2, months: null, amount: 100 },
+      { rate_name: 'Night', hours: 1, months: null, amount: 80 },
+    ],
+  });
+  assert.equal(detail?.amount, 180);
+  assert.equal(detail?.summary, '3 hours billed');
+  assert.equal(detail?.note, null);
+  assert.deepEqual(detail?.lines, [
+    { label: 'Day: 2h', amount: 100 },
+    { label: 'Night: 1h', amount: 80 },
+  ]);
+  assert.equal(
+    plannedPriceDetail({
+      amount: 8000,
+      billed_months: 2,
+      breakdown: [{ rate_name: 'Monthly', months: 2, amount: 8000 }],
+    })?.summary,
+    '2 months billed'
+  );
+  assert.deepEqual(
+    plannedPriceDetail({
+      amount: 180,
+      billed_hours: 5,
+      breakdown: [
+        {
+          rate_name: 'Valet',
+          rate_type: 'flat_then_hourly',
+          hours: 5,
+          amount: 180,
+          first_hours: 3,
+          first_amount: 100,
+          succeeding_hours: 2,
+          succeeding_amount: 80,
+        },
+      ],
+    })?.lines,
+    [
+      { label: 'Flat for first 3h', amount: 100 },
+      { label: '2 succeeding hours', amount: 80 },
+    ]
+  );
+  assert.equal(plannedPriceDetail(null), null);
+  assert.equal(plannedPriceDetail({ amount: 50 })?.lines.length, 0);
+  assert.deepEqual(
+    plannedPriceDetail({
+      amount: 280,
+      billed_hours: 2,
+      breakdown: [
+        { rate_name: 'Day', hours: 2, amount: 80 },
+        { rate_name: 'Overnight', rate_type: 'overnight', nights: 1, hours: 8, amount: 200 },
+      ],
+    })?.lines,
+    [
+      { label: 'Day: 2h', amount: 80 },
+      { label: 'Overnight: 1 night', amount: 200 },
+    ]
   );
 });

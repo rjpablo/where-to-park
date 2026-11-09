@@ -18,6 +18,7 @@ import {
   type FullAreaPrompt,
   type RateOption,
 } from '../lib/walkIn';
+import { plannedPriceDetail } from '../lib/reservations';
 import { formatLocalDateTime, formatPeso } from '../utils/formatters';
 import {
   AREA_SELECT,
@@ -267,7 +268,7 @@ export function WalkInForm({
     }
   };
 
-  const parts: any[] = Array.isArray(quote?.breakdown) ? quote.breakdown : [];
+  const priceLines = plannedPriceDetail(quote)?.lines ?? [];
   const rateOptions = [
     { value: null, label: autoOptionLabel(auto ?? null) },
     ...options.map((o) => ({ value: o.id, label: rateOptionLabel(o) })),
@@ -429,14 +430,9 @@ export function WalkInForm({
                 ? `${quote.billed_months} month${quote.billed_months === 1 ? '' : 's'}`
                 : `${quote.billed_hours}h billed`}
             </Text>
-            {parts.map((p: any, i: number) => (
-              <Text
-                key={`${p.rate_id}-${i}`}
-                style={styles.meta}
-                testID={`walkin-part-${p.rate_name}`}
-              >
-                {p.rate_name}: {p.months ? `${p.months} mo` : `${p.hours}h`} ·{' '}
-                {formatPeso(p.amount)}
+            {priceLines.map((line, i) => (
+              <Text key={`${line.label}-${i}`} style={styles.meta} testID="walkin-part">
+                {line.label} · {formatPeso(line.amount)}
               </Text>
             ))}
           </>
