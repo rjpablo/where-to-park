@@ -13,6 +13,8 @@ import {
   validateEmailPassword,
   type EmailAuthMode,
 } from '../lib/emailAuth';
+import { authDestination, rememberAuthNext, safeNext } from '../lib/authReturn';
+import { firstParam } from '../lib/params';
 import { theme } from '../lib/theme';
 import { useBottomInset } from '../hooks/useBottomInset';
 
@@ -38,7 +40,18 @@ export function AuthScreen() {
     email?: string;
     add?: string;
     complete?: string;
+    next?: string;
   }>();
+  const next = firstParam(params.next);
+  // Keep the return path across the Google redirect. A plain sign-in clears a stale one;
+  // finishing a new Google account (/auth?complete=1) must not.
+  React.useEffect(() => {
+    if (safeNext(next)) rememberAuthNext(safeNext(next));
+    else if (!params.complete) rememberAuthNext(null);
+  }, [next, params.complete]);
+  const goAfterAuth = () => {
+    router.replace(authDestination(next) as never);
+  };
   // 'start': email + password and Google (phone OTP too when PHONE_SIGN_IN_ENABLED).
   const [step, setStep] = React.useState<'start' | 'code' | 'profile'>(
     params.complete ? 'profile' : 'start'
@@ -86,7 +99,7 @@ export function AuthScreen() {
         setStep('profile');
         return;
       }
-      router.replace('/search');
+      goAfterAuth();
     } catch (err: any) {
       setError(err.message || 'Invalid code');
     }
@@ -115,7 +128,7 @@ export function AuthScreen() {
         setStep('profile');
         return;
       }
-      router.replace('/search');
+      goAfterAuth();
     } catch (err: any) {
       setError(emailAuthErrorMessage(err, mode));
     } finally {
@@ -135,7 +148,7 @@ export function AuthScreen() {
         if (name && name !== 'New user') setDisplayName(name);
         return;
       }
-      router.replace('/search');
+      goAfterAuth();
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed');
     } finally {
@@ -153,7 +166,7 @@ export function AuthScreen() {
         displayName.trim(),
         useAuthStore.getState().user?.account_type === 'operator' ? 'operator' : 'driver'
       );
-      router.replace('/search');
+      goAfterAuth();
     } catch (err: any) {
       setError(err.message || 'Could not save profile');
     }

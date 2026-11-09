@@ -59,10 +59,12 @@ export function notificationRoute(data: PushData | null | undefined): string {
         : `/chat/${locationId}`;
     }
     case 'reservation_request':
-      return hub;
+      return refType === 'session' && refId ? `/staff/session?id=${refId}` : hub;
     case 'no_show':
       return forDriver ? listing : hub;
     case 'reservation_decision':
+      if (forDriver && refId) return `/sessions/${refId}`;
+      if (refType === 'session' && refId) return `/staff/session?id=${refId}`;
       return listing;
     case 'fee_paid':
     case 'listing_reviewed': {

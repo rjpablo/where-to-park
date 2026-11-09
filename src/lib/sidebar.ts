@@ -52,6 +52,7 @@ export type SidebarItemKey =
   | 'notifications'
   | 'listings'
   | 'list_space'
+  | 'sessions'
   | 'vehicles'
   | 'verify'
   | 'moderation'
@@ -138,6 +139,7 @@ export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): Sid
   } else {
     items.push(item('list_space', 'List your parking space', undefined, counts));
   }
+  items.push(item('sessions', 'Sessions', '/sessions', counts));
   items.push(item('vehicles', 'Saved vehicles', '/vehicles', counts, 'vehicles'));
   items.push(item('contact', 'Contact Us', '/contact', counts));
   if (user.isAdmin) {

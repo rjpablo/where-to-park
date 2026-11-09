@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Image, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { FacilityPhotoField } from '../../src/components/FacilityPhotoField';
 import { MapPinPicker } from '../../src/components/map/MapPinPicker';
+import { reservationErrorMessage } from '../../src/lib/reservations';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { PHOTO_UPLOAD_ERROR, uploadLocationPhoto } from '../../src/lib/storageUpload';
@@ -37,6 +38,7 @@ export default function OnboardingScreen() {
   const [listingType, setListingType] = React.useState<ListingType>('commercial');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   const [capacity, setCapacity] = React.useState('10');
+  const [allowReservations, setAllowReservations] = React.useState(false);
   const [rateType, setRateType] = React.useState<RateType>('hourly');
   const [rate, setRate] = React.useState('50.00');
   const [dailyRate, setDailyRate] = React.useState('');
@@ -179,6 +181,15 @@ export default function OnboardingScreen() {
           setSuccess(`Submitted ${locationName.trim()} for verification`);
           return;
         }
+      }
+
+      const { data: flagData, error: flagError } = await supabase.rpc('set_reservation_requests', {
+        p_location_id: locationId,
+        p_enabled: allowReservations,
+      });
+      if (flagError || flagData?.error) {
+        setError(flagError?.message || reservationErrorMessage(flagData?.error));
+        return;
       }
 
       navigated = true;
@@ -388,6 +399,21 @@ export default function OnboardingScreen() {
             testID="onboarding-rules"
           />
 
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>Allow reservation requests</Text>
+              <Text style={styles.switchHint}>
+                Drivers can ask for a future stay. You approve or reject each request.
+              </Text>
+            </View>
+            <Switch
+              value={allowReservations}
+              onValueChange={setAllowReservations}
+              accessibilityLabel="Allow reservation requests"
+              testID="onboarding-reservations"
+            />
+          </View>
+
           <Text style={styles.label}>Facility photo (optional)</Text>
           <FacilityPhotoField photo={photo} onChange={setPhoto} testID="onboarding-photo" />
 
@@ -432,6 +458,12 @@ export default function OnboardingScreen() {
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Rules</Text>
             <Text style={styles.reviewValue}>{rules.trim() || 'None'}</Text>
+          </View>
+          <View style={styles.reviewItem}>
+            <Text style={styles.reviewLabel}>Reservations</Text>
+            <Text style={styles.reviewValue} testID="onboarding-review-reservations">
+              {allowReservations ? 'Requests allowed' : 'Requests off'}
+            </Text>
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Photo</Text>
@@ -631,6 +663,18 @@ const styles = StyleSheet.create({
   },
   reviewItem: {
     marginBottom: theme.spacing.md,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  switchLabel: { ...theme.typography.body, color: theme.colors.text.primary, fontWeight: '600' },
+  switchHint: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
   },
   reviewLabel: {
     ...theme.typography.caption,

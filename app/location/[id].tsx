@@ -20,6 +20,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
 import { rateSummary } from '../../src/lib/rates';
+import { reservationsAllowed } from '../../src/lib/reservations';
 import {
   deleteReviewPhoto,
   locationPhotoPublicUrl,
@@ -589,6 +590,22 @@ export default function LocationDetailScreen() {
 
         {tab === 'overview' ? (
           <View testID="tab-panel-overview">
+            {reservationsAllowed(location.location_policies) ? (
+              <Button
+                title="Reserve a spot"
+                onPress={() => {
+                  const path = `/reserve/${id}`;
+                  if (!user) router.push(`/auth?next=${encodeURIComponent(path)}` as never);
+                  else router.push(path as never);
+                }}
+                testID="reserve-spot"
+                style={{ marginBottom: theme.spacing.sm }}
+              />
+            ) : (
+              <Text style={styles.reservationsOff} testID="reservations-not-allowed">
+                Reservations not allowed
+              </Text>
+            )}
             <Button
               title={navigateLabel(navApp)}
               onPress={openNav}
@@ -1167,6 +1184,11 @@ const styles = StyleSheet.create({
   },
   contactText: {
     ...theme.typography.body,
+  },
+  reservationsOff: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
   },
   placeholderText: {
     ...theme.typography.body,
