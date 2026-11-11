@@ -347,19 +347,6 @@ export default function SessionScreen() {
                       : 'Active'}
         </Text>
       </View>
-      <Button
-        title="Message"
-        variant="outline"
-        onPress={() =>
-          router.push(
-            (s.driver_id
-              ? `/chat/${s.location_id}?driverId=${s.driver_id}`
-              : `/chat/${s.location_id}`) as never
-          )
-        }
-        testID="session-chat"
-        style={{ marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm }}
-      />
 
       <View style={styles.section} testID="session-balance-box">
         <Text style={styles.row}>
@@ -802,6 +789,20 @@ export default function SessionScreen() {
           {error}
         </Text>
       ) : null}
+      <Button
+        title="Open Chat"
+        icon="chatbubble-outline"
+        variant="outline"
+        onPress={() =>
+          router.push(
+            (s.driver_id
+              ? `/chat/${s.location_id}?driverId=${s.driver_id}`
+              : `/chat/${s.location_id}`) as never
+          )
+        }
+        testID="session-chat"
+        style={styles.chat}
+      />
     </ScrollView>
   );
 }
@@ -826,6 +827,10 @@ const styles = StyleSheet.create({
   dialogTitle: { ...theme.typography.h3, color: theme.colors.text.primary },
   areaDropdown: { maxWidth: '100%', alignSelf: 'flex-start', marginTop: theme.spacing.xs },
   refundRow: { color: theme.colors.danger },
+  chat: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
   actions: {
     flexDirection: 'row',
     gap: theme.spacing.sm,

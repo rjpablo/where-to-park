@@ -613,13 +613,6 @@ export default function LocationDetailScreen() {
               testID="navigate"
               style={{ marginBottom: theme.spacing.sm }}
             />
-            <Button
-              title="Message"
-              variant="outline"
-              onPress={() => router.push(`/chat/${id}`)}
-              testID="location-message"
-              style={{ marginBottom: theme.spacing.sm }}
-            />
             {user ? (
               <Button
                 title="Report listing"
@@ -703,6 +696,14 @@ export default function LocationDetailScreen() {
               <Text style={styles.sectionTitle}>Contact</Text>
               <Text style={styles.contactText}>{location.contact || 'No contact provided'}</Text>
             </View>
+            <Button
+              title="Open Chat"
+              icon="chatbubble-outline"
+              variant="outline"
+              onPress={() => router.push(`/chat/${id}`)}
+              testID="location-message"
+              style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.md }}
+            />
           </View>
         ) : null}
 

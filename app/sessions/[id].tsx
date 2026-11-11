@@ -144,13 +144,6 @@ export default function DriverSessionScreen() {
       {kind === 'waiting' || kind === 'approved' ? (
         <PlannedPrice price={row.rate_snapshot} startOpen testID="driver-session-price" />
       ) : null}
-      <Button
-        title="Message"
-        variant="outline"
-        onPress={() => router.push(`/chat/${row.location_id}` as never)}
-        testID="driver-session-chat"
-        style={{ marginTop: theme.spacing.md }}
-      />
       {error ? (
         <Text style={styles.error} testID="driver-session-error">
           {error}
@@ -174,6 +167,14 @@ export default function DriverSessionScreen() {
           testID="driver-session-cancel"
         />
       ) : null}
+      <Button
+        title="Open Chat"
+        icon="chatbubble-outline"
+        variant="outline"
+        onPress={() => router.push(`/chat/${row.location_id}` as never)}
+        testID="driver-session-chat"
+        style={styles.chat}
+      />
       <Modal
         visible={cancelOpen}
         transparent
@@ -224,6 +225,7 @@ const styles = StyleSheet.create({
   plate: { ...theme.typography.h2, color: theme.colors.text.primary },
   line: { ...theme.typography.body, color: theme.colors.text.primary, marginTop: theme.spacing.xs },
   error: { ...theme.typography.bodySmall, color: theme.colors.danger, marginTop: theme.spacing.md },
+  chat: { marginTop: theme.spacing.lg, marginBottom: theme.spacing.md },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
