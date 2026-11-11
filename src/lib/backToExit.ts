@@ -1,22 +1,33 @@
 /** Window in which a second hardware back press closes the app. */
 export const BACK_TO_EXIT_WINDOW_MS = 2000;
 
-export type BackPressResult = 'navigate' | 'up' | 'warn' | 'exit';
+export type BackPressResult = 'navigate' | 'up' | 'minimize' | 'warn' | 'exit';
 
 /**
  * "Press back again to close the app" state machine.
  * - Screens with history go back normally ('navigate').
  * - A screen opened without history that has a parent page (`fallback`, see
  *   backFallback.ts) goes one level up to it ('up'), level by level to Search.
- * - Only on a root screen without a parent (Search) does the first press warn and a
- *   second press within the window exit.
+ * - On Search, a maximized results sheet collapses first ('minimize') and does not
+ *   arm the exit warning.
+ * - Only on a root screen without a parent (Search), and only when that sheet is
+ *   not maximized, does the first press warn and a second press within the window exit.
  */
 export function createBackToExit(windowMs = BACK_TO_EXIT_WINDOW_MS) {
   let lastWarnAt = -Infinity;
-  return (canGoBack: boolean, now: number, fallback: string | null = null): BackPressResult => {
+  return (
+    canGoBack: boolean,
+    now: number,
+    fallback: string | null = null,
+    sheetMaximized = false
+  ): BackPressResult => {
     if (canGoBack || fallback) {
       lastWarnAt = -Infinity;
       return canGoBack ? 'navigate' : 'up';
+    }
+    if (sheetMaximized) {
+      lastWarnAt = -Infinity;
+      return 'minimize';
     }
     if (now - lastWarnAt <= windowMs) {
       lastWarnAt = -Infinity;
