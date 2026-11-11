@@ -61,7 +61,7 @@ import {
   searchLinkParams,
   type SearchCenter,
 } from '../lib/searchLink';
-import { distanceMeters } from '../components/map/camera';
+import { distanceMeters, zoomOutToFit } from '../components/map/camera';
 import { formatPeso, formatDistance, formatDuration } from '../utils/formatters';
 import { theme } from '../lib/theme';
 import { FilterDropdown } from '../components/FilterDropdown';
@@ -144,6 +144,11 @@ export function SearchScreen() {
   const [movedViewport, setMovedViewport] = useState<MapViewport | null>(null);
   const mapRef = useRef<MapHandle>(null);
   const sheetRef = useRef<BottomSheet>(null);
+  // A new area search may need to zoom the map out once its pins arrive.
+  // The flag survives the distance-slider re-run; the token is spent when that search returns.
+  const pendingFit = useRef(false);
+  const fitToken = useRef(0);
+  const fittedToken = useRef(0);
   const [mapCenter, setMapCenter] = useState<Coordinate>({
     latitude: openingCenter.lat,
     longitude: openingCenter.lng,
@@ -456,6 +461,7 @@ export function SearchScreen() {
     const searchKey = `${location.lat},${location.lng},${searchNonce}`;
     const isNewSearch = lastSearchKey.current !== searchKey;
     lastSearchKey.current = searchKey;
+    if (isNewSearch) pendingFit.current = true;
     // Every new search (first load, 'Search this area') opens the sheet in Normal.
     if (isNewSearch) {
       setSheetPosition('normal');
@@ -481,10 +487,40 @@ export function SearchScreen() {
       setFilters({ distanceKm: next }); // re-runs this effect (same search) with the new value
       return;
     }
+    if (pendingFit.current) {
+      pendingFit.current = false;
+      fitToken.current += 1;
+    }
     search(location.lat, location.lng, Math.round(filters.distanceKm * 1000));
     // searchNonce forces a re-run (e.g. Search this area on the same centre).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, sortBy, location.lat, location.lng, searchNonce, search]);
+
+  // After a new area search, zoom out when the map is too tight to show every pin.
+  // A map that already shows them stays where it is.
+  useEffect(() => {
+    if (loading || fitToken.current === fittedToken.current) return;
+    const view = mapRef.current?.readViewport() ?? latestViewport.current;
+    if (!view) return;
+    fittedToken.current = fitToken.current;
+    if (shown.length === 0) return;
+    const points = shown
+      .map((row) => listingPoint(row))
+      .filter((point): point is { lat: number; lng: number } => point != null)
+      .map((point) => [point.lng, point.lat] as [number, number]);
+    const zoom = zoomOutToFit(
+      points,
+      [view.center.longitude, view.center.latitude],
+      view.zoom,
+      { width: windowWidth, height: screenH },
+      { top: 72, right: 0, bottom: normalPx, left: 0 }
+    );
+    if (zoom == null) return;
+    mapRef.current?.focus(
+      { coordinate: { latitude: view.center.latitude, longitude: view.center.longitude }, zoom },
+      { atCenter: true }
+    );
+  }, [loading, shown, windowWidth, screenH, normalPx, mapCenter]);
 
   // Live availability (rj t143u): a change to a listing in the results, or one inside the
   // searched circle that could now enter them, quietly re-runs the same search

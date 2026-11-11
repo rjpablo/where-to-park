@@ -5,6 +5,7 @@ import {
   cameraOnCenter,
   coordinateOffset,
   distanceMeters,
+  zoomOutToFit,
   type LngLat,
 } from './camera.ts';
 
@@ -105,6 +106,22 @@ test('coordinateOffset shifts up the screen to the north and back', () => {
   const back = coordinateOffset(north, zoom, 0, 100);
   assert.ok(Math.abs(back.latitude - origin.latitude) < 1e-6);
   assert.ok(Math.abs(back.longitude - origin.longitude) < 1e-6);
+});
+
+test('zoomOutToFit only zooms out, and only when a pin is outside the visible map', () => {
+  const center: LngLat = [120.596, 16.41];
+  // The results sheet covers the map centre. That must not block a zoom-out.
+  const insets = { top: 72, right: 0, bottom: 520, left: 0 };
+  const far: LngLat = [120.62, 16.45];
+  const tight = zoomOutToFit([center, far], center, 16, size, insets);
+  assert.ok(tight != null && tight < 16);
+  const wide = zoomOutToFit([center, far], center, tight! - 1, size, insets);
+  assert.equal(wide, null);
+  const seen = zoomOutToFit([center, far], center, tight!, size, insets);
+  assert.equal(seen, null);
+  // A pin already on the map, even under the sheet, does not move the camera.
+  const near: LngLat = [120.597, 16.411];
+  assert.equal(zoomOutToFit([center, near], center, 16, size, insets), null);
 });
 
 test('distanceMeters is roughly right', () => {
