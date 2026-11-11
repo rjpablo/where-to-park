@@ -8,13 +8,13 @@ A feature that depends on a database function only works after that migration ha
 
 ## Features
 
-- **Search:** map, place search, current location, vehicle filter, rate-type filter, distance, hide full, sort, drive-time ETA
+- **Search:** map, place search, current location, vehicle filter, rate-type filter, distance, hide full, free parking, sort, drive-time ETA
 - **Listing page:** photos, reviews, navigate, report, open chat, shortcuts
 - **Reservations:** request a spot, price before submit, edit while waiting, approve, reject, cancel, driver sessions
-- **Pricing:** hourly, daily, flat then hourly, monthly, default rate, days and dates, overnight, price breakdown
+- **Pricing:** hourly, daily, flat then hourly, monthly, default rate, days and dates, overnight, free parking, price breakdown
 - **Sessions:** walk-in check-in, payments, fees, custom fees, refunds, waive balance, end session
 - **Availability:** areas, spot count, Full switch, reserved and unavailable, sessions tab, reservations tab
-- **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites
+- **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking
 - **Messages:** inbox, chat, photos in chat, notifications, push
 - **Account:** email sign-in, Google sign-in, accounts on this device, profile, saved vehicles, shortcuts, privacy policy, contact us
 - **Admin:** verification queue, moderation, contact messages, push switches
@@ -82,13 +82,13 @@ Opening a screen from a link with no back history still shows Back. It goes to t
 
 **Find Parking** (`/search`) is the home screen. A map shows listing pins. A bottom sheet lists the same results. Place search uses Photon. The ◎ button uses the device location. Tapping a result opens Location Details.
 
-Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, a distance slider, and whether full listings are included. Full listings are hidden until that filter is turned on. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A listing is full when every relevant area is full.
+Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
 
 ## Location Details
 
 **Location Details** (`/location/[id]`) is the public listing page. Tabs are Overview, Reviews, and Photos.
 
-Overview shows the name, address, who listed it, how many people are viewing, free spots, and when availability was last updated. A photo strip opens a full-screen viewer. Photos are the operator's gallery plus photos attached to reviews. Review photos are tagged "From a review".
+Overview shows the name, address, who listed it, how many people are viewing, free spots, and when availability was last updated. A photo strip opens a full-screen viewer. Photos are the operator's gallery plus photos attached to reviews. Review photos are tagged "From a review". A free listing shows Free parking instead of rates, and the overnight setting is hidden.
 
 When the listing allows reservation requests, **Reserve a spot** is shown. Otherwise the page says reservations are not allowed. **Navigate** opens the chosen maps app. **Report listing** is available after sign-in. Rates, rules, and contact follow. **Open Chat** is at the bottom and opens that listing's thread.
 
@@ -123,6 +123,8 @@ A rate can be limited to days of the week (Asia/Manila, based on the day the sta
 
 **Overnight** is not a rate row. It is a listing setting. Hours that fall inside the overnight window are left out of the hourly total. One overnight fee is added for each night the stay covers, including a window that crosses midnight. A monthly stay is unchanged. The breakdown line reads "Overnight: 1 night". If every hour is inside the window, the quote is the overnight fee only.
 
+**Free parking** is a listing setting, not a rate. The switch is on the Rates screen. While it is on, a stay is ₱0 and the breakdown says Free. Overnight and saved rates are not used for the price. The rate list stays available.
+
 ## Walk-in sessions and money
 
 **Check In** (`/staff/checkin`) starts a walk-in: area, vehicle, plate, start (now by default), optional end, and a rate (Automatic or a chosen rate). The planned price is shown before save. One plate can have only one open session at a listing. If the area is full, or switched to Full, staff can still create the session after a confirmation. Saving returns to Availability.
@@ -149,17 +151,17 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 
 **My listings** (`/operator/listings`) lists the listings this account can work on, with free spots or Full, and verification state. **+ Add a listing** starts onboarding. A rejected listing can be resubmitted.
 
-**List Your Space** (`/operator/onboarding`) collects the name, address, map pin, rules, a photo, areas, a first rate, and whether reservation requests are allowed, then submits the listing for verification. New listings publish as unverified. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
+**List Your Space** (`/operator/onboarding`) collects the name, address, map pin, rules, a photo, areas, and whether reservation requests are allowed, then submits the listing for verification. **Free parking** is on the capacity step. When it is on, the rate fields and the cash-payment note are hidden and a rate is not required. Capacity is still required. New listings publish as unverified. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
 
-**Listing** (`/operator/hub/[id]`) is the operator home for one listing. Owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. Staff see Availability and Messages. Everyone who can open the hub can view the public page. Owners and managers can delete the listing by sliding to confirm. Delete is refused while sessions are still open, and the dialog offers a way back to Availability.
+**Listing** (`/operator/hub/[id]`) is the operator home for one listing. Owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. A free listing hides Fee presets. Rates stays available. Staff see Availability and Messages. Everyone who can open the hub can view the public page. Owners and managers can delete the listing by sliding to confirm. Delete is refused while sessions are still open, and the dialog offers a way back to Availability.
 
-**Edit Location** (`/operator/edit/[id]`) changes the name, address, pin, rules, photos, and the reservation-requests switch. Spot capacity is not edited here. **Manage areas** opens Areas.
+**Edit Location** (`/operator/edit/[id]`) changes the name, address, pin, rules, photos, and the reservation-requests switch. Spot capacity is not edited here. **Manage areas** opens Areas. Free parking is set on Rates.
 
 **Areas** (`/operator/areas`) lists areas and adds one. Delete asks first. Main has no delete.
 
 **Area** (`/operator/area-edit`) sets the name (read-only for Main), whether spots are monitored, the total when they are, and the vehicle types. No types selected means every type.
 
-**Rates** (`/operator/rates`) shows a price preview for a sample stay, then the rate list. Each row can be edited, activated, deactivated, archived, restored, or set as the default. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window.
+**Rates** (`/operator/rates`) has the Free parking switch, a price preview for a sample stay, then the rate list. Each row can be edited, activated, deactivated, archived, restored, or set as the default. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window.
 
 **New rate / Edit rate** (`/operator/rate-edit`) is the rate form: type, amounts, optional vehicle, days of the week, and effective dates. Saving returns to the list.
 

@@ -38,6 +38,7 @@ export default function OnboardingScreen() {
   const [listingType, setListingType] = React.useState<ListingType>('commercial');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   const [capacity, setCapacity] = React.useState('10');
+  const [freeParking, setFreeParking] = React.useState(false);
   const [allowReservations, setAllowReservations] = React.useState(false);
   const [rateType, setRateType] = React.useState<RateType>('hourly');
   const [rate, setRate] = React.useState('50.00');
@@ -78,10 +79,12 @@ export default function OnboardingScreen() {
         setError('Capacity must be at least 1');
         return;
       }
-      const rateError = validateDefaultRate(rateInput);
-      if (rateError) {
-        setError(rateError);
-        return;
+      if (!freeParking) {
+        const rateError = validateDefaultRate(rateInput);
+        if (rateError) {
+          setError(rateError);
+          return;
+        }
       }
     }
     if (step < 5) setStep(step + 1);
@@ -132,7 +135,9 @@ export default function OnboardingScreen() {
           p_lng: pin.longitude,
           p_capacity: Number(capacity),
           // create_location always seeds an hourly default; it is retyped below.
-          p_hourly_amount: rateType === 'hourly' ? Number(rate) : 0,
+          // A free listing skips that rate.
+          p_hourly_amount: freeParking || rateType !== 'hourly' ? 0 : Number(rate),
+          p_is_free: freeParking,
           p_listing_type: listingType,
           p_rules: rules.trim() || null,
         });
@@ -146,7 +151,7 @@ export default function OnboardingScreen() {
         defaultRateIdRef.current = data.rate_id ?? null;
       }
 
-      if (rateType !== 'hourly' && !rateSaved && locationId) {
+      if (!freeParking && rateType !== 'hourly' && !rateSaved && locationId) {
         const { data: rateData, error: rateError } = await supabase.rpc('upsert_rate', {
           p_location_id: locationId,
           p_name: 'Standard Rate',
@@ -277,7 +282,22 @@ export default function OnboardingScreen() {
 
       {step === 3 && (
         <View style={styles.stepContent} testID="onboarding-step-3">
-          <Text style={styles.stepHeading}>Capacity and rate</Text>
+          <Text style={styles.stepHeading}>{freeParking ? 'Capacity' : 'Capacity and rate'}</Text>
+
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>Free parking</Text>
+              <Text style={styles.switchHint}>
+                Drivers are not charged. A rate is not required.
+              </Text>
+            </View>
+            <Switch
+              value={freeParking}
+              onValueChange={setFreeParking}
+              accessibilityLabel="Free parking"
+              testID="onboarding-free"
+            />
+          </View>
 
           <Text style={styles.label}>Total Capacity *</Text>
           <TextInput
@@ -289,98 +309,104 @@ export default function OnboardingScreen() {
             testID="onboarding-capacity"
           />
 
-          <Text style={styles.label}>Default rate type *</Text>
-          <View style={styles.chips}>
-            {RATE_TYPES.map((type) => (
-              <Button
-                key={type}
-                title={RATE_TYPE_LABELS[type]}
-                variant={rateType === type ? 'primary' : 'outline'}
-                size="small"
-                onPress={() => setRateType(type)}
-                testID={`onboarding-rate-type-${type}`}
-              />
-            ))}
-          </View>
+          {freeParking ? null : (
+            <>
+              <Text style={styles.label}>Default rate type *</Text>
+              <View style={styles.chips}>
+                {RATE_TYPES.map((type) => (
+                  <Button
+                    key={type}
+                    title={RATE_TYPE_LABELS[type]}
+                    variant={rateType === type ? 'primary' : 'outline'}
+                    size="small"
+                    onPress={() => setRateType(type)}
+                    testID={`onboarding-rate-type-${type}`}
+                  />
+                ))}
+              </View>
 
-          {rateType === 'hourly' && (
-            <>
-              <Text style={styles.label}>Hourly Rate (₱) *</Text>
-              <TextInput
-                style={styles.input}
-                value={rate}
-                onChangeText={setRate}
-                placeholder="50.00"
-                keyboardType="decimal-pad"
-                testID="onboarding-rate"
-              />
-            </>
-          )}
-          {rateType === 'daily' && (
-            <>
-              <Text style={styles.label}>Daily Rate (₱) *</Text>
-              <TextInput
-                style={styles.input}
-                value={dailyRate}
-                onChangeText={setDailyRate}
-                placeholder="300.00"
-                keyboardType="decimal-pad"
-                testID="onboarding-rate-daily"
-              />
-            </>
-          )}
-          {rateType === 'monthly' && (
-            <>
-              <Text style={styles.label}>Monthly Rate (₱) *</Text>
-              <TextInput
-                style={styles.input}
-                value={monthlyRate}
-                onChangeText={setMonthlyRate}
-                placeholder="3500.00"
-                keyboardType="decimal-pad"
-                testID="onboarding-rate-monthly"
-              />
-            </>
-          )}
-          {rateType === 'flat_then_hourly' && (
-            <>
-              <Text style={styles.label}>First N hours *</Text>
-              <TextInput
-                style={styles.input}
-                value={firstHours}
-                onChangeText={setFirstHours}
-                placeholder="3"
-                keyboardType="numeric"
-                testID="onboarding-rate-first-hours"
-              />
-              <Text style={styles.label}>Flat amount for the first N hours (₱) *</Text>
-              <TextInput
-                style={styles.input}
-                value={firstAmount}
-                onChangeText={setFirstAmount}
-                placeholder="100.00"
-                keyboardType="decimal-pad"
-                testID="onboarding-rate-first-amount"
-              />
-              <Text style={styles.label}>Succeeding hourly rate (₱) *</Text>
-              <TextInput
-                style={styles.input}
-                value={succeedingRate}
-                onChangeText={setSucceedingRate}
-                placeholder="30.00"
-                keyboardType="decimal-pad"
-                testID="onboarding-rate-succeeding"
-              />
-            </>
-          )}
+              {rateType === 'hourly' && (
+                <>
+                  <Text style={styles.label}>Hourly Rate (₱) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={rate}
+                    onChangeText={setRate}
+                    placeholder="50.00"
+                    keyboardType="decimal-pad"
+                    testID="onboarding-rate"
+                  />
+                </>
+              )}
+              {rateType === 'daily' && (
+                <>
+                  <Text style={styles.label}>Daily Rate (₱) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={dailyRate}
+                    onChangeText={setDailyRate}
+                    placeholder="300.00"
+                    keyboardType="decimal-pad"
+                    testID="onboarding-rate-daily"
+                  />
+                </>
+              )}
+              {rateType === 'monthly' && (
+                <>
+                  <Text style={styles.label}>Monthly Rate (₱) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={monthlyRate}
+                    onChangeText={setMonthlyRate}
+                    placeholder="3500.00"
+                    keyboardType="decimal-pad"
+                    testID="onboarding-rate-monthly"
+                  />
+                </>
+              )}
+              {rateType === 'flat_then_hourly' && (
+                <>
+                  <Text style={styles.label}>First N hours *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={firstHours}
+                    onChangeText={setFirstHours}
+                    placeholder="3"
+                    keyboardType="numeric"
+                    testID="onboarding-rate-first-hours"
+                  />
+                  <Text style={styles.label}>Flat amount for the first N hours (₱) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={firstAmount}
+                    onChangeText={setFirstAmount}
+                    placeholder="100.00"
+                    keyboardType="decimal-pad"
+                    testID="onboarding-rate-first-amount"
+                  />
+                  <Text style={styles.label}>Succeeding hourly rate (₱) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={succeedingRate}
+                    onChangeText={setSucceedingRate}
+                    placeholder="30.00"
+                    keyboardType="decimal-pad"
+                    testID="onboarding-rate-succeeding"
+                  />
+                </>
+              )}
 
-          <View style={styles.info}>
-            <Text style={styles.infoText}>✓ Default rate type: {RATE_TYPE_LABELS[rateType]}</Text>
-            <Text style={styles.infoText}>✓ You can add more rates later under Rates</Text>
-            {rateType === 'hourly' || rateType === 'flat_then_hourly' ? (
-              <Text style={styles.infoText}>✓ Billing is per started hour</Text>
-            ) : null}
-          </View>
+              <View style={styles.info}>
+                <Text style={styles.infoText}>
+                  ✓ Default rate type: {RATE_TYPE_LABELS[rateType]}
+                </Text>
+                <Text style={styles.infoText}>✓ You can add more rates later under Rates</Text>
+                {rateType === 'hourly' || rateType === 'flat_then_hourly' ? (
+                  <Text style={styles.infoText}>✓ Billing is per started hour</Text>
+                ) : null}
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -417,11 +443,13 @@ export default function OnboardingScreen() {
           <Text style={styles.label}>Facility photo (optional)</Text>
           <FacilityPhotoField photo={photo} onChange={setPhoto} testID="onboarding-photo" />
 
-          <View style={styles.info}>
-            <Text style={styles.infoTitle}>Cash only (Phase 1)</Text>
-            <Text style={styles.infoText}>✓ Accept cash at the location</Text>
-            <Text style={styles.infoText}>✓ GCash/Maya come later — no commissions</Text>
-          </View>
+          {freeParking ? null : (
+            <View style={styles.info}>
+              <Text style={styles.infoTitle}>Cash only (Phase 1)</Text>
+              <Text style={styles.infoText}>✓ Accept cash at the location</Text>
+              <Text style={styles.infoText}>✓ GCash/Maya come later — no commissions</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -452,8 +480,10 @@ export default function OnboardingScreen() {
             <Text style={styles.reviewValue}>{capacity} spaces</Text>
           </View>
           <View style={styles.reviewItem}>
-            <Text style={styles.reviewLabel}>Rate</Text>
-            <Text style={styles.reviewValue}>{describeDefaultRate(rateInput)}</Text>
+            <Text style={styles.reviewLabel}>Price</Text>
+            <Text style={styles.reviewValue} testID="onboarding-review-price">
+              {freeParking ? 'Free' : describeDefaultRate(rateInput)}
+            </Text>
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Rules</Text>
@@ -477,10 +507,12 @@ export default function OnboardingScreen() {
               <Text style={styles.reviewValue}>None</Text>
             )}
           </View>
-          <View style={styles.reviewItem}>
-            <Text style={styles.reviewLabel}>Payment</Text>
-            <Text style={styles.reviewValue}>Cash only</Text>
-          </View>
+          {freeParking ? null : (
+            <View style={styles.reviewItem}>
+              <Text style={styles.reviewLabel}>Payment</Text>
+              <Text style={styles.reviewValue}>Cash only</Text>
+            </View>
+          )}
 
           <View style={styles.info}>
             <Text style={styles.infoText}>

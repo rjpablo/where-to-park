@@ -749,9 +749,9 @@ export function SearchScreen() {
                 </View>
               </View>
 
-              {/* Vehicle, Rate, Show Full in one row that scrolls sideways on narrow screens.
-                  Gesture-handler ScrollView so it cooperates with the sheet's pan gesture
-                  (the sheet only takes vertical drags: activeOffsetY / failOffsetX). */}
+              {/* Vehicle, Rate, Free parking, then Show Full. The row scrolls sideways on
+                  narrow screens. Gesture-handler ScrollView so it cooperates with the
+                  sheet's pan gesture (the sheet only takes vertical drags: activeOffsetY / failOffsetX). */}
               <GestureScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -776,6 +776,15 @@ export function SearchScreen() {
                   onChange={(rateType) => setFilters({ rateType })}
                   testID="filter-rate-type"
                 />
+                <TouchableOpacity
+                  style={[styles.filterChip, filters.freeOnly && styles.filterChipActive]}
+                  onPress={() => setFilters({ freeOnly: !filters.freeOnly })}
+                  accessibilityState={{ selected: filters.freeOnly }}
+                  accessibilityLabel="Free parking"
+                  testID="filter-free"
+                >
+                  <Text style={styles.filterChipText}>Free parking</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
                   onPress={() => setFilters({ showFull: !filters.showFull })}

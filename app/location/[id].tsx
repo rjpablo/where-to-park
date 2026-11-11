@@ -478,7 +478,14 @@ export default function LocationDetailScreen() {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>{location.name}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{location.name}</Text>
+            {location.is_free ? (
+              <Text style={styles.freeBadge} testID="listing-free">
+                Free
+              </Text>
+            ) : null}
+          </View>
           <TouchableOpacity
             onPress={() => setTab('reviews')}
             accessibilityRole="button"
@@ -648,7 +655,11 @@ export default function LocationDetailScreen() {
             {/* Rates */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Rates</Text>
-              {location.rates?.filter((r: any) => r.active).length > 0 ? (
+              {location.is_free ? (
+                <Text style={styles.placeholderText} testID="rates-free">
+                  Free parking
+                </Text>
+              ) : location.rates?.filter((r: any) => r.active).length > 0 ? (
                 location.rates
                   .filter((r: any) => r.active)
                   .map((rate: any) => (
@@ -667,17 +678,19 @@ export default function LocationDetailScreen() {
               )}
             </View>
 
-            <OvernightSetting
-              locationId={String(id)}
-              operatorId={location.operator_id}
-              policy={
-                Array.isArray(location.location_policies)
-                  ? location.location_policies[0]
-                  : location.location_policies
-              }
-              userId={userId}
-              onSaved={loadLocation}
-            />
+            {location.is_free ? null : (
+              <OvernightSetting
+                locationId={String(id)}
+                operatorId={location.operator_id}
+                policy={
+                  Array.isArray(location.location_policies)
+                    ? location.location_policies[0]
+                    : location.location_policies
+                }
+                userId={userId}
+                onSaved={loadLocation}
+              />
+            )}
 
             {/* Rules & Policies */}
             {location.location_policies?.length > 0 && (
@@ -1024,9 +1037,25 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: theme.spacing.lg,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
   title: {
     ...theme.typography.h2,
-    marginBottom: theme.spacing.xs,
+    flexShrink: 1,
+  },
+  freeBadge: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.inverse,
+    backgroundColor: theme.colors.success,
+    fontWeight: '700',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.full,
+    overflow: 'hidden',
   },
   listedBy: {
     flexDirection: 'row',

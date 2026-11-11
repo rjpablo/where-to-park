@@ -248,9 +248,11 @@ export function priceBreakdownLines(
       Number.isFinite(Number(p.first_amount))
   );
   const overnight = parts.some((p) => p?.rate_type === 'overnight');
+  const free = parts.some((p) => p?.rate_type === 'free');
   if (
     !flat &&
     !overnight &&
+    !free &&
     parts.length === 1 &&
     (!setRateName || parts[0].rate_name === setRateName)
   )
@@ -258,6 +260,7 @@ export function priceBreakdownLines(
   const named = parts.length > 1;
   return parts.flatMap((p) => {
     const amount = Number(p.amount || 0);
+    if (p.rate_type === 'free') return ['Free'];
     const nights = Number(p.nights);
     if (p.rate_type === 'overnight') {
       const n = nights > 0 ? nights : 1;

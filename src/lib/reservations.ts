@@ -127,6 +127,8 @@ function pricePartLines(part: Record<string, unknown>, named: boolean): PlannedP
   const months = finite(part.months);
   if (months != null && months > 0) return [{ label: `${name}: ${months} mo`, amount }];
 
+  if (part.rate_type === 'free') return [{ label: 'Free', amount: 0 }];
+
   if (part.rate_type === 'overnight') {
     const nights = finite(part.nights);
     const n = nights != null && nights > 0 ? nights : 1;

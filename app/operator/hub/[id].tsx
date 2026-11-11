@@ -46,7 +46,7 @@ export default function ListingHubScreen() {
           supabase
             .from('locations')
             .select(
-              'id, name, verification_status, published, tracking_mode, available_count, free_spaces, marked_full, capacity, open_status, operator_id, availability_updated_at'
+              'id, name, verification_status, published, tracking_mode, available_count, free_spaces, marked_full, capacity, open_status, operator_id, availability_updated_at, is_free'
             )
             .eq('id', id)
             .is('deleted_at', null)
@@ -189,17 +189,19 @@ export default function ListingHubScreen() {
               onPress={() => go('/operator/rates', { locationId: location.id })}
               testID="hub-rates"
             />
-            <Button
-              title="Fee presets"
-              variant="outline"
-              onPress={() =>
-                go('/operator/fees', {
-                  locationId: location.id,
-                  operatorId: location.operator_id,
-                })
-              }
-              testID="hub-fees"
-            />
+            {location.is_free ? null : (
+              <Button
+                title="Fee presets"
+                variant="outline"
+                onPress={() =>
+                  go('/operator/fees', {
+                    locationId: location.id,
+                    operatorId: location.operator_id,
+                  })
+                }
+                testID="hub-fees"
+              />
+            )}
             <Button
               title="Staff"
               variant="outline"

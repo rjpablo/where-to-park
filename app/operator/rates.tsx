@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Switch,
+  TouchableOpacity,
+} from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { DateTimeField } from '../../src/components/DateTimeField';
@@ -57,6 +65,8 @@ export default function RatesScreen() {
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [locationName, setLocationName] = React.useState('Listing');
+  const [freeParking, setFreeParking] = React.useState(false);
+  const [savingFree, setSavingFree] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -74,9 +84,10 @@ export default function RatesScreen() {
           // Archived rates are hidden (soft-deleted, kept for past sessions; 0048).
           .is('archived_at', null)
           .order('is_default', { ascending: false }),
-        supabase.from('locations').select('name').eq('id', locationId).single(),
+        supabase.from('locations').select('name, is_free').eq('id', locationId).single(),
       ]);
       if (loc.data?.name) setLocationName(loc.data.name);
+      setFreeParking(loc.data?.is_free === true);
       if (rateErr) throw rateErr;
       setRates(rateRows || []);
     } catch (err: any) {
@@ -211,6 +222,25 @@ export default function RatesScreen() {
     await refreshQuote();
   };
 
+  const setFree = async (enabled: boolean) => {
+    if (!locationId || savingFree) return;
+    setSavingFree(true);
+    setError(null);
+    setNotice(null);
+    const { data, error: rpcError } = await supabase.rpc('set_listing_free', {
+      p_location_id: locationId,
+      p_enabled: enabled,
+    });
+    setSavingFree(false);
+    if (rpcError || data?.error) {
+      setError(rpcError?.message || 'Could not save free parking.');
+      return;
+    }
+    setFreeParking(enabled);
+    setNotice(enabled ? 'Drivers are not charged at this listing.' : 'Free parking is off.');
+    await refreshQuote();
+  };
+
   const openForm = (rate?: any) =>
     router.push({
       pathname: '/operator/rate-edit',
@@ -228,6 +258,23 @@ export default function RatesScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="rates-ready">
       <Text style={styles.subtitle}>{locationName}</Text>
+
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.switchLabel}>Free parking</Text>
+          <Text style={styles.meta}>
+            Drivers are not charged. Rates stay here so you can limit them by vehicle, and they
+            apply again when this is off.
+          </Text>
+        </View>
+        <Switch
+          value={freeParking}
+          onValueChange={setFree}
+          disabled={!locationId || savingFree}
+          accessibilityLabel="Free parking"
+          testID="rates-free"
+        />
+      </View>
 
       <View style={styles.preview} testID="quote-preview">
         <Text style={styles.heading}>Price preview</Text>
@@ -501,8 +548,15 @@ const styles = StyleSheet.create({
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  switchLabel: { ...theme.typography.body, fontWeight: '600' },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   label: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },
   input: {
