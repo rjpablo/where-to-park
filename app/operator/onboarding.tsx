@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { FacilityPhotoField } from '../../src/components/FacilityPhotoField';
 import { MapPinPicker } from '../../src/components/map/MapPinPicker';
+import { getGeocoder, resolveListingAddress } from '../../src/lib/geocoding';
 import { reservationErrorMessage } from '../../src/lib/reservations';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -35,6 +36,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = React.useState(1);
   const [locationName, setLocationName] = React.useState('');
   const [address, setAddress] = React.useState('');
+  const [addressDerived, setAddressDerived] = React.useState(true);
   const [listingType, setListingType] = React.useState<ListingType>('commercial');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   const [capacity, setCapacity] = React.useState('10');
@@ -69,8 +71,8 @@ export default function OnboardingScreen() {
 
   const handleNext = () => {
     setError(null);
-    if (step === 1 && (!locationName.trim() || !address.trim())) {
-      setError('Name and address are required');
+    if (step === 1 && !locationName.trim()) {
+      setError('Name is required');
       return;
     }
     if (step === 3) {
@@ -127,10 +129,14 @@ export default function OnboardingScreen() {
     let navigated = false;
     try {
       let locationId = createdLocationId;
+      const listingAddress = await resolveListingAddress(address, pin, (coordinate) =>
+        getGeocoder().reverseAddress(coordinate)
+      );
+      if (listingAddress !== address) setAddress(listingAddress);
       if (!locationId) {
         const { data, error: rpcError } = await supabase.rpc('create_location', {
           p_name: locationName.trim(),
-          p_address: address.trim(),
+          p_address: listingAddress,
           p_lat: pin.latitude,
           p_lng: pin.longitude,
           p_capacity: Number(capacity),
@@ -242,17 +248,6 @@ export default function OnboardingScreen() {
             testID="onboarding-name"
           />
 
-          <Text style={styles.label}>Address *</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={address}
-            onChangeText={setAddress}
-            placeholder="Full address"
-            multiline
-            numberOfLines={3}
-            testID="onboarding-address"
-          />
-
           <Text style={styles.label}>Listing type</Text>
           <View style={styles.row}>
             {(['commercial', 'residential'] as ListingType[]).map((type) => (
@@ -276,6 +271,11 @@ export default function OnboardingScreen() {
             initialCoordinate={pin}
             onCoordinateSelect={setPin}
             onMapGestureChange={(active) => setPageScroll(!active)}
+            address={address}
+            onAddressChange={setAddress}
+            addressDerived={addressDerived}
+            onAddressDerivedChange={setAddressDerived}
+            addressTestID="onboarding-address"
           />
         </View>
       )}
@@ -463,7 +463,9 @@ export default function OnboardingScreen() {
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Address</Text>
-            <Text style={styles.reviewValue}>{address}</Text>
+            <Text style={styles.reviewValue} testID="onboarding-review-address">
+              {address.trim() || 'From the pin'}
+            </Text>
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Type</Text>

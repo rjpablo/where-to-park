@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../../src/components/Button';
 import { FacilityPhotoField } from '../../../src/components/FacilityPhotoField';
 import { MapPinPicker } from '../../../src/components/map/MapPinPicker';
+import { getGeocoder, resolveListingAddress } from '../../../src/lib/geocoding';
 import { reservationErrorMessage } from '../../../src/lib/reservations';
 import { supabase } from '../../../src/lib/supabase';
 import { firstParam } from '../../../src/lib/params';
@@ -25,6 +26,7 @@ export default function EditLocationScreen() {
   const [pageScroll, setPageScroll] = React.useState(true);
   const [name, setName] = React.useState('');
   const [address, setAddress] = React.useState('');
+  const [addressDerived, setAddressDerived] = React.useState(false);
   const [rules, setRules] = React.useState('');
   const [allowReservations, setAllowReservations] = React.useState(false);
   const [capacity, setCapacity] = React.useState('');
@@ -116,10 +118,14 @@ export default function EditLocationScreen() {
     setSuccess(null);
     setPhotoError(null);
     try {
+      const listingAddress = await resolveListingAddress(address, pin, (coordinate) =>
+        getGeocoder().reverseAddress(coordinate)
+      );
+      if (listingAddress !== address) setAddress(listingAddress);
       const { data, error: rpcError } = await supabase.rpc('update_location', {
         p_location_id: id,
         p_name: name.trim(),
-        p_address: address.trim(),
+        p_address: listingAddress,
         p_lat: pin.latitude,
         p_lng: pin.longitude,
         p_rules: rules,
@@ -170,15 +176,6 @@ export default function EditLocationScreen() {
     >
       <Text style={styles.label}>Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} testID="edit-name" />
-
-      <Text style={styles.label}>Address</Text>
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        value={address}
-        onChangeText={setAddress}
-        multiline
-        testID="edit-address"
-      />
 
       {/* rj t139u: spots and vehicle types are set per area (Main and any others). */}
       <Text style={styles.label}>Spots</Text>
@@ -236,6 +233,11 @@ export default function EditLocationScreen() {
         onCoordinateSelect={setPin}
         onMapGestureChange={(active) => setPageScroll(!active)}
         savedCoordinate={savedPin}
+        address={address}
+        onAddressChange={setAddress}
+        addressDerived={addressDerived}
+        onAddressDerivedChange={setAddressDerived}
+        addressTestID="edit-address"
       />
 
       {error ? (

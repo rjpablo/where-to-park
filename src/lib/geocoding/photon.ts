@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { placeAddress } from './address';
 import { parsePhoton } from './photonParse';
 import type { Coordinate } from '../../components/map/types';
 import type { GeocodingProvider, PlaceSuggestion, ReverseOptions, SuggestOptions } from './types';
@@ -32,7 +33,23 @@ function remember<T>(cache: Map<string, T>, key: string, value: T): T {
 
 export function createPhotonProvider(fetchImpl: typeof fetch = fetch): GeocodingProvider {
   const cache = new Map<string, PlaceSuggestion[]>();
-  const reverseCache = new Map<string, string | null>();
+  const reverseCache = new Map<string, PlaceSuggestion | null>();
+
+  async function reversePlace(
+    coordinate: Coordinate,
+    options: ReverseOptions = {}
+  ): Promise<PlaceSuggestion | null> {
+    const url =
+      `${REVERSE_URL}?lat=${coordinate.latitude.toFixed(5)}` +
+      `&lon=${coordinate.longitude.toFixed(5)}&lang=en`;
+    if (reverseCache.has(url)) return reverseCache.get(url) ?? null;
+
+    const res = await fetchImpl(url, { headers: photonHeaders(), signal: options.signal });
+    if (!res.ok) throw new Error(`Place lookup failed (${res.status})`);
+    const place = parsePhoton(await res.json())[0] ?? null;
+    return remember(reverseCache, url, place);
+  }
+
   return {
     id: 'photon',
     attribution: 'Search by Photon · © OpenStreetMap contributors',
@@ -55,16 +72,14 @@ export function createPhotonProvider(fetchImpl: typeof fetch = fetch): Geocoding
       if (!res.ok) throw new Error(`Place search failed (${res.status})`);
       return remember(cache, url, parsePhoton(await res.json()));
     },
-    async reverse(coordinate: Coordinate, options: ReverseOptions = {}) {
-      const url =
-        `${REVERSE_URL}?lat=${coordinate.latitude.toFixed(5)}` +
-        `&lon=${coordinate.longitude.toFixed(5)}&lang=en`;
-      if (reverseCache.has(url)) return reverseCache.get(url) ?? null;
-
-      const res = await fetchImpl(url, { headers: photonHeaders(), signal: options.signal });
-      if (!res.ok) throw new Error(`Place lookup failed (${res.status})`);
-      const name = parsePhoton(await res.json())[0]?.name ?? null;
-      return remember(reverseCache, url, name);
+    reverse(coordinate, options) {
+      return reversePlace(coordinate, options).then((place) => place?.name ?? null);
+    },
+    reverseAddress(coordinate, options) {
+      return reversePlace(coordinate, options).then((place) => {
+        const line = place ? placeAddress(place) : '';
+        return line || null;
+      });
     },
   };
 }
