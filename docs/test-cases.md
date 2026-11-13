@@ -34,7 +34,7 @@ Unit: `src/lib/backToExit.test.ts`
 
 ## Finding parking
 
-**SEARCH-01.** Open Find Parking. **Expect:** the map shows listing pins and the sheet lists the same results. The sheet opens at Normal. Tapping a row opens Location Details.
+**SEARCH-01.** Open Find Parking. **Expect:** the map shows listing pins and the sheet lists the same results. The sheet opens at Normal. Tapping a row opens Listing details.
 
 **SEARCH-02.** Drag the sheet handle, and tap the handle. **Expect:** drag moves among Minimized, Normal, and Maximized. A tap cycles Minimized, then Normal, then Maximized, then Minimized. Maximized leaves a strip of map under the header.
 Unit: `src/lib/sheetLayout.test.ts`
@@ -67,7 +67,7 @@ Unit: `src/lib/listingEta.test.ts`, `src/lib/availability.test.ts`
 
 **SEARCH-12.** Lower the distance slider and change a filter. **Expect:** the chosen distance is kept, clamped under the current maximum. Only a new area search resets the distance to the maximum.
 
-## Location Details
+## Listing details
 
 **LISTING-01.** Open a published listing as a guest. **Expect:** Overview, Reviews, and Photos. Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated.
 Unit: `src/lib/detailTabs.test.ts`, `src/lib/viewerPresence.test.ts`

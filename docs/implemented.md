@@ -47,7 +47,7 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | Saved vehicles         | `/vehicles`              | Vehicles               |
 | Privacy Policy         | `/privacy`               | Privacy Policy         |
 | Contact Us             | `/contact`               | Contact Us             |
-| Location Details       | `/location/[id]`         | Location Details       |
+| Listing details        | `/location/[id]`         | Listing details        |
 | Reserve a spot         | `/reserve/[locationId]`  | Reserve a spot         |
 | Sessions               | `/sessions`              | Sessions               |
 | Session (driver)       | `/sessions/[id]`         | Session                |
@@ -55,7 +55,7 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | My listings            | `/operator/listings`     | My listings            |
 | Listing                | `/operator/hub/[id]`     | Listing                |
 | List Your Space        | `/operator/onboarding`   | List Your Space        |
-| Edit Location          | `/operator/edit/[id]`    | Edit Location          |
+| Edit listing           | `/operator/edit/[id]`    | Edit listing           |
 | Areas                  | `/operator/areas`        | Areas                  |
 | Area                   | `/operator/area-edit`    | Area                   |
 | Rates                  | `/operator/rates`        | Rates                  |
@@ -80,7 +80,7 @@ Opening a screen from a link with no back history still shows Back. It goes to t
 
 ## Finding parking
 
-**Find Parking** (`/search`) is the home screen. A map shows listing pins. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location. Tapping a result opens Location Details.
+**Find Parking** (`/search`) is the home screen. A map shows listing pins. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location. Tapping a result opens Listing details.
 
 After a new area search, the map zooms out around the search centre when a result pin is off the map. If every pin is already on screen, the camera stays where it is. Changing filters, sort, or a live availability refresh does not move the map.
 
@@ -88,9 +88,9 @@ On Android, with no screen to go back to, the hardware back button minimizes a m
 
 Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
 
-## Location Details
+## Listing details
 
-**Location Details** (`/location/[id]`) is the public listing page. Tabs are Overview, Reviews, and Photos.
+**Listing details** (`/location/[id]`) is the public page for one listing. Tabs are Overview, Reviews, and Photos.
 
 Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated. A photo strip opens a full-screen viewer. Photos are the operator's gallery plus photos attached to reviews. Review photos are tagged "From a review". A free listing shows Free parking instead of rates, and the overnight setting is hidden.
 
@@ -102,7 +102,7 @@ Reviews can be written by a signed-in driver, with a star rating, text, and phot
 
 ## Reservations and driver sessions
 
-A reservation is a parking session whose start is still in the future. The listing must have **Allow reservation requests** on (set during listing creation and on Edit Location). The driver picks a saved vehicle or types one, a plate, a start, and an end. The price breakdown is shown before the request is sent. The stay is assigned to the Main area when that area accepts the vehicle, otherwise the next area that does.
+A reservation is a parking session whose start is still in the future. The listing must have **Allow reservation requests** on (set during listing creation and on Edit listing). The driver picks a saved vehicle or types one, a plate, a start, and an end. The price breakdown is shown before the request is sent. The stay is assigned to the Main area when that area accepts the vehicle, otherwise the next area that does.
 
 **Sessions** (`/sessions`) lists the signed-in driver's sessions in sections: Waiting for approval, Approved reservations, Active, Previous, Rejected, Cancelled.
 
@@ -159,7 +159,7 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 
 **Listing** (`/operator/hub/[id]`) is the operator home for one listing. Owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. A free listing hides Fee presets. Rates stays available. Staff see Availability and Messages. Everyone who can open the hub can view the public page. Owners and managers can delete the listing by sliding to confirm. Delete is refused while sessions are still open, and the dialog offers a way back to Availability.
 
-**Edit Location** (`/operator/edit/[id]`) changes the name, pin, optional address, rules, photos, and the reservation-requests switch. The address field is on the pin picker. A blank address is taken from the pinned place. Spot capacity is not edited here. **Manage areas** opens Areas. Free parking is set on Rates.
+**Edit listing** (`/operator/edit/[id]`) changes the name, pin, optional address, rules, photos, and the reservation-requests switch. The address field is on the pin picker. A blank address is taken from the pinned place. Spot capacity is not edited here. **Manage areas** opens Areas. Free parking is set on Rates.
 
 **Areas** (`/operator/areas`) lists areas and adds one. Delete asks first. Main has no delete.
 
@@ -191,7 +191,7 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 
 **Saved vehicles** (`/vehicles`) stores a vehicle type, plate, and optional nickname. One vehicle is the default. Search starts on that type, and Reserve a spot can pick it.
 
-**Shortcuts** (`/shortcuts`) are the signed-in user's saved listings. On Location Details, **Add shortcut** saves the listing. The shortcuts screen reorders them by holding a row and dragging, and delete asks first. Signing in can merge shortcuts that were saved on the device before the account existed.
+**Shortcuts** (`/shortcuts`) are the signed-in user's saved listings. On Listing details, **Add shortcut** saves the listing. The shortcuts screen reorders them by holding a row and dragging, and delete asks first. Signing in can merge shortcuts that were saved on the device before the account existed.
 
 **Privacy Policy** (`/privacy`) is public.
 

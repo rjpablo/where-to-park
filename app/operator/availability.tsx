@@ -134,7 +134,7 @@ export default function AvailabilityScreen() {
       }
     } catch (err: any) {
       console.error('Load error:', err);
-      setError(err.message || 'Failed to load location data');
+      setError(err.message || 'Failed to load the listing');
     } finally {
       setLoading(false);
     }
@@ -186,7 +186,7 @@ export default function AvailabilityScreen() {
   if (!location) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.errorText}>No locations found</Text>
+        <Text style={styles.errorText}>No listing found</Text>
       </View>
     );
   }

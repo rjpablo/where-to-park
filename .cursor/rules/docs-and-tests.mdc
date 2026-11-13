@@ -13,6 +13,8 @@ When you add or change a user-facing behavior, update these documents in the sam
 
 `docs/spec.md` is design history. Leave it unless the user asks to change it.
 
+In words a person reads, the parking record is a listing. Location means a place: the pin, the device position, or a searched place. Leave the `locations` table and `/location` routes as they are.
+
 Write a unit test when the behavior can be checked without a device or a network: validation, formatting, filters, camera math, prices, navigation decisions. Colocate it as `*.test.ts` next to the module, import that module with the `.ts` suffix, and run:
 
 ```bash

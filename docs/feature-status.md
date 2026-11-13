@@ -26,11 +26,11 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done        | Live availability refresh keeps the camera and the sheet where they are                                                                                         |
 | Done        | After a new area search, the map zooms out around the search centre only when a result pin is off screen                                                        |
 | Done        | Each result row has Navigate, using the maps app chosen on Profile                                                                                              |
-| Done        | Returning from Location Details keeps the camera, results, filters, sort, and sheet position                                                                    |
+| Done        | Returning from Listing details keeps the camera, results, filters, sort, and sheet position                                                                    |
 | Done        | Android hardware back on Find Parking, with nothing to go back to: a maximized sheet minimizes. Minimized or Normal uses "Press back again to close the app"   |
 | Not started | In-app turn-by-turn navigation                                                                                                                                   |
 
-## Location details
+## Listing details
 
 | Status      | Feature                                                                                                                          |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -109,7 +109,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | ----------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Done        | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking  |
 | Done        | A new listing stays hidden until an admin publishes it                                                                     |
-| Done        | Edit location, including restore saved pin. Free parking is set on Rates, not on Edit location                             |
+| Done        | Edit listing, including restore saved pin. Free parking is set on Rates, not on Edit listing                               |
 | Done        | Hub for owners and managers: Availability, edit, areas, rates, fee presets, staff. A free listing hides fee presets       |
 | Done        | Staff hub: Availability and Messages                                                                                       |
 | Done        | Delete listing by sliding to confirm. Refused while a session is still open                                               |

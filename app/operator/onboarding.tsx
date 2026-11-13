@@ -206,7 +206,7 @@ export default function OnboardingScreen() {
       navigated = true;
       openListing(locationId!);
     } catch (err: any) {
-      setError(err.message || 'Could not create location');
+      setError(err.message || 'Could not create the listing');
     } finally {
       if (!navigated) {
         submitLock.current = false;
@@ -239,7 +239,7 @@ export default function OnboardingScreen() {
         <View style={styles.stepContent} testID="onboarding-step-1">
           <Text style={styles.stepHeading}>Basic Information</Text>
 
-          <Text style={styles.label}>Location Name *</Text>
+          <Text style={styles.label}>Listing name *</Text>
           <TextInput
             style={styles.input}
             value={locationName}
@@ -458,7 +458,7 @@ export default function OnboardingScreen() {
           <Text style={styles.stepHeading}>Review & Submit</Text>
 
           <View style={styles.reviewItem}>
-            <Text style={styles.reviewLabel}>Location</Text>
+            <Text style={styles.reviewLabel}>Listing</Text>
             <Text style={styles.reviewValue}>{locationName}</Text>
           </View>
           <View style={styles.reviewItem}>

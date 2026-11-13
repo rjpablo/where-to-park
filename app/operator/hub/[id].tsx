@@ -136,7 +136,7 @@ export default function ListingHubScreen() {
       <View style={styles.container} testID="hub-error">
         <Text style={styles.title}>Listing not found</Text>
         <Text style={styles.meta}>
-          {error || (location ? 'You do not staff this location.' : 'It may have been deleted.')}
+          {error || (location ? 'You do not staff this listing.' : 'It may have been deleted.')}
         </Text>
         <Button title="My listings" onPress={() => router.replace('/operator/listings')} />
       </View>
@@ -222,7 +222,7 @@ export default function ListingHubScreen() {
           testID="hub-messages"
         />
         <Button
-          title="View location details"
+          title="View listing"
           variant="outline"
           onPress={() => go('/location/[id]', { id: location.id })}
           testID="hub-location"

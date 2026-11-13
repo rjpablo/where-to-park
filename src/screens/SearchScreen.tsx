@@ -881,7 +881,7 @@ export function SearchScreen() {
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>
-                  {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
+                  {loading ? 'Searching...' : error ? `Error: ${error}` : 'No listings found'}
                 </Text>
               </View>
             }

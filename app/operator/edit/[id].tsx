@@ -87,7 +87,7 @@ export default function EditLocationScreen() {
           setSavedPin(loaded);
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to load location');
+        setError(err.message || 'Failed to load the listing');
       } finally {
         setLoading(false);
       }
@@ -143,7 +143,7 @@ export default function EditLocationScreen() {
         setError(flagError?.message || reservationErrorMessage(flagData?.error));
         return;
       }
-      setSuccess('Location updated');
+      setSuccess('Listing updated');
       setSavedPin(pin);
       if (photo?.base64 && photoDirty) {
         const uploaded = await uploadCover();
@@ -259,7 +259,7 @@ export default function EditLocationScreen() {
             setPhotoError(null);
             try {
               const uploaded = await uploadCover();
-              if (uploaded) setSuccess('Location updated');
+              if (uploaded) setSuccess('Listing updated');
             } finally {
               setSaving(false);
             }

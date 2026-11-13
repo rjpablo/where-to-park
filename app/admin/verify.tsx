@@ -67,7 +67,7 @@ export default function VerificationQueueScreen() {
 
       // Drop the listing from the queue right away; the reload below confirms it.
       setLocations((prev) => prev.filter((loc) => loc.id !== locationId));
-      Alert.alert('Success', 'Location verified');
+      Alert.alert('Success', 'Listing verified');
       loadQueue({ silent: true });
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -248,7 +248,7 @@ export default function VerificationQueueScreen() {
         onRefresh={() => loadQueue()}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No locations pending verification</Text>
+            <Text style={styles.emptyText}>No listings pending verification</Text>
           </View>
         }
       />
