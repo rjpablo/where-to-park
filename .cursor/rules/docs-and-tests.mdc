@@ -1,0 +1,28 @@
+---
+description: Keep the feature inventory, test cases, and unit tests in step when behavior changes
+alwaysApply: true
+---
+
+# Features, inventory, and tests
+
+When you add or change a user-facing behavior, update both documents in the same change:
+
+- `docs/implemented.md` — what the app does today, in the matching feature section. Bump the "As of" date when the inventory changes.
+- `docs/test-cases.md` — the case a person would try. Add, edit, or remove it in the same feature group. Keep the existing id; append the next number in that group for a new case.
+
+`docs/spec.md` is design history. Leave it unless the user asks to change it.
+
+Write a unit test when the behavior can be checked without a device or a network: validation, formatting, filters, camera math, prices, navigation decisions. Colocate it as `*.test.ts` next to the module, import that module with the `.ts` suffix, and run:
+
+```bash
+node --experimental-strip-types --test src/lib/example.test.ts
+```
+
+A screen that only wires an existing function does not need a new test file when that function's test already covers the rule. The test-case document still changes.
+
+```markdown
+<!-- docs/test-cases.md -->
+**SEARCH-14.** Turning on a new filter hides listings that do not match.
+Expect: the map and the list show only matches. The camera does not move.
+Unit: `src/lib/searchFilters.test.ts`
+```
