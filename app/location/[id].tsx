@@ -485,6 +485,21 @@ export default function LocationDetailScreen() {
                 Free
               </Text>
             ) : null}
+            <Text
+              style={[
+                styles.verifyBadge,
+                location.verification_status === 'verified'
+                  ? styles.verifyBadgeOn
+                  : styles.verifyBadgeOff,
+              ]}
+              testID={
+                location.verification_status === 'verified'
+                  ? 'listing-verified'
+                  : 'listing-unverified'
+              }
+            >
+              {location.verification_status === 'verified' ? 'Verified' : 'Unverified'}
+            </Text>
           </View>
           <TouchableOpacity
             onPress={() => setTab('reviews')}
@@ -1040,6 +1055,7 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: theme.spacing.sm,
     marginBottom: theme.spacing.xs,
   },
@@ -1056,6 +1072,22 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: theme.borderRadius.full,
     overflow: 'hidden',
+  },
+  verifyBadge: {
+    ...theme.typography.bodySmall,
+    fontWeight: '700',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.full,
+    overflow: 'hidden',
+  },
+  verifyBadgeOn: {
+    color: theme.colors.text.inverse,
+    backgroundColor: theme.colors.success,
+  },
+  verifyBadgeOff: {
+    color: '#fff',
+    backgroundColor: theme.colors.warning,
   },
   listedBy: {
     flexDirection: 'row',

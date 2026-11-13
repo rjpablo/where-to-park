@@ -88,7 +88,7 @@ Filters: vehicle (All, or the signed-in user's default vehicle to start), rate t
 
 **Location Details** (`/location/[id]`) is the public listing page. Tabs are Overview, Reviews, and Photos.
 
-Overview shows the name, address, who listed it, how many people are viewing, free spots, and when availability was last updated. A photo strip opens a full-screen viewer. Photos are the operator's gallery plus photos attached to reviews. Review photos are tagged "From a review". A free listing shows Free parking instead of rates, and the overnight setting is hidden.
+Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated. A photo strip opens a full-screen viewer. Photos are the operator's gallery plus photos attached to reviews. Review photos are tagged "From a review". A free listing shows Free parking instead of rates, and the overnight setting is hidden.
 
 When the listing allows reservation requests, **Reserve a spot** is shown. Otherwise the page says reservations are not allowed. **Navigate** opens the chosen maps app. **Report listing** is available after sign-in. Rates, rules, and contact follow. **Open Chat** is at the bottom and opens that listing's thread.
 
@@ -151,7 +151,7 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 
 **My listings** (`/operator/listings`) lists the listings this account can work on, with free spots or Full, and verification state. **+ Add a listing** starts onboarding. A rejected listing can be resubmitted.
 
-**List Your Space** (`/operator/onboarding`) collects the name, map pin, rules, a photo, areas, and whether reservation requests are allowed, then submits the listing for verification. The address is optional and sits on the pin step. A blank address is taken from the pinned place. **Free parking** is on the capacity step. When it is on, the rate fields and the cash-payment note are hidden and a rate is not required. Capacity is still required. New listings publish as unverified. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
+**List Your Space** (`/operator/onboarding`) collects the name, map pin, rules, a photo, areas, and whether reservation requests are allowed, then submits the listing for verification. The address is optional and sits on the pin step. A blank address is taken from the pinned place. **Free parking** is on the capacity step. When it is on, the rate fields and the cash-payment note are hidden and a rate is not required. Capacity is still required. A new listing stays hidden until an admin publishes it. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
 
 **Listing** (`/operator/hub/[id]`) is the operator home for one listing. Owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. A free listing hides Fee presets. Rates stays available. Staff see Availability and Messages. Everyone who can open the hub can view the public page. Owners and managers can delete the listing by sliding to confirm. Delete is refused while sessions are still open, and the dialog offers a way back to Availability.
 
@@ -195,7 +195,7 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 
 ## Admin
 
-**Verification Queue** (`/admin/verify`) lists unpublished or pending listings. An admin can open the public page, verify, or reject with a reason. The operator is notified.
+**Verification Queue** (`/admin/verify`) lists listings waiting for verification. An admin can open the page, publish it without verifying it, verify it, or reject it with a reason. Publishing makes it visible in search and leaves it Unverified. Verifying also publishes it. Rejecting hides it. The operator is notified.
 
 **Moderation** (`/admin/reports`) acts on reports of listings and reviews: resolve, hide, or dismiss.
 

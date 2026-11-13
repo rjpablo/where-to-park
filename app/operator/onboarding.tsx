@@ -518,7 +518,8 @@ export default function OnboardingScreen() {
 
           <View style={styles.info}>
             <Text style={styles.infoText}>
-              Your listing will be published as Unverified until an admin reviews it.
+              Your listing stays hidden until an admin publishes it. It can go live before it is
+              verified.
             </Text>
           </View>
         </View>

@@ -16,6 +16,7 @@ export default function VerificationQueueScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<'publish' | 'verify' | 'reject' | null>(null);
   // Listing whose reject form is open, and its reason draft.
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -54,6 +55,7 @@ export default function VerificationQueueScreen() {
   const handleVerify = async (locationId: string) => {
     if (verifyingId) return;
     setVerifyingId(locationId);
+    setBusyAction('verify');
     try {
       const { data, error } = await supabase.rpc('verify_location', {
         p_location_id: locationId,
@@ -71,12 +73,36 @@ export default function VerificationQueueScreen() {
       Alert.alert('Error', error.message);
     } finally {
       setVerifyingId(null);
+      setBusyAction(null);
+    }
+  };
+
+  const handlePublish = async (locationId: string) => {
+    if (verifyingId) return;
+    setVerifyingId(locationId);
+    setBusyAction('publish');
+    try {
+      const { data, error } = await supabase.rpc('publish_location', {
+        p_location_id: locationId,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(String(data.error));
+      setLocations((prev) =>
+        prev.map((loc) => (loc.id === locationId ? { ...loc, published: true } : loc))
+      );
+      Alert.alert('Published', 'The listing is live and still unverified');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setVerifyingId(null);
+      setBusyAction(null);
     }
   };
 
   const handleReject = async (locationId: string) => {
     if (verifyingId) return;
     setVerifyingId(locationId);
+    setBusyAction('reject');
     try {
       const { data, error } = await supabase.rpc('reject_location', {
         p_location_id: locationId,
@@ -93,6 +119,7 @@ export default function VerificationQueueScreen() {
       Alert.alert('Error', error.message);
     } finally {
       setVerifyingId(null);
+      setBusyAction(null);
     }
   };
 
@@ -110,6 +137,9 @@ export default function VerificationQueueScreen() {
       <Text style={styles.cardTime}>
         Submitted {formatLocalDateTime(item.created_at)} ({formatRelativeTime(item.created_at)})
       </Text>
+      <Text style={styles.cardOperator} testID={`verify-visibility-${item.id}`}>
+        {item.published ? 'Published' : 'Hidden'} · Unverified
+      </Text>
 
       <View style={styles.cardActions}>
         <Button
@@ -119,11 +149,22 @@ export default function VerificationQueueScreen() {
           onPress={() => router.push(`/location/${item.id}`)}
           testID={`verify-open-${item.id}`}
         />
+        {item.published ? null : (
+          <Button
+            title="Publish"
+            size="small"
+            onPress={() => handlePublish(item.id)}
+            loading={verifyingId === item.id && busyAction === 'publish'}
+            disabled={!!verifyingId}
+            testID={`publish-listing-${item.id}`}
+          />
+        )}
         <Button
           title="Verify"
+          variant="outline"
           size="small"
           onPress={() => handleVerify(item.id)}
-          loading={verifyingId === item.id}
+          loading={verifyingId === item.id && busyAction === 'verify'}
           disabled={!!verifyingId}
           testID={`verify-listing-${item.id}`}
         />
@@ -165,7 +206,7 @@ export default function VerificationQueueScreen() {
               variant="danger"
               size="small"
               onPress={() => handleReject(item.id)}
-              loading={verifyingId === item.id}
+              loading={verifyingId === item.id && busyAction === 'reject'}
               disabled={!!verifyingId}
               testID={`reject-confirm-${item.id}`}
             />
