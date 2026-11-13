@@ -5,6 +5,7 @@ import { Button } from '../../../src/components/Button';
 import { FacilityPhotoField } from '../../../src/components/FacilityPhotoField';
 import { MapPinPicker } from '../../../src/components/map/MapPinPicker';
 import { getGeocoder, resolveListingAddress } from '../../../src/lib/geocoding';
+import { areaErrorMessage } from '../../../src/lib/areas';
 import { reservationErrorMessage } from '../../../src/lib/reservations';
 import { supabase } from '../../../src/lib/supabase';
 import { firstParam } from '../../../src/lib/params';
@@ -29,6 +30,13 @@ export default function EditLocationScreen() {
   const [addressDerived, setAddressDerived] = React.useState(false);
   const [rules, setRules] = React.useState('');
   const [allowReservations, setAllowReservations] = React.useState(false);
+  const [freeParking, setFreeParking] = React.useState(false);
+  const freeWasOn = React.useRef(false);
+  const mainArea = React.useRef<{
+    id: string;
+    capacity: number;
+    vehicle_types: string[] | null;
+  } | null>(null);
   const [capacity, setCapacity] = React.useState('');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   // The pin as last saved (null until loaded); 'Restore saved pin' goes back here.
@@ -49,7 +57,7 @@ export default function EditLocationScreen() {
         const { data, error: fetchError } = await supabase
           .from('locations')
           .select(
-            'name, address, rules, capacity, location_photos(storage_path, is_cover), location_policies(reservations_enabled)'
+            'name, address, rules, capacity, is_free, location_photos(storage_path, is_cover), location_policies(reservations_enabled)'
           )
           .eq('id', id)
           .single();
@@ -61,7 +69,18 @@ export default function EditLocationScreen() {
           ? data.location_policies[0]
           : data.location_policies;
         setAllowReservations(policy?.reservations_enabled === true);
+        setFreeParking(data.is_free === true);
+        freeWasOn.current = data.is_free === true;
         setCapacity(String(data.capacity));
+        const { data: area } = await supabase
+          .from('areas')
+          .select('id, capacity, vehicle_types')
+          .eq('location_id', id)
+          .eq('is_main', true)
+          .maybeSingle();
+        mainArea.current = area
+          ? { id: area.id, capacity: area.capacity, vehicle_types: area.vehicle_types }
+          : null;
         const cover =
           (data.location_photos || []).find((p: any) => p.is_cover) || data.location_photos?.[0];
         const coverUrl = locationPhotoPublicUrl(cover?.storage_path);
@@ -143,6 +162,28 @@ export default function EditLocationScreen() {
         setError(flagError?.message || reservationErrorMessage(flagData?.error));
         return;
       }
+      const { data: freeData, error: freeError } = await supabase.rpc('set_listing_free', {
+        p_location_id: id,
+        p_enabled: freeParking,
+      });
+      if (freeError || freeData?.error) {
+        setError(freeError?.message || 'Could not save free parking.');
+        return;
+      }
+      if (freeWasOn.current && !freeParking && mainArea.current) {
+        const area = mainArea.current;
+        const { data: areaData, error: areaError } = await supabase.rpc('set_area_settings', {
+          p_area_id: area.id,
+          p_capacity: area.capacity,
+          p_vehicle_types: area.vehicle_types,
+          p_monitored: false,
+        });
+        if (areaError || areaData?.error) {
+          setError(areaError?.message || areaErrorMessage(areaData?.error, areaData));
+          return;
+        }
+      }
+      freeWasOn.current = freeParking;
       setSuccess('Listing updated');
       setSavedPin(pin);
       if (photo?.base64 && photoDirty) {
@@ -199,6 +240,22 @@ export default function EditLocationScreen() {
         multiline
         testID="edit-rules"
       />
+
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.switchLabel}>Free parking</Text>
+          <Text style={styles.switchHint}>
+            Drivers are not charged. Rates stay available so you can limit them by vehicle, and they
+            apply again when this is off.
+          </Text>
+        </View>
+        <Switch
+          value={freeParking}
+          onValueChange={setFreeParking}
+          accessibilityLabel="Free parking"
+          testID="edit-free"
+        />
+      </View>
 
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>

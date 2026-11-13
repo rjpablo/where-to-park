@@ -1,6 +1,6 @@
 # Implemented features and screens
 
-**As of 13 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
+**As of 14 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
 
 Where To Park is an Expo SDK 54 app (Android first, web for preview). Routes live in `app/`. The backend is Supabase: Postgres, Auth, Realtime, Storage, and RPCs. Money is Philippine pesos. Listing times and rate days use Asia/Manila. The product language is English.
 
@@ -127,7 +127,7 @@ A rate can be limited to days of the week (Asia/Manila, based on the day the sta
 
 **Overnight** is not a rate row. It is a listing setting. Hours that fall inside the overnight window are left out of the hourly total. One overnight fee is added for each night the stay covers, including a window that crosses midnight. A monthly stay is unchanged. The breakdown line reads "Overnight: 1 night". If every hour is inside the window, the quote is the overnight fee only.
 
-**Free parking** is a listing setting, not a rate. The switch is on the Rates screen. While it is on, a stay is ₱0 and the breakdown says Free. Overnight and saved rates are not used for the price. The rate list stays available.
+**Free parking** is a listing setting, not a rate. For a new listing the switch is on List Your Space. For an existing listing it is on Edit listing, and it is saved with the rest of that form. Turning it off also stops counting spots. While it is on, a stay is ₱0 and the breakdown says Free. Overnight and saved rates are not used for the price. The rate list stays available.
 
 ## Walk-in sessions and money
 
@@ -155,17 +155,17 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 
 **My listings** (`/operator/listings`) lists the listings this account can work on, with free spots or Full, and verification state. **+ Add a listing** starts onboarding. A rejected listing can be resubmitted.
 
-**List Your Space** (`/operator/onboarding`) collects the name, map pin, rules, a photo, areas, and whether reservation requests are allowed, then submits the listing for verification. The address is optional and sits on the pin step. A blank address is taken from the pinned place. **Free parking** is on the capacity step. When it is on, the rate fields and the cash-payment note are hidden and a rate is not required. Capacity is still required. A new listing stays hidden until an admin publishes it. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
+**List Your Space** (`/operator/onboarding`) collects the name, map pin, rules, a photo, areas, and whether reservation requests are allowed, then submits the listing for verification. The address is optional and sits on the pin step. A blank address is taken from the pinned place. **Free parking** is on the capacity step. When it is on, the rate fields and the cash-payment note are hidden and a rate is not required. **Track capacity** starts off, and turning free parking off turns it off again. While it is off, the capacity field is hidden and spots are not counted. The capacity number is kept either way, and it has to be a whole number of at least 1. A new listing stays hidden until an admin publishes it. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
 
 **Listing** (`/operator/hub/[id]`) is the operator home for one listing. Owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. A free listing hides Fee presets. Rates stays available. Staff see Availability and Messages. Everyone who can open the hub can view the public page. Owners and managers can delete the listing by sliding to confirm. Delete is refused while sessions are still open, and the dialog offers a way back to Availability.
 
-**Edit listing** (`/operator/edit/[id]`) changes the name, pin, optional address, rules, photos, and the reservation-requests switch. The address field is on the pin picker. A blank address is taken from the pinned place. Spot capacity is not edited here. **Manage areas** opens Areas. Free parking is set on Rates.
+**Edit listing** (`/operator/edit/[id]`) changes the name, pin, optional address, rules, photos, the free-parking switch, and the reservation-requests switch. The address field is on the pin picker. A blank address is taken from the pinned place. Spot capacity is not edited here. **Manage areas** opens Areas. Turning free parking off stops counting spots and keeps the capacity number. Track capacity is set on Rates and on Edit rate.
 
 **Areas** (`/operator/areas`) lists areas and adds one. Delete asks first. Main has no delete.
 
 **Area** (`/operator/area-edit`) sets the name (read-only for Main), whether spots are monitored, the total when they are, and the vehicle types. No types selected means every type.
 
-**Rates** (`/operator/rates`) has the Free parking switch, a price preview for a sample stay, then the rate list. Each row can be edited, activated, deactivated, archived, restored, or set as the default. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window.
+**Rates** (`/operator/rates`) has the Track capacity switch, a price preview for a sample stay, then the rate list. Track capacity is also on Edit rate. Off hides the field and stops counting spots. The capacity number is kept. On counts spots and requires 1 or more. Free parking is not on this screen. Each row can be edited, activated, deactivated, archived, restored, or set as the default. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window.
 
 **New rate / Edit rate** (`/operator/rate-edit`) is the rate form: type, amounts, optional vehicle, days of the week, and effective dates. Saving returns to the list.
 

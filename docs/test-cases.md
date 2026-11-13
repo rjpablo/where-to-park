@@ -187,15 +187,15 @@ Unit: `src/lib/areas.test.ts`
 **MANAGE-02.** Complete List Your Space with a name, a pin, rules, a photo, areas, and the reservation-requests switch. Leave the address blank. **Expect:** the address field is on the pin step. The blank address is filled from the pinned place. The listing is submitted hidden, and it stays out of search until an admin publishes it.
 Unit: `src/lib/geocoding/address.test.ts`, `src/lib/pinRestore.test.ts`
 
-**MANAGE-03.** On the capacity step, turn Free parking on. **Expect:** the rate fields and the cash-payment note are hidden. A rate is not required. Capacity is still required. Place search and ◎ work on the pin map. Dragging the map pans the map rather than the form. There is no restore-pin button, because a new listing has no saved pin.
-Unit: `src/lib/pinRestore.test.ts`
+**MANAGE-03.** On the capacity step, leave both switches off, then turn Track capacity on, enter a number, and turn it off. Try 0 while it is on. Turn Free parking on, then turn it off. **Expect:** Track capacity starts off and the capacity field is hidden. The review still shows the capacity and says it is not counted. Turning tracking on shows the field. 0 is refused. A whole number of at least 1 is kept when tracking is turned off again. Free parking hides the rate fields and the cash-payment note, and a rate is not required. Turning free parking off turns tracking off again. Place search and ◎ work on the pin map. Dragging the map pans the map rather than the form. There is no restore-pin button, because a new listing has no saved pin.
+Unit: `src/lib/listingCapacity.test.ts`, `src/lib/pinRestore.test.ts`
 
 **MANAGE-04.** Open a listing hub as an owner or manager, then as staff. **Expect:** owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. Staff see Availability and Messages. Fee presets are hidden when the listing is free, and Rates stays. Everyone who can open the hub can view the public page.
 
 **MANAGE-05.** Delete a listing that has an open session, then delete one that does not. **Expect:** the first is refused and offers a way back to Availability. The second asks for a slide to confirm, then deletes.
 Unit: `src/lib/deleteListing.test.ts`, `src/lib/slideToConfirm.test.ts`
 
-**MANAGE-06.** Edit the listing. Move the pin, clear the address, and change the reservation-requests switch. **Expect:** the address field is on the pin picker. A blank address is filled from the pin. A restore control appears only after the pin moves away from the saved position and puts it back. Spot capacity is not on this screen. Manage areas opens Areas. Free parking is not on this screen.
+**MANAGE-06.** Edit the listing. Move the pin, clear the address, change Free parking, and change the reservation-requests switch. **Expect:** the address field is on the pin picker. A blank address is filled from the pin. A restore control appears only after the pin moves away from the saved position and puts it back. Spot capacity is not on this screen. Manage areas opens Areas. Free parking is on this screen and saves with the form. Turning it off stops counting spots and keeps the capacity number.
 Unit: `src/lib/geocoding/address.test.ts`, `src/lib/pinRestore.test.ts`
 
 **MANAGE-07.** Open Areas. Try to rename or delete Main, add an area, and delete another area. **Expect:** Main is listed first and has no delete. Its name is read-only. Deleting another area asks first.
@@ -204,8 +204,8 @@ Unit: `src/lib/areas.test.ts`
 **MANAGE-08.** Edit an area's monitoring, total, and vehicle types, leaving every type unchecked. **Expect:** no types selected means every type. A monitored area stores a total.
 Unit: `src/lib/areas.test.ts`
 
-**MANAGE-09.** On Rates, turn Free parking on, read the sample preview, and use a rate row. **Expect:** the switch saves. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived, restored, or set as the default.
-Unit: `src/lib/quotePreview.test.ts`, `src/lib/rates.test.ts`
+**MANAGE-09.** On Rates, turn Track capacity on and off, open Edit rate, and use a rate row. **Expect:** Free parking is not on this screen. Track capacity is on Rates and on Edit rate. Off hides the field and stops counting spots. The capacity number stays. On requires a whole number of at least 1. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived, restored, or set as the default.
+Unit: `src/lib/listingCapacity.test.ts`, `src/lib/quotePreview.test.ts`, `src/lib/rates.test.ts`
 
 **MANAGE-10.** Create a rate and edit one. **Expect:** the form has type, amounts, an optional vehicle, days of the week, and effective dates. Dates are Manila days, and the end date covers that whole day. Saving returns to the list. The default rate's edit does not send a vehicle, an area, or an inactive flag.
 Unit: `src/lib/rateForm.test.ts`
