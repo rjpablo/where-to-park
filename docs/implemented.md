@@ -1,6 +1,6 @@
 # Implemented features and screens
 
-**As of 12 Nov 2026.** This is an inventory of what the app contains today. The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
+**As of 13 Nov 2026.** This is an inventory of what the app contains today. The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
 
 Where To Park is an Expo SDK 54 app (Android first, web for preview). Routes live in `app/`. The backend is Supabase: Postgres, Auth, Realtime, Storage, and RPCs. Money is Philippine pesos. Listing times and rate days use Asia/Manila. The product language is English.
 
@@ -27,7 +27,7 @@ A feature that depends on a database function only works after that migration ha
 | Driver           | Any signed-in account                                   | Everything a guest can do, plus saved vehicles, shortcuts, reviews, reports, chat, and reservation requests where the listing allows them              |
 | Staff            | Invited by an owner or manager and assigned to listings | Availability, walk-in check-in, sessions, payments, fees, refunds, and chat for those listings. Cannot change rates, areas, staff, or listing settings |
 | Owner or manager | Creates a listing, or is invited as a manager           | Everything staff can do, plus listing details, photos, areas, rates, fee presets, overnight, reservation requests, and staff invites                   |
-| Admin            | `profiles.is_admin`                                     | Verify or reject listings, moderate reports, read and delete contact messages, turn push types on or off                                               |
+| Admin            | `profiles.is_admin`                                     | Publish, verify, or reject listings, moderate reports, read and delete contact messages, turn push types on or off                                    |
 
 Operator membership roles are `owner`, `manager`, and `staff`. Admin is a profile flag, not a membership.
 
@@ -80,7 +80,11 @@ Opening a screen from a link with no back history still shows Back. It goes to t
 
 ## Finding parking
 
-**Find Parking** (`/search`) is the home screen. A map shows listing pins. A bottom sheet lists the same results. Place search uses Photon. The ◎ button uses the device location. Tapping a result opens Location Details.
+**Find Parking** (`/search`) is the home screen. A map shows listing pins. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location. Tapping a result opens Location Details.
+
+After a new area search, the map zooms out around the search centre when a result pin is off the map. If every pin is already on screen, the camera stays where it is. Changing filters, sort, or a live availability refresh does not move the map.
+
+On Android, with no screen to go back to, the hardware back button minimizes a maximized sheet. When the sheet is already minimized, the first press shows "Press back again to close the app" and a second press within 2 seconds closes the app. A sheet at Normal uses that same prompt. If there is a screen to go back to, back navigates as usual.
 
 Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
 
