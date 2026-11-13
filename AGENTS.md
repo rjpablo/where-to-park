@@ -36,7 +36,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## Features, inventory, and tests
 
-When you add or change a user-facing behavior, follow `.cursor/rules/docs-and-tests.mdc`: update `docs/implemented.md` and `docs/test-cases.md`, and add or update a colocated unit test when the behavior can be checked without a device or a network.
+When you add or change a user-facing behavior, follow `.cursor/rules/docs-and-tests.mdc`: update `docs/feature-status.md`, `docs/implemented.md`, and `docs/test-cases.md`, and add or update a colocated unit test when the behavior can be checked without a device or a network.
 
 ## Rules
 
