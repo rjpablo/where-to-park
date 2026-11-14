@@ -1,0 +1,111 @@
+// Where the header Back goes when there is no history to go back to (web refresh, a
+// deep link, a notification opening a screen directly). Keyed by expo-router route
+// name; returns null for screens that have no Back (the search screen, the entry).
+
+export type RouteParams = Record<string, string | string[] | undefined> | undefined;
+
+const SEARCH = '/search';
+const LISTINGS = '/operator/listings';
+
+function one(params: RouteParams, key: string): string | undefined {
+  const v = params?.[key];
+  const s = Array.isArray(v) ? v[0] : v;
+  return s ? String(s) : undefined;
+}
+
+const hub = (id: string) => `/operator/hub/${encodeURIComponent(id)}`;
+
+/** Listing subpage: back to that listing's page, or My listings without a listing. */
+function listingParent(params: RouteParams, key = 'locationId'): string {
+  const id = one(params, key);
+  return id ? hub(id) : LISTINGS;
+}
+
+const PARENTS: Record<string, (p: RouteParams) => string> = {
+  // Driver screens
+  auth: () => SEARCH,
+  profile: () => SEARCH,
+  notifications: () => SEARCH,
+  shortcuts: () => SEARCH,
+  contact: () => SEARCH,
+  accounts: () => SEARCH,
+  privacy: () => SEARCH,
+  vehicles: () => SEARCH,
+  'location/[id]': () => SEARCH,
+  // A driver's chat goes back to the listing; an operator's (driverId set) to Messages.
+  'chat/[locationId]': (p) => {
+    if (one(p, 'driverId')) return '/operator/inbox';
+    const id = one(p, 'locationId');
+    return id ? `/location/${encodeURIComponent(id)}` : SEARCH;
+  },
+  // Operator workspace
+  'operator/listings': () => SEARCH,
+  'operator/onboarding': () => LISTINGS,
+  'operator/hub/[id]': () => LISTINGS,
+  'operator/edit/[id]': (p) => listingParent(p, 'id'),
+  'operator/areas': (p) => listingParent(p),
+  // Area settings (rj t139u): back to that listing's Areas.
+  'operator/area-edit': (p) => {
+    const id = one(p, 'locationId');
+    return id ? `/operator/areas?locationId=${encodeURIComponent(id)}` : LISTINGS;
+  },
+  'operator/rates': (p) => listingParent(p),
+  // New / Edit rate: back to that listing's Rates list.
+  'operator/rate-edit': (p) => {
+    const id = one(p, 'locationId');
+    return id ? `/operator/rates?locationId=${encodeURIComponent(id)}` : LISTINGS;
+  },
+  'operator/fees': (p) => listingParent(p),
+  'operator/staff': (p) => listingParent(p),
+  'operator/availability': (p) => listingParent(p),
+  // Available slots editor: back to that listing's Availability screen.
+  // (rj t139u: per area; back to the same area.)
+  'operator/slots-editor': (p) => {
+    const id = one(p, 'locationId');
+    const area = one(p, 'areaId');
+    return id
+      ? `/operator/availability?locationId=${encodeURIComponent(id)}${
+          area ? `&areaId=${encodeURIComponent(area)}` : ''
+        }`
+      : LISTINGS;
+  },
+  'staff/checkin': (p) => listingParent(p),
+  // One session: back to that listing's Availability screen (🟧 Session board dropped).
+  'staff/session': (p) => {
+    const id = one(p, 'locationId');
+    return id ? `/operator/availability?locationId=${encodeURIComponent(id)}` : LISTINGS;
+  },
+  // Edit details / Apply payment (rj t131u): back to that session's page.
+  'staff/session-edit': (p) => sessionParent(p),
+  'staff/session-pay': (p) => sessionParent(p),
+  'staff/session-fee': (p) => sessionParent(p),
+  // Messages: from a listing's page back to it; from the sidebar back to search.
+  'operator/inbox': (p) => {
+    const id = one(p, 'locationId');
+    return id ? hub(id) : SEARCH;
+  },
+  // Admin (opened from the sidebar on the search screen)
+  'admin/verify': () => SEARCH,
+  'admin/reports': () => SEARCH,
+  'admin/contact': () => SEARCH,
+  'admin/contact-item': () => '/admin/contact',
+  'admin/push': () => SEARCH,
+};
+
+function sessionParent(p: RouteParams | undefined): string {
+  const id = one(p, 'id');
+  if (!id) return LISTINGS;
+  const q = [`id=${encodeURIComponent(id)}`];
+  const loc = one(p, 'locationId');
+  if (loc) q.push(`locationId=${encodeURIComponent(loc)}`);
+  const from = one(p, 'from');
+  if (from) q.push(`from=${encodeURIComponent(from)}`);
+  return `/staff/session?${q.join('&')}`;
+}
+
+export function backFallback(routeName: string, params?: RouteParams): string | null {
+  const parent = PARENTS[routeName];
+  return parent ? parent(params) : null;
+}
+
+export const BACK_FALLBACK_ROUTES = Object.keys(PARENTS);
