@@ -14,10 +14,10 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 
 | Status      | Feature                                                                                                                                                          |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Done        | Find Parking map and results sheet, no sign-in required                                                                                                         |
+| Done        | Find Parking map and results sheet, no sign-in required. The first search uses the device location, and does not fall back to another place. The map ends just under the minimized sheet so the centre cursor sits in the visible map |
 | Done        | Sheet heights Minimized, Normal, and Maximized. A new search opens Normal. Handle tap cycles the three heights                                                   |
 | Done        | Place search (Photon) and the ◎ current-location button. Neither searches until Search this area                                                                |
-| Done        | Distance slider follows the visible map (0.5 km to 50 km). A new search sets it to the maximum; filters and sort keep the chosen value                          |
+| Done        | Distance slider follows the visible map (0.5 km up to the search limit, 50 km unless an admin changed it). A wider map shows an alert that the search was limited. A new search sets the slider to that maximum; filters and sort keep the chosen value |
 | Done        | Opening zoom 13.25                                                                                                                                               |
 | Done        | Filters: vehicle, rate type, Free parking, Show Full last. Full listings stay hidden until Show Full is on                                                      |
 | Done        | Sort by distance, price, rating, eta, and open spots                                                                                                             |
@@ -152,6 +152,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done   | Moderation: resolve, hide, or dismiss a report of a listing or a review                                                |
 | Done   | Contact messages: open, mark resolved or open, delete. Images must be cleared before the message is deleted           |
 | Done   | One switch per push type                                                                                               |
+| Done   | System Settings, admins only: the search radius limit                                                                  |
 
 ## Later
 

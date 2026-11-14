@@ -1,6 +1,6 @@
 # Implemented features and screens
 
-**As of 14 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
+**As of 15 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
 
 Where To Park is an Expo SDK 54 app (Android first, web for preview). Routes live in `app/`. The backend is Supabase: Postgres, Auth, Realtime, Storage, and RPCs. Money is Philippine pesos. Listing times and rate days use Asia/Manila. The product language is English.
 
@@ -17,7 +17,7 @@ A feature that depends on a database function only works after that migration ha
 - **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking
 - **Messages:** inbox, chat, photos in chat, notifications, push
 - **Account:** email sign-in, Google sign-in, accounts on this device, profile, saved vehicles, shortcuts, privacy policy, contact us
-- **Admin:** verification queue, moderation, contact messages, push switches
+- **Admin:** verification queue, moderation, contact messages, push switches, search radius limit
 
 ## Who uses it
 
@@ -27,11 +27,11 @@ A feature that depends on a database function only works after that migration ha
 | Driver           | Any signed-in account                                   | Everything a guest can do, plus saved vehicles, shortcuts, reviews, reports, chat, and reservation requests where the listing allows them              |
 | Staff            | Invited by an owner or manager and assigned to listings | Availability, walk-in check-in, sessions, payments, fees, refunds, and chat for those listings. Cannot change rates, areas, staff, or listing settings |
 | Owner or manager | Creates a listing, or is invited as a manager           | Everything staff can do, plus listing details, photos, areas, rates, fee presets, overnight, reservation requests, and staff invites                   |
-| Admin            | `profiles.is_admin`                                     | Publish, verify, or reject listings, moderate reports, read and delete contact messages, turn push types on or off                                    |
+| Admin            | `profiles.is_admin`                                     | Publish, verify, or reject listings, moderate reports, read and delete contact messages, turn push types on or off, set the search radius limit       |
 
 Operator membership roles are `owner`, `manager`, and `staff`. Admin is a profile flag, not a membership.
 
-The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. Admins also see Verify listings, Moderation queue, Contact messages, and Push notifications. Counts and the red attention dot come from `get_sidebar_counts`.
+The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
 
 ## Screen index
 
@@ -75,18 +75,19 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | Contact messages       | `/admin/contact`         | Contact messages       |
 | Contact message        | `/admin/contact-item`    | Contact message        |
 | Push notifications     | `/admin/push`            | Push notifications     |
+| System Settings        | `/admin/settings`        | System Settings        |
 
 Opening a screen from a link with no back history still shows Back. It goes to that screen's parent (`src/lib/backFallback.ts`) instead of leaving the app.
 
 ## Finding parking
 
-**Find Parking** (`/search`) is the home screen. A map shows listing pins. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location. Tapping a result opens Listing details.
+**Find Parking** (`/search`) is the home screen. The first search uses the device's current location. If that location is not available, no search runs and no other place is used. A shared link with coordinates still opens that place. A map shows listing pins. The map ends just under the minimized results sheet, so the centre cursor sits in the map that stays visible. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location and does not search by itself. Tapping a result opens Listing details.
 
 After a new area search, the map zooms out around the search centre when a result pin is off the map. If every pin is already on screen, the camera stays where it is. Changing filters, sort, or a live availability refresh does not move the map.
 
 On Android, with no screen to go back to, the hardware back button minimizes a maximized sheet. When the sheet is already minimized, the first press shows "Press back again to close the app" and a second press within 2 seconds closes the app. A sheet at Normal uses that same prompt. If there is a screen to go back to, back navigates as usual.
 
-Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
+Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. The slider follows the visible map, from 0.5 km up to the search limit. That limit is 50 km until an admin changes it. When the map covers a wider area, an alert says the search only includes listings within the limit. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
 
 ## Listing details
 
@@ -206,3 +207,5 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 **Contact messages** (`/admin/contact` and `/admin/contact-item`) lists Contact Us submissions. An admin can open one and delete it. Images must be cleared before the message itself is deleted.
 
 **Push notifications** (`/admin/push`) is one switch per notification type. Turning a switch off skips the phone push. The in-app notification is still created.
+
+**System Settings** (`/admin/settings`) is for admins. It sets the search radius limit, a whole number of kilometres from 1 to 500. The default is 50. Everyone's searches use the saved limit. A person who is not an admin does not see this screen in the sidebar.

@@ -34,8 +34,30 @@ export function centerToCornerMeters(
   return Math.hypot(width / 2, height / 2) * metersPerPoint(zoom, latitude);
 }
 
+/** Whole-kilometre range an admin may store as the search cap. */
+export const SEARCH_CAP_MIN_KM = 1;
+export const SEARCH_CAP_MAX_KM = 500;
+
+/** Cap used for a search. A missing or unusable value keeps the 50 km default. */
+export function searchCapKm(capKm: number | null | undefined): number {
+  const n = typeof capKm === 'number' ? capKm : Number(capKm);
+  if (!Number.isFinite(n) || n < MIN_DISTANCE_KM) return MAX_DISTANCE_KM;
+  return n;
+}
+
+/** Admin entry: a whole number of kilometres from 1 to 500. */
+export function parseSearchCapKm(raw: string): { km: number } | { error: string } {
+  const text = raw.trim();
+  if (!/^\d+$/.test(text)) return { error: 'Enter a whole number of kilometres' };
+  const km = Number(text);
+  if (km < SEARCH_CAP_MIN_KM || km > SEARCH_CAP_MAX_KM) {
+    return { error: `Enter a distance from ${SEARCH_CAP_MIN_KM} to ${SEARCH_CAP_MAX_KM} km` };
+  }
+  return { km };
+}
+
 export function clampDistanceKm(km: number, maxKm = MAX_DISTANCE_KM): number {
-  const max = Math.max(MIN_DISTANCE_KM, Math.min(MAX_DISTANCE_KM, maxKm));
+  const max = Math.max(MIN_DISTANCE_KM, Number.isFinite(maxKm) ? maxKm : MAX_DISTANCE_KM);
   if (!Number.isFinite(km)) return Math.min(DEFAULT_DISTANCE_KM, max);
   return Math.min(max, Math.max(MIN_DISTANCE_KM, km));
 }
@@ -55,13 +77,31 @@ export function roundDistanceKm(km: number, maxKm = MAX_DISTANCE_KM): number {
 /**
  * Slider max for a search: the distance from the search centre to the farthest
  * visible corner, rounded UP to a step so the whole visible map is covered.
- * At least 0.5 km, at most MAX_DISTANCE_KM.
+ * At least 0.5 km, at most the search cap (50 km unless an admin changed it).
  */
-export function sliderMaxKm(farthestVisibleMeters: number): number {
+function roundedUpKm(farthestVisibleMeters: number): number {
   const km = Math.max(MIN_DISTANCE_KM, farthestVisibleMeters / 1000);
   const step = stepFor(km);
   const up = Math.ceil(km / step - 1e-9) * step;
-  return Math.min(MAX_DISTANCE_KM, Math.max(MIN_DISTANCE_KM, up));
+  return Math.max(MIN_DISTANCE_KM, up);
+}
+
+export function sliderMaxKm(farthestVisibleMeters: number, capKm = MAX_DISTANCE_KM): number {
+  return Math.min(searchCapKm(capKm), roundedUpKm(farthestVisibleMeters));
+}
+
+/**
+ * Alert body when the visible area is wider than the cap, so the search used the
+ * cap instead. Null when the area already fits.
+ */
+export function searchLimitMessage(
+  farthestVisibleMeters: number,
+  capKm = MAX_DISTANCE_KM
+): string | null {
+  const cap = searchCapKm(capKm);
+  if (roundedUpKm(farthestVisibleMeters) <= cap) return null;
+  const label = formatDistanceKm(cap);
+  return `The area on the map is larger than ${label}. This search only includes listings within ${label}.`;
 }
 
 /** Clamp a distance under a new max (rounded to a slider step). */
@@ -84,7 +124,7 @@ export function distanceAfterSearch(
 }
 
 function ratio(maxKm: number): number {
-  return Math.log(clampDistanceKm(maxKm) / MIN_DISTANCE_KM);
+  return Math.log(clampDistanceKm(maxKm, maxKm) / MIN_DISTANCE_KM);
 }
 
 /** Slider position (0..1, logarithmic so short distances get more room) -> km. */

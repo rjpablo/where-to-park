@@ -17,7 +17,7 @@ Unit: `src/lib/sidebar.test.ts`
 
 **NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space.
 
-**NAV-04.** Open the sidebar as an admin. **Expect:** Verify listings, Moderation queue, Contact messages, and Push notifications. A pending count shows on the row that has one, and the red attention dot follows `get_sidebar_counts`. A trigger turned off in the database does not light the dot.
+**NAV-04.** Open the sidebar as an admin. **Expect:** Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. A pending count shows on the row that has one, and the red attention dot follows `get_sidebar_counts`. A trigger turned off in the database does not light the dot.
 Unit: `src/lib/sidebar.test.ts`
 
 **NAV-05.** Open a child screen from a link while the history stack is empty, then press Back. **Expect:** Back is shown and goes to that screen's parent, one level at a time, down to Find Parking. It does not leave the app.
@@ -34,7 +34,8 @@ Unit: `src/lib/backToExit.test.ts`
 
 ## Finding parking
 
-**SEARCH-01.** Open Find Parking. **Expect:** the map shows listing pins and the sheet lists the same results. The sheet opens at Normal. Tapping a row opens Listing details.
+**SEARCH-01.** Open Find Parking with location allowed. **Expect:** the first search is around the device location. The map shows those listing pins and the sheet lists the same results. The sheet opens at Normal. Tapping a row opens Listing details.
+Unit: `src/lib/userLocation.test.ts`
 
 **SEARCH-02.** Drag the sheet handle, and tap the handle. **Expect:** drag moves among Minimized, Normal, and Maximized. A tap cycles Minimized, then Normal, then Maximized, then Minimized. Maximized leaves a strip of map under the header.
 Unit: `src/lib/sheetLayout.test.ts`
@@ -47,10 +48,10 @@ Unit: `src/components/map/camera.test.ts` (`zoomOutToFit`)
 **SEARCH-05.** After a search, change a filter or the sort, and wait for a live availability update. **Expect:** the pins and the list update. The camera and the sheet position stay put.
 Unit: `src/lib/liveAvailability.test.ts`
 
-**SEARCH-06.** Pan or zoom the map. **Expect:** Search this area appears. Tapping it searches the map centre and opens the sheet at Normal. The distance slider resets to the new maximum, which is the distance from the centre to the farthest visible corner, rounded up, between 0.5 km and 50 km.
+**SEARCH-06.** Pan or zoom the map. **Expect:** Search this area appears. Tapping it searches the map centre and opens the sheet at Normal. The distance slider resets to the new maximum, which is the distance from the centre to the farthest visible corner, rounded up, between 0.5 km and the search limit (50 km unless an admin changed it).
 Unit: `src/lib/distance.test.ts`
 
-**SEARCH-07.** Pick a place in the search box. **Expect:** the map moves to that place and Search this area is offered. The search does not run until that button is pressed. ◎ recenters on the device location at zoom 15 and also offers Search this area. Denying location permission shows a short message and the map stays usable.
+**SEARCH-07.** Pick a place in the search box. **Expect:** the map moves to that place and Search this area is offered. The search does not run until that button is pressed. ◎ recenters on the device location at zoom 15 and also offers Search this area. Denying location permission shows a short message and does not search another city. A place search still moves the map.
 Unit: `src/lib/userLocation.test.ts`, `src/lib/geocoding/photonParse.test.ts`, `src/lib/searchLink.test.ts`
 
 **SEARCH-08.** As a guest, open the vehicle filter. **Expect:** it starts at All vehicles. Signed in, with a default saved vehicle, it starts at that vehicle type.
@@ -66,6 +67,15 @@ Unit: `src/lib/searchFilters.test.ts`
 Unit: `src/lib/listingEta.test.ts`, `src/lib/availability.test.ts`
 
 **SEARCH-12.** Lower the distance slider and change a filter. **Expect:** the chosen distance is kept, clamped under the current maximum. Only a new area search resets the distance to the maximum.
+
+**SEARCH-13.** Open Find Parking with location denied, blocked, or unavailable. **Expect:** no search runs. The sheet does not list results from another city. Searching for a place still moves the map and offers Search this area.
+Unit: `src/lib/userLocation.test.ts`
+
+**SEARCH-14.** Look at the map with the results sheet minimized. **Expect:** the sheet covers only a sliver of the map's bottom edge. The centre cursor sits in the middle of the map that stays visible.
+Unit: `src/lib/sheetLayout.test.ts`
+
+**SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** an alert says the search only includes listings within that limit. The slider and the search stop at the limit. A map that already fits does not show the alert.
+Unit: `src/lib/distance.test.ts`
 
 ## Listing details
 
@@ -273,3 +283,6 @@ Unit: `src/lib/contact.test.ts`
 
 **ADMIN-06.** On Push notifications, turn one type off and another on. **Expect:** each type has its own switch. Off skips only that phone push.
 Unit: `supabase/functions/send-push/lib.test.ts`
+
+**ADMIN-07.** As an admin, open System Settings and save a search radius limit. **Expect:** a whole number of kilometres from 1 to 500 is saved. The field starts at the current limit, 50 by default. Someone who is not an admin does not see System settings in the sidebar.
+Unit: `src/lib/distance.test.ts`, `src/lib/sidebar.test.ts`

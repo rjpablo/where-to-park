@@ -9,7 +9,10 @@ import {
   formatDistanceKm,
   kmToPosition,
   positionToKm,
+  parseSearchCapKm,
   roundDistanceKm,
+  searchCapKm,
+  searchLimitMessage,
   sliderMaxKm,
   stepDistanceKm,
 } from './distance.ts';
@@ -49,6 +52,33 @@ test('slider max follows the farthest visible edge, rounded up, min 0.5 km', () 
   assert.equal(sliderMaxKm(120), 0.5);
   assert.equal(sliderMaxKm(12_300), 13);
   assert.equal(sliderMaxKm(400_000), 50, 'hard cap');
+  assert.equal(sliderMaxKm(400_000, 80), 80, 'admin cap');
+  assert.equal(sliderMaxKm(12_300, 80), 13);
+  assert.equal(searchCapKm(null), 50);
+  assert.equal(searchCapKm(0), 50);
+});
+
+test('a wider map asks for an alert naming the cap; a fitting map does not', () => {
+  assert.equal(searchLimitMessage(12_300), null);
+  assert.equal(searchLimitMessage(50_000), null);
+  assert.equal(
+    searchLimitMessage(80_000),
+    'The area on the map is larger than 50 km. This search only includes listings within 50 km.'
+  );
+  assert.equal(
+    searchLimitMessage(80_000, 30),
+    'The area on the map is larger than 30 km. This search only includes listings within 30 km.'
+  );
+  assert.equal(searchLimitMessage(80_000, 80), null);
+});
+
+test('an admin search cap is a whole number of kilometres from 1 to 500', () => {
+  assert.deepEqual(parseSearchCapKm('50'), { km: 50 });
+  assert.deepEqual(parseSearchCapKm(' 80 '), { km: 80 });
+  assert.ok('error' in parseSearchCapKm(''));
+  assert.ok('error' in parseSearchCapKm('0'));
+  assert.ok('error' in parseSearchCapKm('0.5'));
+  assert.ok('error' in parseSearchCapKm('501'));
 });
 
 test('preferred/default distance is kept only when it fits under the max', () => {
