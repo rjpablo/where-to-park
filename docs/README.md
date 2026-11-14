@@ -12,6 +12,7 @@ All documentation asked for during development lives in this folder
 | [eas-build.md](./eas-build.md) | EAS project, build profiles, staging vs prod env, package id, keystore notes. |
 | [google-sign-in.md](./google-sign-in.md) | Google OAuth clients, redirect URLs, auth config on staging/prod. |
 | [push-notifications.md](./push-notifications.md) | Push setup steps and the Firebase / EAS / Supabase identifiers used. Secrets stay off the repo. |
+| [admob.md](./admob.md) | AdMob banner ads: App ID and ad unit IDs, where to swap them, which screens show ads, Play Console ads / advertising ID / Data safety steps, app-ads.txt. |
 | [applying-migrations.md](./applying-migrations.md) | How to apply `supabase/migrations/` to staging (and later prod): Management API method used by the bot, CLI alternative, 0007 exclusion, verification and failure rules. |
 
 ## Related (not in this folder)

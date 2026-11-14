@@ -4,6 +4,7 @@ import { Stack, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
+import { initAds } from '../src/lib/adsInit';
 import { useBackToExit } from '../src/hooks/useBackToExit';
 import { SidebarToggle } from '../src/components/Sidebar';
 import { Toast } from '../src/components/Toast';
@@ -27,6 +28,11 @@ export default function RootLayout() {
   React.useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // AdMob (native only; a no-op on web): start the SDK once per launch.
+  React.useEffect(() => {
+    initAds();
+  }, []);
 
   // Push permission is asked once someone is signed in; the token follows the account.
   const userId = user?.id;
