@@ -4,6 +4,7 @@ import { Stack, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
+import { initAds } from '../src/lib/adsInit';
 import { useBackToExit } from '../src/hooks/useBackToExit';
 import { SidebarToggle } from '../src/components/Sidebar';
 import { Toast } from '../src/components/Toast';
@@ -27,6 +28,11 @@ export default function RootLayout() {
   React.useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // AdMob (native only; a no-op on web): start the SDK once per launch.
+  React.useEffect(() => {
+    initAds();
+  }, []);
 
   // Push permission is asked once someone is signed in; the token follows the account.
   const userId = user?.id;
@@ -88,14 +94,14 @@ export default function RootLayout() {
               headerLeft: () => <SidebarToggle />,
             }}
           />
-          <Stack.Screen name="location/[id]" options={{ title: 'Location Details' }} />
+          <Stack.Screen name="location/[id]" options={{ title: 'Listing details' }} />
           <Stack.Screen name="reserve/[locationId]" options={{ title: 'Reserve a spot' }} />
           <Stack.Screen name="sessions/index" options={{ title: 'Sessions' }} />
           <Stack.Screen name="sessions/[id]" options={{ title: 'Session' }} />
           <Stack.Screen name="operator/listings" options={{ title: 'My listings' }} />
           <Stack.Screen name="operator/hub/[id]" options={{ title: 'Listing' }} />
           <Stack.Screen name="operator/onboarding" options={{ title: 'List Your Space' }} />
-          <Stack.Screen name="operator/edit/[id]" options={{ title: 'Edit Location' }} />
+          <Stack.Screen name="operator/edit/[id]" options={{ title: 'Edit listing' }} />
           <Stack.Screen name="operator/areas" options={{ title: 'Areas' }} />
           <Stack.Screen name="operator/area-edit" options={{ title: 'Area' }} />
           <Stack.Screen name="operator/rates" options={{ title: 'Rates' }} />
@@ -118,6 +124,7 @@ export default function RootLayout() {
           <Stack.Screen name="admin/contact" options={{ title: 'Contact messages' }} />
           <Stack.Screen name="admin/contact-item" options={{ title: 'Contact message' }} />
           <Stack.Screen name="admin/push" options={{ title: 'Push notifications' }} />
+          <Stack.Screen name="admin/settings" options={{ title: 'System Settings' }} />
           <Stack.Screen name="contact" options={{ title: 'Contact Us' }} />
           <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
           <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />

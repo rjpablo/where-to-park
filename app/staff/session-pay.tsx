@@ -167,9 +167,11 @@ export default function SessionPayScreen() {
         </>
       ) : (
         <Text style={styles.meta} testID="session-pay-none">
-          {s.status === 'ended'
-            ? 'This session has ended.'
-            : 'Nothing to pay: there is no balance.'}
+          {s.approval_status === 'pending'
+            ? 'Approve the reservation before applying a payment.'
+            : s.status === 'ended'
+              ? 'This session has ended.'
+              : 'Nothing to pay: there is no balance.'}
         </Text>
       )}
     </ScrollView>

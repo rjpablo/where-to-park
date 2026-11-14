@@ -4,12 +4,16 @@ import {
   DEFAULT_DISTANCE_KM,
   SEARCH_START_ZOOM,
   centerToCornerMeters,
+  zoomForCornerMeters,
   distanceAfterSearch,
   fitDistanceToMax,
   formatDistanceKm,
   kmToPosition,
   positionToKm,
+  parseSearchCapKm,
   roundDistanceKm,
+  searchCapKm,
+  searchLimitMessage,
   sliderMaxKm,
   stepDistanceKm,
 } from './distance.ts';
@@ -49,6 +53,38 @@ test('slider max follows the farthest visible edge, rounded up, min 0.5 km', () 
   assert.equal(sliderMaxKm(120), 0.5);
   assert.equal(sliderMaxKm(12_300), 13);
   assert.equal(sliderMaxKm(400_000), 50, 'hard cap');
+  assert.equal(sliderMaxKm(400_000, 80), 80, 'admin cap');
+  assert.equal(sliderMaxKm(12_300, 80), 13);
+  assert.equal(searchCapKm(null), 50);
+  assert.equal(searchCapKm(0), 50);
+});
+
+test('a wider map names the cap; a fitting map does not', () => {
+  assert.equal(searchLimitMessage(12_300), null);
+  assert.equal(searchLimitMessage(50_000), null);
+  assert.equal(searchLimitMessage(80_000), 'Search limited to 50 km.');
+  assert.equal(searchLimitMessage(80_000, 30), 'Search limited to 30 km.');
+  assert.equal(searchLimitMessage(80_000, 80), null);
+});
+
+test('zooming to the search cap puts that distance at the farthest corner', () => {
+  const lat = 16.4023;
+  const zoom = zoomForCornerMeters(412, 638, 50_000, lat);
+  assert.ok(zoom != null);
+  const back = centerToCornerMeters(412, 638, zoom, lat);
+  assert.ok(Math.abs(back - 50_000) < 1, `corner ${back}`);
+  const wider = zoomForCornerMeters(412, 638, 80_000, lat);
+  assert.ok(wider != null && zoom > wider);
+  assert.equal(zoomForCornerMeters(0, 638, 50_000, lat), null);
+});
+
+test('an admin search cap is a whole number of kilometres from 1 to 500', () => {
+  assert.deepEqual(parseSearchCapKm('50'), { km: 50 });
+  assert.deepEqual(parseSearchCapKm(' 80 '), { km: 80 });
+  assert.ok('error' in parseSearchCapKm(''));
+  assert.ok('error' in parseSearchCapKm('0'));
+  assert.ok('error' in parseSearchCapKm('0.5'));
+  assert.ok('error' in parseSearchCapKm('501'));
 });
 
 test('preferred/default distance is kept only when it fits under the max', () => {

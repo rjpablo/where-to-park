@@ -6,6 +6,8 @@ export type SearchFilters = {
   rateType: string | null;
   /** Include full listings (off by default: full listings are hidden). */
   showFull: boolean;
+  /** Only free parking listings. */
+  freeOnly: boolean;
   /** Only show results within this distance of the search origin. */
   distanceKm: number;
 };
@@ -16,6 +18,7 @@ export function searchFilterParams(filters: SearchFilters) {
     p_monthly_only: false,
     p_rate_type: filters.rateType,
     p_hide_full: !filters.showFull,
+    p_free_only: filters.freeOnly,
   };
 }
 

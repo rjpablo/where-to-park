@@ -113,6 +113,7 @@ export type SearchResult = {
   avg_rating: number | null;
   review_count: number;
   has_monthly: boolean;
+  is_free?: boolean;
 };
 
 export type Vehicle = {

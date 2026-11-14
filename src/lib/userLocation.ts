@@ -24,6 +24,18 @@ export function recenterAction(permission: LocationPermission, hasFix: boolean):
   }
 }
 
+/** Where Find Parking searches on open. A shared link wins. Otherwise the device
+ *  fix. Nothing else is substituted. */
+export function openingSearchCenter<T>(link: T | null, device: T | null): T | null {
+  return link ?? device ?? null;
+}
+
+/** True while a device fix can still arrive. Denied, blocked, or unavailable is not a wait. */
+export function deviceLocationPending(permission: LocationPermission, hasFix: boolean): boolean {
+  if (hasFix) return false;
+  return permission === 'unknown' || permission === 'granted';
+}
+
 export function locationMessage(permission: LocationPermission): string | null {
   switch (permission) {
     case 'denied':

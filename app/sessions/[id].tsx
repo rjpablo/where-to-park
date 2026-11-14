@@ -1,7 +1,8 @@
 import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { PlannedPrice } from '../../src/components/PlannedPrice';
 import { SlideToConfirm } from '../../src/components/SlideToConfirm';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { embeddedOne } from '../../src/lib/embed';
@@ -16,7 +17,7 @@ import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { showToast } from '../../src/stores/toastStore';
 import { useAuthStore } from '../../src/stores/authStore';
-import { formatLocalDateTime, formatPeso } from '../../src/utils/formatters';
+import { formatLocalDateTime } from '../../src/utils/formatters';
 
 type SessionRow = {
   id: string;
@@ -53,6 +54,7 @@ export default function DriverSessionScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
   const [cancelAttempt, setCancelAttempt] = React.useState(0);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     if (!id || !user) return;
@@ -116,8 +118,6 @@ export default function DriverSessionScreen() {
 
   const kind = driverSessionKind(row);
   const place = embeddedOne(row.locations)?.name || 'Parking';
-  const amount = Number(row.rate_snapshot?.amount);
-  const planned = Number.isFinite(amount) ? formatPeso(amount) : null;
 
   return (
     <ScrollView
@@ -141,10 +141,8 @@ export default function DriverSessionScreen() {
       {row.scheduled_end_at ? (
         <Text style={styles.line}>Ends {formatLocalDateTime(row.scheduled_end_at)}</Text>
       ) : null}
-      {planned && (kind === 'waiting' || kind === 'approved') ? (
-        <Text style={styles.line} testID="driver-session-price">
-          Planned price {planned}
-        </Text>
+      {kind === 'waiting' || kind === 'approved' ? (
+        <PlannedPrice price={row.rate_snapshot} startOpen testID="driver-session-price" />
       ) : null}
       {error ? (
         <Text style={styles.error} testID="driver-session-error">
@@ -161,16 +159,50 @@ export default function DriverSessionScreen() {
         />
       ) : null}
       {kind === 'waiting' || kind === 'approved' ? (
-        <View style={{ marginTop: theme.spacing.md }}>
-          <SlideToConfirm
-            label="Slide to cancel"
-            onConfirm={cancel}
-            loading={cancelling}
-            resetKey={cancelAttempt}
-            testID="driver-session-cancel"
-          />
-        </View>
+        <Button
+          title="Cancel reservation"
+          variant="danger"
+          onPress={() => setCancelOpen(true)}
+          style={{ marginTop: theme.spacing.md }}
+          testID="driver-session-cancel"
+        />
       ) : null}
+      <Button
+        title="Open Chat"
+        icon="chatbubble-outline"
+        variant="outline"
+        onPress={() => router.push(`/chat/${row.location_id}` as never)}
+        testID="driver-session-chat"
+        style={styles.chat}
+      />
+      <Modal
+        visible={cancelOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!cancelling) setCancelOpen(false);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="driver-session-cancel-dialog">
+            <Text style={styles.dialogTitle}>Cancel this reservation?</Text>
+            <SlideToConfirm
+              label="Slide to cancel"
+              onConfirm={cancel}
+              loading={cancelling}
+              resetKey={cancelAttempt}
+              testID="driver-session-cancel-slide"
+            />
+            <Button
+              title="Keep it"
+              variant="outline"
+              onPress={() => setCancelOpen(false)}
+              disabled={cancelling}
+              testID="driver-session-cancel-keep"
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -193,4 +225,21 @@ const styles = StyleSheet.create({
   plate: { ...theme.typography.h2, color: theme.colors.text.primary },
   line: { ...theme.typography.body, color: theme.colors.text.primary, marginTop: theme.spacing.xs },
   error: { ...theme.typography.bodySmall, color: theme.colors.danger, marginTop: theme.spacing.md },
+  chat: { marginTop: theme.spacing.lg, marginBottom: theme.spacing.md },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  dialog: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+  },
+  dialogTitle: { ...theme.typography.h3, color: theme.colors.text.primary },
 });

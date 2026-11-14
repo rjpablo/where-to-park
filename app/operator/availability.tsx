@@ -13,10 +13,11 @@ import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { formatLocalDateTime } from '../../src/utils/formatters';
 import { firstParam } from '../../src/lib/params';
-import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { useBannerSlot } from '../../src/hooks/useBannerSlot';
+import { AdBanner } from '../../src/components/AdBanner';
 import { SessionSummary, sessionCardStyles } from '../../src/components/SessionSummary';
 import { fetchActiveSessions } from '../../src/lib/activeSessions';
-import { filterByPlate } from '../../src/lib/walkIn';
+import { filterByPlate, isReservation } from '../../src/lib/walkIn';
 import { FilterDropdown } from '../../src/components/FilterDropdown';
 import {
   AREA_SELECT,
@@ -29,8 +30,9 @@ import {
 } from '../../src/lib/areas';
 
 export default function AvailabilityScreen() {
-  // Edge-to-edge: the content ends just above the navigation bar (one inset).
-  const bottomInset = useBottomInset(0);
+  // Edge-to-edge: the content ends just above the navigation bar (one inset), or just above
+  // the bottom banner ad, which pads for the navigation bar itself.
+  const { contentInset: bottomInset, onBannerShownChange } = useBannerSlot(0);
   const router = useRouter();
   const sp = useLocalSearchParams<{
     locationId?: string | string[];
@@ -48,13 +50,14 @@ export default function AvailabilityScreen() {
   const cancelledPlate = firstParam(sp.cancelled);
   const slotsSaved = firstParam(sp.slots) === 'saved';
   const areaParam = firstParam(sp.areaId);
-  // Sessions only (rj t136u/t137u): the count from sessions (counted_spaces), the pencil to
-  // the Available slots editor, the Full switch and the active sessions. No tabs.
+  // Sessions and reservations are separate lists. Each keeps its own plate filter.
   const [sessions, setSessions] = useState<any[]>([]);
   const [previews, setPreviews] = useState<Record<string, any>>({});
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
-  const [plateQuery, setPlateQuery] = useState('');
+  const [listTab, setListTab] = useState<'sessions' | 'reservations'>('sessions');
+  const [sessionPlate, setSessionPlate] = useState('');
+  const [reservationPlate, setReservationPlate] = useState('');
   const [location, setLocation] = useState<any>(null);
   // rj t139u: availability is managed per area; the dropdown picks which (Main by default,
   // the only choice when Main is the only area).
@@ -133,7 +136,7 @@ export default function AvailabilityScreen() {
       }
     } catch (err: any) {
       console.error('Load error:', err);
-      setError(err.message || 'Failed to load location data');
+      setError(err.message || 'Failed to load the listing');
     } finally {
       setLoading(false);
     }
@@ -185,7 +188,7 @@ export default function AvailabilityScreen() {
   if (!location) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.errorText}>No locations found</Text>
+        <Text style={styles.errorText}>No listing found</Text>
       </View>
     );
   }
@@ -193,217 +196,268 @@ export default function AvailabilityScreen() {
   const area = areas.find((x) => x.id === areaId) || null;
   const full = !!area?.marked_full;
   const monitored = area ? area.monitored : true;
-  const areaSessions = area ? sessions.filter((x) => x.area_id === area.id) : sessions;
-  const shownSessions = filterByPlate(areaSessions, plateQuery);
+  const inArea = area ? sessions.filter((x) => x.area_id === area.id) : sessions;
+  const sessionRows = inArea.filter((x) => !isReservation(x));
+  const reservationRows = inArea.filter((x) => isReservation(x));
+  const showingReservations = listTab === 'reservations';
+  const listRows = showingReservations ? reservationRows : sessionRows;
+  const plateQuery = showingReservations ? reservationPlate : sessionPlate;
+  const shownRows = filterByPlate(listRows, plateQuery);
   const listing = listingAvailability(location.free_spaces, !location.listing_full);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={bottomInset}
-      testID="availability-ready"
-    >
-      <View style={styles.header}>
-        <Text style={styles.subtitle}>{location.name}</Text>
-      </View>
-
-      <View style={styles.areaBar}>
-        <Text style={styles.areaBarLabel}>Area</Text>
-        <FilterDropdown<string>
-          label="Area"
-          showLabel={false}
-          value={areaId}
-          options={areas.map((x) => ({ value: x.id, label: x.name }))}
-          onChange={(v) => v && setAreaId(v)}
-          highlightActive={false}
-          style={styles.areaDropdown}
-          testID="availability-area"
-        />
-      </View>
-      {areas.length > 1 ? (
-        <Text style={styles.listingTotal} testID="availability-listing-total">
-          Whole listing: {listing.full ? 'Full' : listing.text}
-          {listing.full ? ' (every area is full)' : ''}
-        </Text>
-      ) : null}
-
-      <View style={styles.countDisplay}>
-        {full ? (
-          <Text style={styles.fullText} testID="availability-full">
-            Marked as FULL
-          </Text>
-        ) : null}
-        {monitored ? (
-          <>
-            <Text style={styles.countLabel}>Available Spaces</Text>
-            <View style={styles.countRow}>
-              <Text style={styles.countNumber} testID="availability-status">
-                {area ? areaStatusText(area) : '-'}
-              </Text>
-              <TouchableOpacity
-                style={styles.pencil}
-                onPress={() =>
-                  area &&
-                  router.push({
-                    pathname: '/operator/slots-editor',
-                    params: { locationId: location.id, areaId: area.id },
-                  })
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Edit reserved and unavailable spaces"
-                hitSlop={8}
-                testID="slots-edit"
-              >
-                <Text style={styles.pencilText}>✎</Text>
-              </TouchableOpacity>
-            </View>
-            {full ? (
-              <Text style={styles.fullNote} testID="availability-full-note">
-                Drivers see this area as Full (0 spots)
-              </Text>
-            ) : null}
-          </>
-        ) : (
-          <>
-            {/* Not monitored (rj t139u): no number, staff switch Available / Full. */}
-            <Text style={styles.countLabel}>Spots not monitored</Text>
-            <View style={styles.statusToggle} testID="availability-status-toggle">
-              {[
-                { key: 'available', label: 'Available', on: !full, value: false },
-                { key: 'full', label: 'Full', on: full, value: true },
-              ].map((o) => (
-                <TouchableOpacity
-                  key={o.key}
-                  style={[
-                    styles.statusOption,
-                    o.on && (o.value ? styles.statusOptionFull : styles.statusOptionOpen),
-                  ]}
-                  onPress={() => !o.on && setFull(o.value)}
-                  disabled={savingFull}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: o.on }}
-                  testID={`availability-status-${o.key}`}
-                >
-                  <Text style={[styles.statusOptionText, o.on && styles.statusOptionTextOn]}>
-                    {o.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
-        <Text style={styles.countUpdated}>
-          Updated {formatLocalDateTime(location.availability_updated_at)}
-        </Text>
-        {monitored ? (
-          <View style={styles.fullRow}>
-            <Text style={styles.fullLabel}>Full</Text>
-            <Switch
-              value={full}
-              onValueChange={setFull}
-              disabled={savingFull || !area}
-              trackColor={{ true: theme.colors.danger, false: theme.colors.border }}
-              accessibilityLabel="Mark this area as full"
-              testID="full-switch"
-            />
-          </View>
-        ) : null}
-        {notice ? (
-          <Text style={styles.errorText} testID="full-error">
-            {notice}
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={styles.section} testID="sessions-tab">
-        {slotsSaved ? (
-          <Text style={styles.successText} testID="availability-slots-saved">
-            Held spaces saved
-          </Text>
-        ) : null}
-        {checkedIn ? (
-          <Text style={styles.successText} testID="availability-checked-in">
-            {reservedSaved ? 'Reservation saved for' : 'Checked in'} {checkedIn}
-          </Text>
-        ) : null}
-        {endedPlate ? (
-          <Text style={styles.successText} testID="availability-session-ended">
-            Session ended: {endedPlate}
-          </Text>
-        ) : null}
-        {cancelledPlate ? (
-          <Text style={styles.successText} testID="availability-reservation-cancelled">
-            Reservation cancelled: {cancelledPlate}
-          </Text>
-        ) : null}
-        <View style={styles.sessionsHead}>
-          <Text style={[styles.sectionTitle, styles.sessionsTitle]} testID="sessions-count">
-            Active sessions ({areaSessions.length})
-          </Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() =>
-              router.push({
-                pathname: '/staff/checkin',
-                params: {
-                  locationId: location.id,
-                  from: 'availability',
-                  ...(area ? { areaId: area.id } : {}),
-                },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel="Add a session"
-            testID="sessions-add"
-          >
-            <Text style={styles.addButtonText}>+</Text>
-          </TouchableOpacity>
+    <View style={styles.screen}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={bottomInset}
+        testID="availability-ready"
+      >
+        <View style={styles.header}>
+          <Text style={styles.subtitle}>{location.name}</Text>
         </View>
-        <TextInput
-          style={styles.filterInput}
-          value={plateQuery}
-          onChangeText={setPlateQuery}
-          placeholder="Filter by plate number"
-          autoCapitalize="characters"
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-          testID="sessions-filter"
-        />
-        {sessionsError ? <Text style={styles.errorText}>{sessionsError}</Text> : null}
-        {!sessionsLoaded ? (
-          <Text style={styles.activityText}>Loading sessions…</Text>
-        ) : shownSessions.length ? (
-          shownSessions.map((item) => (
+
+        <View style={styles.areaBar}>
+          <Text style={styles.areaBarLabel}>Area</Text>
+          <FilterDropdown<string>
+            label="Area"
+            showLabel={false}
+            value={areaId}
+            options={areas.map((x) => ({ value: x.id, label: x.name }))}
+            onChange={(v) => v && setAreaId(v)}
+            highlightActive={false}
+            style={styles.areaDropdown}
+            testID="availability-area"
+          />
+        </View>
+        {areas.length > 1 ? (
+          <Text style={styles.listingTotal} testID="availability-listing-total">
+            Whole listing: {listing.full ? 'Full' : listing.text}
+            {listing.full ? ' (every area is full)' : ''}
+          </Text>
+        ) : null}
+
+        <View style={styles.countDisplay}>
+          {full ? (
+            <Text style={styles.fullText} testID="availability-full">
+              Marked as FULL
+            </Text>
+          ) : null}
+          {monitored ? (
+            <>
+              <Text style={styles.countLabel}>Available Spaces</Text>
+              <View style={styles.countRow}>
+                <Text style={styles.countNumber} testID="availability-status">
+                  {area ? areaStatusText(area) : '-'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.pencil}
+                  onPress={() =>
+                    area &&
+                    router.push({
+                      pathname: '/operator/slots-editor',
+                      params: { locationId: location.id, areaId: area.id },
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit reserved and unavailable spaces"
+                  hitSlop={8}
+                  testID="slots-edit"
+                >
+                  <Text style={styles.pencilText}>✎</Text>
+                </TouchableOpacity>
+              </View>
+              {full ? (
+                <Text style={styles.fullNote} testID="availability-full-note">
+                  Drivers see this area as Full (0 spots)
+                </Text>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {/* Not monitored (rj t139u): no number, staff switch Available / Full. */}
+              <Text style={styles.countLabel}>Spots not monitored</Text>
+              <View style={styles.statusToggle} testID="availability-status-toggle">
+                {[
+                  { key: 'available', label: 'Available', on: !full, value: false },
+                  { key: 'full', label: 'Full', on: full, value: true },
+                ].map((o) => (
+                  <TouchableOpacity
+                    key={o.key}
+                    style={[
+                      styles.statusOption,
+                      o.on && (o.value ? styles.statusOptionFull : styles.statusOptionOpen),
+                    ]}
+                    onPress={() => !o.on && setFull(o.value)}
+                    disabled={savingFull}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: o.on }}
+                    testID={`availability-status-${o.key}`}
+                  >
+                    <Text style={[styles.statusOptionText, o.on && styles.statusOptionTextOn]}>
+                      {o.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+          <Text style={styles.countUpdated}>
+            Updated {formatLocalDateTime(location.availability_updated_at)}
+          </Text>
+          {monitored ? (
+            <View style={styles.fullRow}>
+              <Text style={styles.fullLabel}>Full</Text>
+              <Switch
+                value={full}
+                onValueChange={setFull}
+                disabled={savingFull || !area}
+                trackColor={{ true: theme.colors.danger, false: theme.colors.border }}
+                accessibilityLabel="Mark this area as full"
+                testID="full-switch"
+              />
+            </View>
+          ) : null}
+          {notice ? (
+            <Text style={styles.errorText} testID="full-error">
+              {notice}
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.section} testID="sessions-tab">
+          {slotsSaved ? (
+            <Text style={styles.successText} testID="availability-slots-saved">
+              Held spaces saved
+            </Text>
+          ) : null}
+          {checkedIn ? (
+            <Text style={styles.successText} testID="availability-checked-in">
+              {reservedSaved ? 'Reservation saved for' : 'Checked in'} {checkedIn}
+            </Text>
+          ) : null}
+          {endedPlate ? (
+            <Text style={styles.successText} testID="availability-session-ended">
+              Session ended: {endedPlate}
+            </Text>
+          ) : null}
+          {cancelledPlate ? (
+            <Text style={styles.successText} testID="availability-reservation-cancelled">
+              Reservation cancelled: {cancelledPlate}
+            </Text>
+          ) : null}
+          <View style={styles.listTabs} testID="availability-list-tabs">
             <TouchableOpacity
-              key={item.id}
-              style={[
-                sessionCardStyles.sessionCard,
-                item.status === 'overdue' && sessionCardStyles.sessionCardOverdue,
-              ]}
+              style={[styles.listTab, !showingReservations && styles.listTabOn]}
+              onPress={() => setListTab('sessions')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: !showingReservations }}
+              testID="availability-tab-sessions"
+            >
+              <Text
+                style={[styles.listTabText, !showingReservations && styles.listTabTextOn]}
+                testID="sessions-count"
+              >
+                Sessions ({sessionRows.length})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.listTab, showingReservations && styles.listTabOn]}
+              onPress={() => setListTab('reservations')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: showingReservations }}
+              testID="availability-tab-reservations"
+            >
+              <Text
+                style={[styles.listTabText, showingReservations && styles.listTabTextOn]}
+                testID="reservations-count"
+              >
+                Reservations ({reservationRows.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.sessionsHead}>
+            <Text style={[styles.sectionTitle, styles.sessionsTitle]}>
+              {showingReservations ? 'Reservations' : 'Active sessions'}
+            </Text>
+            <TouchableOpacity
+              style={styles.addButton}
               onPress={() =>
                 router.push({
-                  pathname: '/staff/session',
-                  params: { id: item.id, locationId: item.location_id, from: 'availability' },
+                  pathname: '/staff/checkin',
+                  params: {
+                    locationId: location.id,
+                    from: 'availability',
+                    ...(area ? { areaId: area.id } : {}),
+                  },
                 })
               }
               accessibilityRole="button"
-              accessibilityLabel={`Open session ${item.plate || ''}`}
-              testID={`avail-session-${item.plate}`}
+              accessibilityLabel={showingReservations ? 'Add a reservation' : 'Add a session'}
+              testID={showingReservations ? 'reservations-add' : 'sessions-add'}
             >
-              <SessionSummary item={item} preview={previews[item.id] || null} />
+              <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
-          ))
-        ) : (
-          <Text style={styles.activityText} testID="sessions-empty">
-            {areaSessions.length ? 'No sessions match this plate' : 'No active sessions'}
-          </Text>
-        )}
-      </View>
-    </ScrollView>
+          </View>
+          <TextInput
+            style={styles.filterInput}
+            value={plateQuery}
+            onChangeText={showingReservations ? setReservationPlate : setSessionPlate}
+            placeholder="Filter by plate number"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            testID={showingReservations ? 'reservations-filter' : 'sessions-filter'}
+          />
+          {sessionsError ? <Text style={styles.errorText}>{sessionsError}</Text> : null}
+          {!sessionsLoaded ? (
+            <Text style={styles.activityText}>
+              {showingReservations ? 'Loading reservations…' : 'Loading sessions…'}
+            </Text>
+          ) : shownRows.length ? (
+            shownRows.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  sessionCardStyles.sessionCard,
+                  item.status === 'overdue' && sessionCardStyles.sessionCardOverdue,
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/staff/session',
+                    params: { id: item.id, locationId: item.location_id, from: 'availability' },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${showingReservations ? 'reservation' : 'session'} ${item.plate || ''}`}
+                testID={`${showingReservations ? 'avail-reservation' : 'avail-session'}-${item.plate}`}
+              >
+                <SessionSummary item={item} preview={previews[item.id] || null} />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text
+              style={styles.activityText}
+              testID={showingReservations ? 'reservations-empty' : 'sessions-empty'}
+            >
+              {listRows.length
+                ? showingReservations
+                  ? 'No reservations match this plate'
+                  : 'No sessions match this plate'
+                : showingReservations
+                  ? 'No reservations'
+                  : 'No active sessions'}
+            </Text>
+          )}
+        </View>
+      </ScrollView>
+      {/* Both tabs: pinned below the list; the + button is in the list header above it. */}
+      <AdBanner onShownChange={onBannerShownChange} testID="availability-ad" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.colors.background },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -604,6 +658,27 @@ const styles = StyleSheet.create({
   stepperValue: {
     ...theme.typography.h3,
   },
+  listTabs: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.md,
+  },
+  listTab: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  listTabOn: { backgroundColor: theme.colors.primary },
+  listTabText: {
+    ...theme.typography.bodySmall,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+  },
+  listTabTextOn: { color: '#fff' },
   sessionsHead: {
     flexDirection: 'row',
     alignItems: 'center',
