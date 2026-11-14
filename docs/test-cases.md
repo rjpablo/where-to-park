@@ -74,7 +74,7 @@ Unit: `src/lib/userLocation.test.ts`
 **SEARCH-14.** Look at the map with the results sheet minimized. **Expect:** the sheet covers only a sliver of the map's bottom edge. The centre cursor sits in the middle of the map that stays visible.
 Unit: `src/lib/sheetLayout.test.ts`
 
-**SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** an alert says the search only includes listings within that limit. The slider and the search stop at the limit. A map that already fits does not show the alert.
+**SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** a short toast on the map says the search was limited to that distance, and its close button dismisses it. The map zooms in so its farthest corner is the limit. The slider and the search stop at the limit. A map that already fits does not show the toast or zoom in.
 Unit: `src/lib/distance.test.ts`
 
 ## Listing details
