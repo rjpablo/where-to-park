@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { TrackCapacityField } from '../../src/components/TrackCapacityField';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
@@ -119,6 +120,7 @@ export default function RateEditScreen() {
       testID="rate-edit-ready"
     >
       {locationName ? <Text style={styles.subtitle}>{locationName}</Text> : null}
+      {locationId ? <TrackCapacityField locationId={locationId} /> : null}
       {existing?.is_default ? (
         <Text style={styles.meta}>This is the listing's default rate.</Text>
       ) : null}

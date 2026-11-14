@@ -17,7 +17,7 @@ Unit: `src/lib/sidebar.test.ts`
 
 **NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space.
 
-**NAV-04.** Open the sidebar as an admin. **Expect:** Verify listings, Moderation queue, Contact messages, and Push notifications. A pending count shows on the row that has one, and the red attention dot follows `get_sidebar_counts`. A trigger turned off in the database does not light the dot.
+**NAV-04.** Open the sidebar as an admin. **Expect:** Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. A pending count shows on the row that has one, and the red attention dot follows `get_sidebar_counts`. A trigger turned off in the database does not light the dot.
 Unit: `src/lib/sidebar.test.ts`
 
 **NAV-05.** Open a child screen from a link while the history stack is empty, then press Back. **Expect:** Back is shown and goes to that screen's parent, one level at a time, down to Find Parking. It does not leave the app.
@@ -34,7 +34,8 @@ Unit: `src/lib/backToExit.test.ts`
 
 ## Finding parking
 
-**SEARCH-01.** Open Find Parking. **Expect:** the map shows listing pins and the sheet lists the same results. The sheet opens at Normal. Tapping a row opens Location Details.
+**SEARCH-01.** Open Find Parking with location allowed. **Expect:** the first search is around the device location. The map shows those listing pins and the sheet lists the same results. The sheet opens at Normal. Tapping a row opens Listing details.
+Unit: `src/lib/userLocation.test.ts`
 
 **SEARCH-02.** Drag the sheet handle, and tap the handle. **Expect:** drag moves among Minimized, Normal, and Maximized. A tap cycles Minimized, then Normal, then Maximized, then Minimized. Maximized leaves a strip of map under the header.
 Unit: `src/lib/sheetLayout.test.ts`
@@ -47,10 +48,10 @@ Unit: `src/components/map/camera.test.ts` (`zoomOutToFit`)
 **SEARCH-05.** After a search, change a filter or the sort, and wait for a live availability update. **Expect:** the pins and the list update. The camera and the sheet position stay put.
 Unit: `src/lib/liveAvailability.test.ts`
 
-**SEARCH-06.** Pan or zoom the map. **Expect:** Search this area appears. Tapping it searches the map centre and opens the sheet at Normal. The distance slider resets to the new maximum, which is the distance from the centre to the farthest visible corner, rounded up, between 0.5 km and 50 km.
+**SEARCH-06.** Pan or zoom the map. **Expect:** Search this area appears. Tapping it searches the map centre and opens the sheet at Normal. The distance slider resets to the new maximum, which is the distance from the centre to the farthest visible corner, rounded up, between 0.5 km and the search limit (50 km unless an admin changed it).
 Unit: `src/lib/distance.test.ts`
 
-**SEARCH-07.** Pick a place in the search box. **Expect:** the map moves to that place and Search this area is offered. The search does not run until that button is pressed. ◎ recenters on the device location at zoom 15 and also offers Search this area. Denying location permission shows a short message and the map stays usable.
+**SEARCH-07.** Pick a place in the search box. **Expect:** the map moves to that place and Search this area is offered. The search does not run until that button is pressed. ◎ recenters on the device location at zoom 15 and also offers Search this area. Denying location permission shows a short message and does not search another city. A place search still moves the map.
 Unit: `src/lib/userLocation.test.ts`, `src/lib/geocoding/photonParse.test.ts`, `src/lib/searchLink.test.ts`
 
 **SEARCH-08.** As a guest, open the vehicle filter. **Expect:** it starts at All vehicles. Signed in, with a default saved vehicle, it starts at that vehicle type.
@@ -67,7 +68,16 @@ Unit: `src/lib/listingEta.test.ts`, `src/lib/availability.test.ts`
 
 **SEARCH-12.** Lower the distance slider and change a filter. **Expect:** the chosen distance is kept, clamped under the current maximum. Only a new area search resets the distance to the maximum.
 
-## Location Details
+**SEARCH-13.** Open Find Parking with location denied, blocked, or unavailable. **Expect:** no search runs. The sheet does not list results from another city. Searching for a place still moves the map and offers Search this area.
+Unit: `src/lib/userLocation.test.ts`
+
+**SEARCH-14.** Look at the map with the results sheet minimized. **Expect:** the sheet covers only a sliver of the map's bottom edge. The centre cursor sits in the middle of the map that stays visible.
+Unit: `src/lib/sheetLayout.test.ts`
+
+**SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** an alert says the search only includes listings within that limit. The slider and the search stop at the limit. A map that already fits does not show the alert.
+Unit: `src/lib/distance.test.ts`
+
+## Listing details
 
 **LISTING-01.** Open a published listing as a guest. **Expect:** Overview, Reviews, and Photos. Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated.
 Unit: `src/lib/detailTabs.test.ts`, `src/lib/viewerPresence.test.ts`
@@ -187,15 +197,15 @@ Unit: `src/lib/areas.test.ts`
 **MANAGE-02.** Complete List Your Space with a name, a pin, rules, a photo, areas, and the reservation-requests switch. Leave the address blank. **Expect:** the address field is on the pin step. The blank address is filled from the pinned place. The listing is submitted hidden, and it stays out of search until an admin publishes it.
 Unit: `src/lib/geocoding/address.test.ts`, `src/lib/pinRestore.test.ts`
 
-**MANAGE-03.** On the capacity step, turn Free parking on. **Expect:** the rate fields and the cash-payment note are hidden. A rate is not required. Capacity is still required. Place search and ◎ work on the pin map. Dragging the map pans the map rather than the form. There is no restore-pin button, because a new listing has no saved pin.
-Unit: `src/lib/pinRestore.test.ts`
+**MANAGE-03.** On the capacity step, leave both switches off, then turn Track capacity on, enter a number, and turn it off. Try 0 while it is on. Turn Free parking on, then turn it off. **Expect:** Track capacity starts off and the capacity field is hidden. The review still shows the capacity and says it is not counted. Turning tracking on shows the field. 0 is refused. A whole number of at least 1 is kept when tracking is turned off again. Free parking hides the rate fields and the cash-payment note, and a rate is not required. Turning free parking off turns tracking off again. Place search and ◎ work on the pin map. Dragging the map pans the map rather than the form. There is no restore-pin button, because a new listing has no saved pin.
+Unit: `src/lib/listingCapacity.test.ts`, `src/lib/pinRestore.test.ts`
 
 **MANAGE-04.** Open a listing hub as an owner or manager, then as staff. **Expect:** owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. Staff see Availability and Messages. Fee presets are hidden when the listing is free, and Rates stays. Everyone who can open the hub can view the public page.
 
 **MANAGE-05.** Delete a listing that has an open session, then delete one that does not. **Expect:** the first is refused and offers a way back to Availability. The second asks for a slide to confirm, then deletes.
 Unit: `src/lib/deleteListing.test.ts`, `src/lib/slideToConfirm.test.ts`
 
-**MANAGE-06.** Edit the listing. Move the pin, clear the address, and change the reservation-requests switch. **Expect:** the address field is on the pin picker. A blank address is filled from the pin. A restore control appears only after the pin moves away from the saved position and puts it back. Spot capacity is not on this screen. Manage areas opens Areas. Free parking is not on this screen.
+**MANAGE-06.** Edit the listing. Move the pin, clear the address, change Free parking, and change the reservation-requests switch. **Expect:** the address field is on the pin picker. A blank address is filled from the pin. A restore control appears only after the pin moves away from the saved position and puts it back. Spot capacity is not on this screen. Manage areas opens Areas. Free parking is on this screen and saves with the form. Turning it off stops counting spots and keeps the capacity number.
 Unit: `src/lib/geocoding/address.test.ts`, `src/lib/pinRestore.test.ts`
 
 **MANAGE-07.** Open Areas. Try to rename or delete Main, add an area, and delete another area. **Expect:** Main is listed first and has no delete. Its name is read-only. Deleting another area asks first.
@@ -204,8 +214,8 @@ Unit: `src/lib/areas.test.ts`
 **MANAGE-08.** Edit an area's monitoring, total, and vehicle types, leaving every type unchecked. **Expect:** no types selected means every type. A monitored area stores a total.
 Unit: `src/lib/areas.test.ts`
 
-**MANAGE-09.** On Rates, turn Free parking on, read the sample preview, and use a rate row. **Expect:** the switch saves. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived, restored, or set as the default.
-Unit: `src/lib/quotePreview.test.ts`, `src/lib/rates.test.ts`
+**MANAGE-09.** On Rates, turn Track capacity on and off, open Edit rate, and use a rate row. **Expect:** Free parking is not on this screen. Track capacity is on Rates and on Edit rate. Off hides the field and stops counting spots. The capacity number stays. On requires a whole number of at least 1. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived, restored, or set as the default.
+Unit: `src/lib/listingCapacity.test.ts`, `src/lib/quotePreview.test.ts`, `src/lib/rates.test.ts`
 
 **MANAGE-10.** Create a rate and edit one. **Expect:** the form has type, amounts, an optional vehicle, days of the week, and effective dates. Dates are Manila days, and the end date covers that whole day. Saving returns to the list. The default rate's edit does not send a vehicle, an area, or an inactive flag.
 Unit: `src/lib/rateForm.test.ts`
@@ -273,6 +283,9 @@ Unit: `src/lib/contact.test.ts`
 
 **ADMIN-06.** On Push notifications, turn one type off and another on. **Expect:** each type has its own switch. Off skips only that phone push.
 Unit: `supabase/functions/send-push/lib.test.ts`
+
+**ADMIN-07.** As an admin, open System Settings and save a search radius limit. **Expect:** a whole number of kilometres from 1 to 500 is saved. The field starts at the current limit, 50 by default. Someone who is not an admin does not see System settings in the sidebar.
+Unit: `src/lib/distance.test.ts`, `src/lib/sidebar.test.ts`
 
 ## Ads
 

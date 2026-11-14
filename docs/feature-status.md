@@ -14,10 +14,10 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 
 | Status      | Feature                                                                                                                                                          |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Done        | Find Parking map and results sheet, no sign-in required                                                                                                         |
+| Done        | Find Parking map and results sheet, no sign-in required. The first search uses the device location, and does not fall back to another place. The map ends just under the minimized sheet so the centre cursor sits in the visible map |
 | Done        | Sheet heights Minimized, Normal, and Maximized. A new search opens Normal. Handle tap cycles the three heights                                                   |
 | Done        | Place search (Photon) and the ◎ current-location button. Neither searches until Search this area                                                                |
-| Done        | Distance slider follows the visible map (0.5 km to 50 km). A new search sets it to the maximum; filters and sort keep the chosen value                          |
+| Done        | Distance slider follows the visible map (0.5 km up to the search limit, 50 km unless an admin changed it). A wider map shows an alert that the search was limited. A new search sets the slider to that maximum; filters and sort keep the chosen value |
 | Done        | Opening zoom 13.25                                                                                                                                               |
 | Done        | Filters: vehicle, rate type, Free parking, Show Full last. Full listings stay hidden until Show Full is on                                                      |
 | Done        | Sort by distance, price, rating, eta, and open spots                                                                                                             |
@@ -26,11 +26,11 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done        | Live availability refresh keeps the camera and the sheet where they are                                                                                         |
 | Done        | After a new area search, the map zooms out around the search centre only when a result pin is off screen                                                        |
 | Done        | Each result row has Navigate, using the maps app chosen on Profile                                                                                              |
-| Done        | Returning from Location Details keeps the camera, results, filters, sort, and sheet position                                                                    |
+| Done        | Returning from Listing details keeps the camera, results, filters, sort, and sheet position                                                                    |
 | Done        | Android hardware back on Find Parking, with nothing to go back to: a maximized sheet minimizes. Minimized or Normal uses "Press back again to close the app"   |
 | Not started | In-app turn-by-turn navigation                                                                                                                                   |
 
-## Location details
+## Listing details
 
 | Status      | Feature                                                                                                                          |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -107,9 +107,9 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 
 | Status      | Feature                                                                                                                    |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Done        | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking  |
+| Done        | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking. Track capacity starts off. Off hides the field and keeps the number |
 | Done        | A new listing stays hidden until an admin publishes it                                                                     |
-| Done        | Edit location, including restore saved pin. Free parking is set on Rates, not on Edit location                             |
+| Done        | Edit listing, including restore saved pin and the free-parking switch. Track capacity is set on Rates and Edit rate |
 | Done        | Hub for owners and managers: Availability, edit, areas, rates, fee presets, staff. A free listing hides fee presets       |
 | Done        | Staff hub: Availability and Messages                                                                                       |
 | Done        | Delete listing by sliding to confirm. Refused while a session is still open                                               |
@@ -152,6 +152,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done   | Moderation: resolve, hide, or dismiss a report of a listing or a review                                                |
 | Done   | Contact messages: open, mark resolved or open, delete. Images must be cleared before the message is deleted           |
 | Done   | One switch per push type                                                                                               |
+| Done   | System Settings, admins only: the search radius limit                                                                  |
 
 ## Ads
 

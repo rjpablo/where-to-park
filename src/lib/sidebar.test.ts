@@ -66,7 +66,7 @@ test('items: driver vs operator vs admin are role-appropriate', () => {
   const admin = buildSidebarItems({ isAdmin: true, hasWorkspace: true }, base);
   assert.deepEqual(
     admin.filter((i) => i.section === 'admin').map((i) => i.key),
-    ['verify', 'moderation', 'contact_admin', 'push_admin']
+    ['verify', 'moderation', 'contact_admin', 'push_admin', 'system_settings']
   );
   assert.equal(admin[admin.length - 1].key, 'sign_out');
 });

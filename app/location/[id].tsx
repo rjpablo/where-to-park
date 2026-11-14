@@ -255,7 +255,7 @@ export default function LocationDetailScreen() {
 
   const loadLocation = async () => {
     if (!id) {
-      setError('No location ID provided');
+      setError('No listing ID provided');
       setLoading(false);
       return;
     }
@@ -300,7 +300,7 @@ export default function LocationDetailScreen() {
       setLocation(data || null);
     } catch (err: any) {
       console.error('Load location error:', err);
-      setError(err.message || 'Failed to load location');
+      setError(err.message || 'Failed to load the listing');
     } finally {
       setLoading(false);
     }
@@ -693,7 +693,7 @@ export default function LocationDetailScreen() {
                       </View>
                     ))
                 ) : (
-                  <Text style={styles.placeholderText}>Contact location for rates</Text>
+                  <Text style={styles.placeholderText}>Contact the listing for rates</Text>
                 )}
               </View>
 

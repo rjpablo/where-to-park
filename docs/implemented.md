@@ -17,7 +17,7 @@ A feature that depends on a database function only works after that migration ha
 - **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking
 - **Messages:** inbox, chat, photos in chat, notifications, push
 - **Account:** email sign-in, Google sign-in, accounts on this device, profile, saved vehicles, shortcuts, privacy policy, contact us
-- **Admin:** verification queue, moderation, contact messages, push switches
+- **Admin:** verification queue, moderation, contact messages, push switches, search radius limit
 - **Ads:** AdMob banners on Android (not on web, not for admins)
 
 ## Who uses it
@@ -28,11 +28,11 @@ A feature that depends on a database function only works after that migration ha
 | Driver           | Any signed-in account                                   | Everything a guest can do, plus saved vehicles, shortcuts, reviews, reports, chat, and reservation requests where the listing allows them              |
 | Staff            | Invited by an owner or manager and assigned to listings | Availability, walk-in check-in, sessions, payments, fees, refunds, and chat for those listings. Cannot change rates, areas, staff, or listing settings |
 | Owner or manager | Creates a listing, or is invited as a manager           | Everything staff can do, plus listing details, photos, areas, rates, fee presets, overnight, reservation requests, and staff invites                   |
-| Admin            | `profiles.is_admin`                                     | Publish, verify, or reject listings, moderate reports, read and delete contact messages, turn push types on or off                                    |
+| Admin            | `profiles.is_admin`                                     | Publish, verify, or reject listings, moderate reports, read and delete contact messages, turn push types on or off, set the search radius limit       |
 
 Operator membership roles are `owner`, `manager`, and `staff`. Admin is a profile flag, not a membership.
 
-The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. Admins also see Verify listings, Moderation queue, Contact messages, and Push notifications. Counts and the red attention dot come from `get_sidebar_counts`.
+The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
 
 ## Screen index
 
@@ -48,7 +48,7 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | Saved vehicles         | `/vehicles`              | Vehicles               |
 | Privacy Policy         | `/privacy`               | Privacy Policy         |
 | Contact Us             | `/contact`               | Contact Us             |
-| Location Details       | `/location/[id]`         | Location Details       |
+| Listing details        | `/location/[id]`         | Listing details        |
 | Reserve a spot         | `/reserve/[locationId]`  | Reserve a spot         |
 | Sessions               | `/sessions`              | Sessions               |
 | Session (driver)       | `/sessions/[id]`         | Session                |
@@ -56,7 +56,7 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | My listings            | `/operator/listings`     | My listings            |
 | Listing                | `/operator/hub/[id]`     | Listing                |
 | List Your Space        | `/operator/onboarding`   | List Your Space        |
-| Edit Location          | `/operator/edit/[id]`    | Edit Location          |
+| Edit listing           | `/operator/edit/[id]`    | Edit listing           |
 | Areas                  | `/operator/areas`        | Areas                  |
 | Area                   | `/operator/area-edit`    | Area                   |
 | Rates                  | `/operator/rates`        | Rates                  |
@@ -76,22 +76,23 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | Contact messages       | `/admin/contact`         | Contact messages       |
 | Contact message        | `/admin/contact-item`    | Contact message        |
 | Push notifications     | `/admin/push`            | Push notifications     |
+| System Settings        | `/admin/settings`        | System Settings        |
 
 Opening a screen from a link with no back history still shows Back. It goes to that screen's parent (`src/lib/backFallback.ts`) instead of leaving the app.
 
 ## Finding parking
 
-**Find Parking** (`/search`) is the home screen. A map shows listing pins. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location. Tapping a result opens Location Details.
+**Find Parking** (`/search`) is the home screen. The first search uses the device's current location. If that location is not available, no search runs and no other place is used. A shared link with coordinates still opens that place. A map shows listing pins. The map ends just under the minimized results sheet, so the centre cursor sits in the map that stays visible. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location and does not search by itself. Tapping a result opens Listing details.
 
 After a new area search, the map zooms out around the search centre when a result pin is off the map. If every pin is already on screen, the camera stays where it is. Changing filters, sort, or a live availability refresh does not move the map.
 
 On Android, with no screen to go back to, the hardware back button minimizes a maximized sheet. When the sheet is already minimized, the first press shows "Press back again to close the app" and a second press within 2 seconds closes the app. A sheet at Normal uses that same prompt. If there is a screen to go back to, back navigates as usual.
 
-Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
+Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. The slider follows the visible map, from 0.5 km up to the search limit. That limit is 50 km until an admin changes it. When the map covers a wider area, an alert says the search only includes listings within the limit. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
 
-## Location Details
+## Listing details
 
-**Location Details** (`/location/[id]`) is the public listing page. Tabs are Overview, Reviews, and Photos.
+**Listing details** (`/location/[id]`) is the public page for one listing. Tabs are Overview, Reviews, and Photos.
 
 Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated. A photo strip opens a full-screen viewer. Photos are the operator's gallery plus photos attached to reviews. Review photos are tagged "From a review". A free listing shows Free parking instead of rates, and the overnight setting is hidden.
 
@@ -103,7 +104,7 @@ Reviews can be written by a signed-in driver, with a star rating, text, and phot
 
 ## Reservations and driver sessions
 
-A reservation is a parking session whose start is still in the future. The listing must have **Allow reservation requests** on (set during listing creation and on Edit Location). The driver picks a saved vehicle or types one, a plate, a start, and an end. The price breakdown is shown before the request is sent. The stay is assigned to the Main area when that area accepts the vehicle, otherwise the next area that does.
+A reservation is a parking session whose start is still in the future. The listing must have **Allow reservation requests** on (set during listing creation and on Edit listing). The driver picks a saved vehicle or types one, a plate, a start, and an end. The price breakdown is shown before the request is sent. The stay is assigned to the Main area when that area accepts the vehicle, otherwise the next area that does.
 
 **Sessions** (`/sessions`) lists the signed-in driver's sessions in sections: Waiting for approval, Approved reservations, Active, Previous, Rejected, Cancelled.
 
@@ -128,7 +129,7 @@ A rate can be limited to days of the week (Asia/Manila, based on the day the sta
 
 **Overnight** is not a rate row. It is a listing setting. Hours that fall inside the overnight window are left out of the hourly total. One overnight fee is added for each night the stay covers, including a window that crosses midnight. A monthly stay is unchanged. The breakdown line reads "Overnight: 1 night". If every hour is inside the window, the quote is the overnight fee only.
 
-**Free parking** is a listing setting, not a rate. The switch is on the Rates screen. While it is on, a stay is ₱0 and the breakdown says Free. Overnight and saved rates are not used for the price. The rate list stays available.
+**Free parking** is a listing setting, not a rate. For a new listing the switch is on List Your Space. For an existing listing it is on Edit listing, and it is saved with the rest of that form. Turning it off also stops counting spots. While it is on, a stay is ₱0 and the breakdown says Free. Overnight and saved rates are not used for the price. The rate list stays available.
 
 ## Walk-in sessions and money
 
@@ -156,17 +157,17 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 
 **My listings** (`/operator/listings`) lists the listings this account can work on, with free spots or Full, and verification state. **+ Add a listing** starts onboarding. A rejected listing can be resubmitted.
 
-**List Your Space** (`/operator/onboarding`) collects the name, map pin, rules, a photo, areas, and whether reservation requests are allowed, then submits the listing for verification. The address is optional and sits on the pin step. A blank address is taken from the pinned place. **Free parking** is on the capacity step. When it is on, the rate fields and the cash-payment note are hidden and a rate is not required. Capacity is still required. A new listing stays hidden until an admin publishes it. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
+**List Your Space** (`/operator/onboarding`) collects the name, map pin, rules, a photo, areas, and whether reservation requests are allowed, then submits the listing for verification. The address is optional and sits on the pin step. A blank address is taken from the pinned place. **Free parking** is on the capacity step. When it is on, the rate fields and the cash-payment note are hidden and a rate is not required. **Track capacity** starts off, and turning free parking off turns it off again. While it is off, the capacity field is hidden and spots are not counted. The capacity number is kept either way, and it has to be a whole number of at least 1. A new listing stays hidden until an admin publishes it. Place search and ◎ sit on the pin map. Dragging the map pans the map rather than the form.
 
 **Listing** (`/operator/hub/[id]`) is the operator home for one listing. Owners and managers see Availability, Edit details and photos, Areas, Rates, Fee presets, and Staff. A free listing hides Fee presets. Rates stays available. Staff see Availability and Messages. Everyone who can open the hub can view the public page. Owners and managers can delete the listing by sliding to confirm. Delete is refused while sessions are still open, and the dialog offers a way back to Availability.
 
-**Edit Location** (`/operator/edit/[id]`) changes the name, pin, optional address, rules, photos, and the reservation-requests switch. The address field is on the pin picker. A blank address is taken from the pinned place. Spot capacity is not edited here. **Manage areas** opens Areas. Free parking is set on Rates.
+**Edit listing** (`/operator/edit/[id]`) changes the name, pin, optional address, rules, photos, the free-parking switch, and the reservation-requests switch. The address field is on the pin picker. A blank address is taken from the pinned place. Spot capacity is not edited here. **Manage areas** opens Areas. Turning free parking off stops counting spots and keeps the capacity number. Track capacity is set on Rates and on Edit rate.
 
 **Areas** (`/operator/areas`) lists areas and adds one. Delete asks first. Main has no delete.
 
 **Area** (`/operator/area-edit`) sets the name (read-only for Main), whether spots are monitored, the total when they are, and the vehicle types. No types selected means every type.
 
-**Rates** (`/operator/rates`) has the Free parking switch, a price preview for a sample stay, then the rate list. Each row can be edited, activated, deactivated, archived, restored, or set as the default. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window.
+**Rates** (`/operator/rates`) has the Track capacity switch, a price preview for a sample stay, then the rate list. Track capacity is also on Edit rate. Off hides the field and stops counting spots. The capacity number is kept. On counts spots and requires 1 or more. Free parking is not on this screen. Each row can be edited, activated, deactivated, archived, restored, or set as the default. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window.
 
 **New rate / Edit rate** (`/operator/rate-edit`) is the rate form: type, amounts, optional vehicle, days of the week, and effective dates. Saving returns to the list.
 
@@ -192,7 +193,7 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 
 **Saved vehicles** (`/vehicles`) stores a vehicle type, plate, and optional nickname. One vehicle is the default. Search starts on that type, and Reserve a spot can pick it.
 
-**Shortcuts** (`/shortcuts`) are the signed-in user's saved listings. On Location Details, **Add shortcut** saves the listing. The shortcuts screen reorders them by holding a row and dragging, and delete asks first. Signing in can merge shortcuts that were saved on the device before the account existed.
+**Shortcuts** (`/shortcuts`) are the signed-in user's saved listings. On Listing details, **Add shortcut** saves the listing. The shortcuts screen reorders them by holding a row and dragging, and delete asks first. Signing in can merge shortcuts that were saved on the device before the account existed.
 
 **Privacy Policy** (`/privacy`) is public.
 
@@ -207,6 +208,8 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 **Contact messages** (`/admin/contact` and `/admin/contact-item`) lists Contact Us submissions. An admin can open one and delete it. Images must be cleared before the message itself is deleted.
 
 **Push notifications** (`/admin/push`) is one switch per notification type. Turning a switch off skips the phone push. The in-app notification is still created.
+
+**System Settings** (`/admin/settings`) is for admins. It sets the search radius limit, a whole number of kilometres from 1 to 500. The default is 50. Everyone's searches use the saved limit. A person who is not an admin does not see this screen in the sidebar.
 
 ## Ads
 

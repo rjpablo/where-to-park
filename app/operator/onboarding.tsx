@@ -8,6 +8,7 @@ import { getGeocoder, resolveListingAddress } from '../../src/lib/geocoding';
 import { reservationErrorMessage } from '../../src/lib/reservations';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
+import { parseListingCapacity } from '../../src/lib/listingCapacity';
 import { PHOTO_UPLOAD_ERROR, uploadLocationPhoto } from '../../src/lib/storageUpload';
 import { theme } from '../../src/lib/theme';
 import {
@@ -40,6 +41,7 @@ export default function OnboardingScreen() {
   const [listingType, setListingType] = React.useState<ListingType>('commercial');
   const [pin, setPin] = React.useState<Coordinate>({ latitude: 16.412, longitude: 120.596 });
   const [capacity, setCapacity] = React.useState('10');
+  const [trackCapacity, setTrackCapacity] = React.useState(false);
   const [freeParking, setFreeParking] = React.useState(false);
   const [allowReservations, setAllowReservations] = React.useState(false);
   const [rateType, setRateType] = React.useState<RateType>('hourly');
@@ -76,9 +78,9 @@ export default function OnboardingScreen() {
       return;
     }
     if (step === 3) {
-      const cap = Number(capacity);
-      if (!Number.isFinite(cap) || cap < 1) {
-        setError('Capacity must be at least 1');
+      const parsed = parseListingCapacity(capacity);
+      if ('error' in parsed) {
+        setError(parsed.error);
         return;
       }
       if (!freeParking) {
@@ -120,6 +122,11 @@ export default function OnboardingScreen() {
   };
 
   const handleFinish = async () => {
+    const parsedCapacity = parseListingCapacity(capacity);
+    if ('error' in parsedCapacity) {
+      setError(parsedCapacity.error);
+      return;
+    }
     if (submitLock.current) return;
     submitLock.current = true;
     setSubmitting(true);
@@ -139,11 +146,12 @@ export default function OnboardingScreen() {
           p_address: listingAddress,
           p_lat: pin.latitude,
           p_lng: pin.longitude,
-          p_capacity: Number(capacity),
+          p_capacity: parsedCapacity.capacity,
           // create_location always seeds an hourly default; it is retyped below.
           // A free listing skips that rate.
           p_hourly_amount: freeParking || rateType !== 'hourly' ? 0 : Number(rate),
           p_is_free: freeParking,
+          p_monitored: trackCapacity,
           p_listing_type: listingType,
           p_rules: rules.trim() || null,
         });
@@ -206,7 +214,7 @@ export default function OnboardingScreen() {
       navigated = true;
       openListing(locationId!);
     } catch (err: any) {
-      setError(err.message || 'Could not create location');
+      setError(err.message || 'Could not create the listing');
     } finally {
       if (!navigated) {
         submitLock.current = false;
@@ -239,7 +247,7 @@ export default function OnboardingScreen() {
         <View style={styles.stepContent} testID="onboarding-step-1">
           <Text style={styles.stepHeading}>Basic Information</Text>
 
-          <Text style={styles.label}>Location Name *</Text>
+          <Text style={styles.label}>Listing name *</Text>
           <TextInput
             style={styles.input}
             value={locationName}
@@ -293,21 +301,45 @@ export default function OnboardingScreen() {
             </View>
             <Switch
               value={freeParking}
-              onValueChange={setFreeParking}
+              onValueChange={(on) => {
+                setFreeParking(on);
+                if (!on) setTrackCapacity(false);
+              }}
               accessibilityLabel="Free parking"
               testID="onboarding-free"
             />
           </View>
 
-          <Text style={styles.label}>Total Capacity *</Text>
-          <TextInput
-            style={styles.input}
-            value={capacity}
-            onChangeText={setCapacity}
-            placeholder="10"
-            keyboardType="numeric"
-            testID="onboarding-capacity"
-          />
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>Track capacity</Text>
+              <Text style={styles.switchHint}>
+                {trackCapacity
+                  ? 'Drivers see how many spots are free.'
+                  : 'Spots are not counted. The number is kept.'}
+              </Text>
+            </View>
+            <Switch
+              value={trackCapacity}
+              onValueChange={setTrackCapacity}
+              accessibilityLabel="Track capacity"
+              testID="onboarding-track"
+            />
+          </View>
+
+          {trackCapacity ? (
+            <>
+              <Text style={styles.label}>Total Capacity *</Text>
+              <TextInput
+                style={styles.input}
+                value={capacity}
+                onChangeText={setCapacity}
+                placeholder="10"
+                keyboardType="number-pad"
+                testID="onboarding-capacity"
+              />
+            </>
+          ) : null}
 
           {freeParking ? null : (
             <>
@@ -458,7 +490,7 @@ export default function OnboardingScreen() {
           <Text style={styles.stepHeading}>Review & Submit</Text>
 
           <View style={styles.reviewItem}>
-            <Text style={styles.reviewLabel}>Location</Text>
+            <Text style={styles.reviewLabel}>Listing</Text>
             <Text style={styles.reviewValue}>{locationName}</Text>
           </View>
           <View style={styles.reviewItem}>
@@ -479,7 +511,11 @@ export default function OnboardingScreen() {
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Capacity</Text>
-            <Text style={styles.reviewValue}>{capacity} spaces</Text>
+            <Text style={styles.reviewValue} testID="onboarding-review-capacity">
+              {trackCapacity
+                ? `${capacity.trim()} spaces`
+                : `${capacity.trim()} spaces, not counted`}
+            </Text>
           </View>
           <View style={styles.reviewItem}>
             <Text style={styles.reviewLabel}>Price</Text>
