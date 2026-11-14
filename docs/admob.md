@@ -36,7 +36,7 @@ for invalid clicks.
 
 ## How it is built
 
-- Library: `react-native-google-mobile-ads` 16.5.0 with its Expo config plugin (`app.json`).
+- Library: `react-native-google-mobile-ads` 16.0.2 with its Expo config plugin (`app.json`). Pinned: 16.0.2 bundles Google Mobile Ads SDK 24.6.0, built with Kotlin 2.1 like Expo SDK 54. Newer releases (16.4+, Ads SDK 25.4) are built with Kotlin 2.3 and fail the Android build (`compileReleaseKotlin`: "incompatible version of Kotlin"). Upgrade only together with an Expo SDK that uses a newer Kotlin.
   It is a native module, so ads only appear after a **new Android build**.
 - `src/lib/adsInit.native.ts` starts the SDK once (`mobileAds().initialize()`) from
   `app/_layout.tsx`. `src/lib/adsInit.ts` is the web no-op.
