@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
-  Alert,
   View,
   Text,
   StyleSheet,
@@ -54,7 +53,9 @@ import {
   searchCapKm,
   searchLimitMessage,
   sliderMaxKm,
+  zoomForCornerMeters,
 } from '../lib/distance';
+import { showToast } from '../stores/toastStore';
 import { getGeocoder, type PlaceSuggestion } from '../lib/geocoding';
 import { firstParam } from '../lib/params';
 import {
@@ -162,6 +163,8 @@ export function SearchScreen() {
   // Identifies the current search (centre + 'Search this area' nonce) so the
   // effect can tell a new search from a filter/sort re-run.
   const lastSearchKey = useRef<string | null>(null);
+  // A new search wider than the cap: zoom the map in to that cap once results show.
+  const limitToCap = useRef(false);
   const latestViewport = useRef<MapViewport | null>(null);
   // After jumping to a searched place, offer "Search this area" there too.
   const offerSearchAfterMove = useRef(false);
@@ -537,7 +540,8 @@ export function SearchScreen() {
     setDistanceMaxKm(maxKm);
     if (isNewSearch) {
       const limited = searchLimitMessage(farthest, searchCap);
-      if (limited) Alert.alert('Search limited', limited);
+      limitToCap.current = limited != null;
+      if (limited) showToast(limited, 'info', 'map');
     }
     const next = distanceAfterSearch(isNewSearch, filters.distanceKm, maxKm);
     if (next !== filters.distanceKm) {
@@ -554,12 +558,32 @@ export function SearchScreen() {
   }, [filters, sortBy, location?.lat, location?.lng, searchNonce, search]);
 
   // After a new area search, zoom out when the map is too tight to show every pin.
-  // A map that already shows them stays where it is.
+  // A map that already shows them stays where it is. A search that was wider than
+  // the cap zooms in so the farthest corner is that cap.
   useEffect(() => {
     if (loading || fitToken.current === fittedToken.current) return;
     const view = mapRef.current?.readViewport() ?? latestViewport.current;
     if (!view) return;
     fittedToken.current = fitToken.current;
+    if (limitToCap.current) {
+      limitToCap.current = false;
+      const zoom = zoomForCornerMeters(
+        windowWidth,
+        mapHeight,
+        searchCapKm(searchCap) * 1000,
+        view.center.latitude
+      );
+      if (zoom != null) {
+        mapRef.current?.focus(
+          {
+            coordinate: { latitude: view.center.latitude, longitude: view.center.longitude },
+            zoom,
+          },
+          { atCenter: true }
+        );
+      }
+      return;
+    }
     if (shown.length === 0) return;
     const points = shown
       .map((row) => listingPoint(row))
@@ -577,7 +601,7 @@ export function SearchScreen() {
       { coordinate: { latitude: view.center.latitude, longitude: view.center.longitude }, zoom },
       { atCenter: true }
     );
-  }, [loading, shown, windowWidth, mapHeight, normalPx, peekPx, mapCenter]);
+  }, [loading, shown, windowWidth, mapHeight, normalPx, peekPx, mapCenter, searchCap]);
 
   // Live availability (rj t143u): a change to a listing in the results, or one inside the
   // searched circle that could now enter them, quietly re-runs the same search
