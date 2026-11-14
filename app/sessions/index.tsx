@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { useBannerSlot } from '../../src/hooks/useBannerSlot';
+import { AdBanner } from '../../src/components/AdBanner';
 import { embeddedOne } from '../../src/lib/embed';
 import {
   DRIVER_SESSION_SECTIONS,
@@ -43,7 +44,8 @@ const STATUS: Record<DriverSessionKind, string> = {
 
 /** The signed-in driver's reservations and sessions. No count in the sidebar. */
 export default function SessionsScreen() {
-  const bottomInset = useBottomInset(theme.spacing.lg);
+  // The list ends above the bottom banner ad when one shows (it pads the nav bar itself).
+  const { contentInset: bottomInset, onBannerShownChange } = useBannerSlot(theme.spacing.lg);
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const initialized = useAuthStore((s) => s.initialized);
@@ -87,53 +89,57 @@ export default function SessionsScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={bottomInset}
-      testID="sessions-ready"
-    >
-      {error ? (
-        <Text style={styles.error} testID="sessions-error">
-          {error}
-        </Text>
-      ) : null}
-      {!error && rows.length === 0 ? (
-        <Text style={styles.empty} testID="sessions-empty">
-          You have no sessions yet.
-        </Text>
-      ) : null}
-      {DRIVER_SESSION_SECTIONS.map((section) => {
-        const items = rows.filter((row) => driverSessionKind(row) === section.kind);
-        if (!items.length) return null;
-        return (
-          <View key={section.kind} testID={`sessions-${section.kind}`}>
-            <Text style={styles.heading}>{section.title}</Text>
-            {items.map((row) => {
-              const place = embeddedOne(row.locations)?.name || 'Parking';
-              return (
-                <TouchableOpacity
-                  key={row.id}
-                  style={styles.card}
-                  onPress={() => router.push(`/sessions/${row.id}` as never)}
-                  testID={`session-row-${row.plate}`}
-                >
-                  <View style={styles.cardTop}>
-                    <Text style={styles.place}>{place}</Text>
-                    <Text style={styles.status}>{STATUS[section.kind]}</Text>
-                  </View>
-                  <Text style={styles.plate}>{row.plate}</Text>
-                  <Text style={styles.when}>{formatLocalDateTime(row.started_at)}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        );
-      })}
-    </ScrollView>
+    <View style={styles.screen}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={bottomInset}
+        testID="sessions-ready"
+      >
+        {error ? (
+          <Text style={styles.error} testID="sessions-error">
+            {error}
+          </Text>
+        ) : null}
+        {!error && rows.length === 0 ? (
+          <Text style={styles.empty} testID="sessions-empty">
+            You have no sessions yet.
+          </Text>
+        ) : null}
+        {DRIVER_SESSION_SECTIONS.map((section) => {
+          const items = rows.filter((row) => driverSessionKind(row) === section.kind);
+          if (!items.length) return null;
+          return (
+            <View key={section.kind} testID={`sessions-${section.kind}`}>
+              <Text style={styles.heading}>{section.title}</Text>
+              {items.map((row) => {
+                const place = embeddedOne(row.locations)?.name || 'Parking';
+                return (
+                  <TouchableOpacity
+                    key={row.id}
+                    style={styles.card}
+                    onPress={() => router.push(`/sessions/${row.id}` as never)}
+                    testID={`session-row-${row.plate}`}
+                  >
+                    <View style={styles.cardTop}>
+                      <Text style={styles.place}>{place}</Text>
+                      <Text style={styles.status}>{STATUS[section.kind]}</Text>
+                    </View>
+                    <Text style={styles.plate}>{row.plate}</Text>
+                    <Text style={styles.when}>{formatLocalDateTime(row.started_at)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          );
+        })}
+      </ScrollView>
+      <AdBanner onShownChange={onBannerShownChange} testID="sessions-ad" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.colors.background },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

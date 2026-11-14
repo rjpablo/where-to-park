@@ -1,6 +1,6 @@
 # Implemented features and screens
 
-**As of 13 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
+**As of 15 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
 
 Where To Park is an Expo SDK 54 app (Android first, web for preview). Routes live in `app/`. The backend is Supabase: Postgres, Auth, Realtime, Storage, and RPCs. Money is Philippine pesos. Listing times and rate days use Asia/Manila. The product language is English.
 
@@ -18,6 +18,7 @@ A feature that depends on a database function only works after that migration ha
 - **Messages:** inbox, chat, photos in chat, notifications, push
 - **Account:** email sign-in, Google sign-in, accounts on this device, profile, saved vehicles, shortcuts, privacy policy, contact us
 - **Admin:** verification queue, moderation, contact messages, push switches
+- **Ads:** AdMob banners on Android (not on web, not for admins)
 
 ## Who uses it
 
@@ -206,3 +207,9 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 **Contact messages** (`/admin/contact` and `/admin/contact-item`) lists Contact Us submissions. An admin can open one and delete it. Images must be cleared before the message itself is deleted.
 
 **Push notifications** (`/admin/push`) is one switch per notification type. Turning a switch off skips the phone push. The in-app notification is still created.
+
+## Ads
+
+Android builds show one AdMob anchored adaptive banner pinned to the bottom of these screens, above the navigation bar: **Find Parking** (below the map and results sheet), **Location Details** (below the scrolling page, which ends in Open Chat with a gap above the ad), **Notifications**, **Sessions** (driver), and **Availability** (Sessions and Reservations tabs; the + button stays in the list header above the ad). No other screen shows ads: sign-in, chat threads, forms, payment and fee screens, profile and settings stay ad-free.
+
+Guests, drivers, operators, managers, and staff see ads. Admins (`profiles.is_admin`) never do. The web app never shows ads. The banner takes no space until an ad loads, and a failed load leaves no gap. Development builds always use Google's test banner; release builds use the real Where To Park unit. Setup and IDs: [admob.md](admob.md).

@@ -77,7 +77,8 @@ import { formatListingRating } from '../lib/rating';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
-import { useBottomInset } from '../hooks/useBottomInset';
+import { useBannerSlot } from '../hooks/useBannerSlot';
+import { AdBanner } from '../components/AdBanner';
 import { listingAvailability, listingPinLabel, visibleResults } from '../lib/areas';
 import { useAvailabilityChanges } from '../hooks/useAvailabilityChanges';
 import { changeAffectsSearch, LIVE_REFRESH_DEBOUNCE_MS } from '../lib/liveAvailability';
@@ -178,13 +179,20 @@ export function SearchScreen() {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   // Expanded, the sheet reaches the screen bottom (behind the nav bar): end the list above it.
-  const listBottom = useBottomInset(theme.spacing.lg);
+  // With the bottom banner ad showing, the map and sheet end above the ad, which already
+  // pads for the nav bar, so neither the list nor the collapsed sheet adds that inset.
+  const {
+    contentInset: listBottom,
+    bannerShown,
+    onBannerShownChange,
+  } = useBannerSlot(theme.spacing.lg);
+  const sheetBottomInset = bannerShown ? 0 : insets.bottom;
   // Collapsed height = measured top part of the sheet (see onLayout below).
   const [peekContentHeight, setPeekContentHeight] = useState<number | null>(null);
   const peekPx = peekContentHeight
     ? peekHeight(
         peekContentHeight,
-        insets.bottom,
+        sheetBottomInset,
         SHEET_PEEK_MIN,
         SHEET_PEEK_MAX_FRACTION,
         windowHeight
@@ -651,250 +659,258 @@ export function SearchScreen() {
   );
 
   return (
-    <View style={styles.container} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
-      {Platform.OS === 'web' ? (
-        <Head>
-          <title>{searchDocumentTitle(placeLabel)}</title>
-          <meta name="description" content={searchDocumentDescription(placeLabel)} />
-        </Head>
-      ) : null}
-      {/* Map with location pins */}
-      <Map
-        ref={mapRef}
-        region={region}
-        initialZoom={SEARCH_START_ZOOM}
-        pins={pins}
-        onPinPress={handlePinPress}
-        style={styles.map}
-        showsUserLocation={false}
-        userLocation={userLocation}
-        clusterPins
-        overlayInsets={overlayInsets}
-        onViewportChange={handleViewportChange}
-      />
-
-      <View
-        pointerEvents="none"
-        style={styles.centreCursor}
-        testID="map-centre-cursor"
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-      >
-        <View style={styles.centreCursorRing} />
-        <View style={styles.centreCursorDot} />
-      </View>
-
-      <View
-        style={[styles.topOverlay, suggestionsOpen && styles.topOverlayRaised]}
-        pointerEvents="box-none"
-      >
-        <PlaceSearchBox
-          near={mapCenter}
-          label={placeLabel}
-          onSuggestionsVisibleChange={setSuggestionsOpen}
-          onSelect={handlePlaceSelect}
-          onClear={() => {
-            pickedName.current = null;
-          }}
-        />
-        {movedViewport ? (
-          <TouchableOpacity
-            style={styles.searchAreaButton}
-            onPress={searchThisArea}
-            accessibilityRole="button"
-            testID="search-this-area"
-          >
-            <Text style={styles.searchAreaText}>Search this area</Text>
-          </TouchableOpacity>
+    <View style={styles.screen}>
+      <View style={styles.container} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
+        {Platform.OS === 'web' ? (
+          <Head>
+            <title>{searchDocumentTitle(placeLabel)}</title>
+            <meta name="description" content={searchDocumentDescription(placeLabel)} />
+          </Head>
         ) : null}
-      </View>
+        {/* Map with location pins */}
+        <Map
+          ref={mapRef}
+          region={region}
+          initialZoom={SEARCH_START_ZOOM}
+          pins={pins}
+          onPinPress={handlePinPress}
+          style={styles.map}
+          showsUserLocation={false}
+          userLocation={userLocation}
+          clusterPins
+          overlayInsets={overlayInsets}
+          onViewportChange={handleViewportChange}
+        />
 
-      {/* ◎ button: fixed on the map overlay layer (under the sheet), at the right, RECENTER_GAP
+        <View
+          pointerEvents="none"
+          style={styles.centreCursor}
+          testID="map-centre-cursor"
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+        >
+          <View style={styles.centreCursorRing} />
+          <View style={styles.centreCursorDot} />
+        </View>
+
+        <View
+          style={[styles.topOverlay, suggestionsOpen && styles.topOverlayRaised]}
+          pointerEvents="box-none"
+        >
+          <PlaceSearchBox
+            near={mapCenter}
+            label={placeLabel}
+            onSuggestionsVisibleChange={setSuggestionsOpen}
+            onSelect={handlePlaceSelect}
+            onClear={() => {
+              pickedName.current = null;
+            }}
+          />
+          {movedViewport ? (
+            <TouchableOpacity
+              style={styles.searchAreaButton}
+              onPress={searchThisArea}
+              accessibilityRole="button"
+              testID="search-this-area"
+            >
+              <Text style={styles.searchAreaText}>Search this area</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* ◎ button: fixed on the map overlay layer (under the sheet), at the right, RECENTER_GAP
           above the Minimized sheet. It follows the measured Minimized height, not the live
           sheet position, so Normal and Maximized simply cover it. Hidden while place
           suggestions are open (that layer is then lifted above the sheet). */}
-      {!suggestionsOpen ? (
-        <View
-          style={[styles.recenterWrap, { bottom: peekPx + RECENTER_GAP }]}
-          pointerEvents="box-none"
-          testID="recenter-layer"
-        >
-          <LocationNotice text={locationNotice} />
-          <LocateButton
-            active={permission === 'granted' && !!userLocation}
-            onPress={handleRecenter}
-          />
-        </View>
-      ) : null}
-
-      {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
-      <BottomSheet
-        ref={sheetRef}
-        index={sheetModeIndex(sheetPosition)}
-        snapPoints={snapPoints}
-        onChange={(index) => {
-          if (index >= 0) setSheetPosition(sheetModeAt(index));
-        }}
-        handleComponent={null}
-        // bottom-sheet v5 adds a content-sized snap point by default; ours are measured px.
-        enableDynamicSizing={false}
-        enablePanDownToClose={false}
-        // Horizontal drags (distance slider, chips) must not move the sheet.
-        activeOffsetY={[-8, 8]}
-        failOffsetX={[-8, 8]}
-        backgroundStyle={styles.sheetBackground}
-        style={styles.sheet}
-        // Draw the sheet above all map overlays; on Android sibling order follows
-        // elevation, so it needs a higher elevation than the search box (12).
-        containerStyle={styles.sheetLayer}
-      >
-        <View
-          style={styles.sheetBody}
-          testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
-        >
-          {/* Top part: always shown; its measured height is the collapsed height. */}
+        {!suggestionsOpen ? (
           <View
-            testID="sheet-top"
-            onLayout={(e) => setPeekContentHeight(e.nativeEvent.layout.height)}
+            style={[styles.recenterWrap, { bottom: peekPx + RECENTER_GAP }]}
+            pointerEvents="box-none"
+            testID="recenter-layer"
           >
-            <TouchableOpacity
-              testID="sheet-expand-toggle"
-              accessibilityLabel="Toggle search sheet"
-              onPress={() =>
-                sheetRef.current?.snapToIndex(sheetModeIndex(nextSheetMode(sheetPosition)))
-              }
-              style={styles.sheetHandleHit}
+            <LocationNotice text={locationNotice} />
+            <LocateButton
+              active={permission === 'granted' && !!userLocation}
+              onPress={handleRecenter}
+            />
+          </View>
+        ) : null}
+
+        {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
+        <BottomSheet
+          ref={sheetRef}
+          index={sheetModeIndex(sheetPosition)}
+          snapPoints={snapPoints}
+          onChange={(index) => {
+            if (index >= 0) setSheetPosition(sheetModeAt(index));
+          }}
+          handleComponent={null}
+          // bottom-sheet v5 adds a content-sized snap point by default; ours are measured px.
+          enableDynamicSizing={false}
+          enablePanDownToClose={false}
+          // Horizontal drags (distance slider, chips) must not move the sheet.
+          activeOffsetY={[-8, 8]}
+          failOffsetX={[-8, 8]}
+          backgroundStyle={styles.sheetBackground}
+          style={styles.sheet}
+          // Draw the sheet above all map overlays; on Android sibling order follows
+          // elevation, so it needs a higher elevation than the search box (12).
+          containerStyle={styles.sheetLayer}
+        >
+          <View
+            style={styles.sheetBody}
+            testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
+          >
+            {/* Top part: always shown; its measured height is the collapsed height. */}
+            <View
+              testID="sheet-top"
+              onLayout={(e) => setPeekContentHeight(e.nativeEvent.layout.height)}
             >
-              <View style={styles.sheetHandle} />
-            </TouchableOpacity>
+              <TouchableOpacity
+                testID="sheet-expand-toggle"
+                accessibilityLabel="Toggle search sheet"
+                onPress={() =>
+                  sheetRef.current?.snapToIndex(sheetModeIndex(nextSheetMode(sheetPosition)))
+                }
+                style={styles.sheetHandleHit}
+              >
+                <View style={styles.sheetHandle} />
+              </TouchableOpacity>
 
-            <View style={styles.sheetHeader}>
-              <View style={styles.sheetTitleRow}>
-                <View style={styles.sheetTitleBlock}>
-                  <Text style={styles.sheetTitle} testID="sheet-title">
-                    Search Result
-                  </Text>
-                  <Text
-                    style={styles.sheetSummary}
-                    numberOfLines={1}
-                    testID="search-summary"
-                    accessibilityLiveRegion="polite"
-                  >
-                    {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(shown)}
-                  </Text>
+              <View style={styles.sheetHeader}>
+                <View style={styles.sheetTitleRow}>
+                  <View style={styles.sheetTitleBlock}>
+                    <Text style={styles.sheetTitle} testID="sheet-title">
+                      Search Result
+                    </Text>
+                    <Text
+                      style={styles.sheetSummary}
+                      numberOfLines={1}
+                      testID="search-summary"
+                      accessibilityLiveRegion="polite"
+                    >
+                      {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(shown)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              {/* Vehicle, Rate, Free parking, then Show Full. The row scrolls sideways on
+                {/* Vehicle, Rate, Free parking, then Show Full. The row scrolls sideways on
                   narrow screens. Gesture-handler ScrollView so it cooperates with the
                   sheet's pan gesture (the sheet only takes vertical drags: activeOffsetY / failOffsetX). */}
-              <GestureScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.filterScroll}
-                contentContainerStyle={styles.filterRow}
-                keyboardShouldPersistTaps="handled"
-                testID="filter-row"
-              >
-                <FilterDropdown
-                  label="Vehicle"
-                  showLabel={false}
-                  value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
-                  options={VEHICLE_FILTER_OPTIONS}
-                  onChange={(vehicleType) => setFilters({ vehicleType })}
-                  testID="search-vehicle-filter"
-                />
-                <FilterDropdown
-                  label="Rate type"
-                  showLabel={false}
-                  value={isRateType(filters.rateType) ? filters.rateType : null}
-                  options={RATE_FILTER_OPTIONS}
-                  onChange={(rateType) => setFilters({ rateType })}
-                  testID="filter-rate-type"
-                />
-                <TouchableOpacity
-                  style={[styles.filterChip, filters.freeOnly && styles.filterChipActive]}
-                  onPress={() => setFilters({ freeOnly: !filters.freeOnly })}
-                  accessibilityState={{ selected: filters.freeOnly }}
-                  accessibilityLabel="Free parking"
-                  testID="filter-free"
+                <GestureScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.filterScroll}
+                  contentContainerStyle={styles.filterRow}
+                  keyboardShouldPersistTaps="handled"
+                  testID="filter-row"
                 >
-                  <Text style={styles.filterChipText}>Free parking</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
-                  onPress={() => setFilters({ showFull: !filters.showFull })}
-                  accessibilityState={{ selected: filters.showFull }}
-                  testID="filter-show-full"
-                >
-                  <Text style={styles.filterChipText}>Show Full</Text>
-                </TouchableOpacity>
-              </GestureScrollView>
+                  <FilterDropdown
+                    label="Vehicle"
+                    showLabel={false}
+                    value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
+                    options={VEHICLE_FILTER_OPTIONS}
+                    onChange={(vehicleType) => setFilters({ vehicleType })}
+                    testID="search-vehicle-filter"
+                  />
+                  <FilterDropdown
+                    label="Rate type"
+                    showLabel={false}
+                    value={isRateType(filters.rateType) ? filters.rateType : null}
+                    options={RATE_FILTER_OPTIONS}
+                    onChange={(rateType) => setFilters({ rateType })}
+                    testID="filter-rate-type"
+                  />
+                  <TouchableOpacity
+                    style={[styles.filterChip, filters.freeOnly && styles.filterChipActive]}
+                    onPress={() => setFilters({ freeOnly: !filters.freeOnly })}
+                    accessibilityState={{ selected: filters.freeOnly }}
+                    accessibilityLabel="Free parking"
+                    testID="filter-free"
+                  >
+                    <Text style={styles.filterChipText}>Free parking</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
+                    onPress={() => setFilters({ showFull: !filters.showFull })}
+                    accessibilityState={{ selected: filters.showFull }}
+                    testID="filter-show-full"
+                  >
+                    <Text style={styles.filterChipText}>Show Full</Text>
+                  </TouchableOpacity>
+                </GestureScrollView>
 
-              <DistanceSlider
-                valueKm={filters.distanceKm}
-                maxKm={distanceMaxKm}
-                onChangeKm={(km) => {
-                  setFilters({ distanceKm: km });
-                }}
-                testID="filter-distance"
-              />
-            </View>
-          </View>
-
-          {/* Always mounted: collapsed, this sits below the visible part of the sheet. */}
-          <View style={styles.sortRow}>
-            <Text style={styles.sortLabel}>Sort by:</Text>
-            {SORT_OPTIONS.map((sort) => (
-              <TouchableOpacity
-                key={sort}
-                style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
-                onPress={() => setSortBy(sort)}
-                testID={`sort-${sort}`}
-              >
-                <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
-                  {SORT_LABELS[sort]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.distanceNote} testID="distance-note">
-            <Ionicons
-              name="information-circle-outline"
-              size={14}
-              color={theme.colors.text.secondary}
-              accessibilityElementsHidden
-              importantForAccessibility="no"
-            />
-            <Text style={styles.distanceNoteText}>
-              Distance and estimated travel time are from the search location, not your current
-              location.
-            </Text>
-          </View>
-
-          <BottomSheetFlatList
-            data={listData}
-            renderItem={renderListItem}
-            keyExtractor={(item) => item.id}
-            style={styles.list}
-            contentContainerStyle={[styles.listContent, listBottom]}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>
-                  {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
-                </Text>
+                <DistanceSlider
+                  valueKm={filters.distanceKm}
+                  maxKm={distanceMaxKm}
+                  onChangeKm={(km) => {
+                    setFilters({ distanceKm: km });
+                  }}
+                  testID="filter-distance"
+                />
               </View>
-            }
-          />
-        </View>
-      </BottomSheet>
+            </View>
 
-      <Sidebar hasWorkspace={hasWorkspace} />
+            {/* Always mounted: collapsed, this sits below the visible part of the sheet. */}
+            <View style={styles.sortRow}>
+              <Text style={styles.sortLabel}>Sort by:</Text>
+              {SORT_OPTIONS.map((sort) => (
+                <TouchableOpacity
+                  key={sort}
+                  style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
+                  onPress={() => setSortBy(sort)}
+                  testID={`sort-${sort}`}
+                >
+                  <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
+                    {SORT_LABELS[sort]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.distanceNote} testID="distance-note">
+              <Ionicons
+                name="information-circle-outline"
+                size={14}
+                color={theme.colors.text.secondary}
+                accessibilityElementsHidden
+                importantForAccessibility="no"
+              />
+              <Text style={styles.distanceNoteText}>
+                Distance and estimated travel time are from the search location, not your current
+                location.
+              </Text>
+            </View>
+
+            <BottomSheetFlatList
+              data={listData}
+              renderItem={renderListItem}
+              keyExtractor={(item) => item.id}
+              style={styles.list}
+              contentContainerStyle={[styles.listContent, listBottom]}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>
+                    {loading ? 'Searching...' : error ? `Error: ${error}` : 'No locations found'}
+                  </Text>
+                </View>
+              }
+            />
+          </View>
+        </BottomSheet>
+
+        <Sidebar hasWorkspace={hasWorkspace} />
+      </View>
+      {/* Bottom of the screen, below the map and the results sheet (rj t196u). */}
+      <AdBanner onShownChange={onBannerShownChange} testID="search-ad" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

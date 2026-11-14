@@ -1,6 +1,6 @@
 # Feature status
 
-**As of 13 Nov 2026.** Planned features, and whether each one is in the app.
+**As of 15 Nov 2026.** Planned features, and whether each one is in the app.
 
 Add a row when a feature is planned. Status:
 
@@ -152,6 +152,14 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done   | Moderation: resolve, hide, or dismiss a report of a listing or a review                                                |
 | Done   | Contact messages: open, mark resolved or open, delete. Images must be cleared before the message is deleted           |
 | Done   | One switch per push type                                                                                               |
+
+## Ads
+
+| Status      | Feature                                                                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Done        | AdMob banner at the bottom of Find Parking, Location details, Notifications, driver Sessions, and Availability (both tabs). Android only; never for admins |
+| Not started | Interstitial ads                                                                                                                                     |
+| Not started | EU/UK consent form (Google UMP)                                                                                                                      |
 
 ## Later
 

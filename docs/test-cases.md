@@ -1,6 +1,6 @@
 # Test cases
 
-**As of 13 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
+**As of 15 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
 
 ```bash
 node --experimental-strip-types --test path/to/file.test.ts
@@ -273,3 +273,19 @@ Unit: `src/lib/contact.test.ts`
 
 **ADMIN-06.** On Push notifications, turn one type off and another on. **Expect:** each type has its own switch. Off skips only that phone push.
 Unit: `supabase/functions/send-push/lib.test.ts`
+
+## Ads
+
+**ADS-01.** On an Android build, open Find Parking, a Location Details page, Notifications, Sessions, and Availability (switch between the Sessions and Reservations tabs) as a driver, then as staff. **Expect:** a banner sits at the bottom of each screen, above the navigation bar. It covers no button: the results sheet, the ◎ button, Open Chat, and the + button stay above it. Lists scroll to their end above the banner.
+
+**ADS-02.** Open the same screens signed in as an admin. **Expect:** no banner and no blank strip at the bottom.
+Unit: `src/lib/ads.test.ts`
+
+**ADS-03.** Open sign-in, a chat thread, Check In, Edit details, Apply payment, Add fee, Reserve a spot, List Your Space, and Profile. **Expect:** no ads.
+
+**ADS-04.** Open the screens from ADS-01 with no internet (or when no ad fills). **Expect:** the banner does not appear and leaves no gap; the screen looks as it did before ads.
+
+**ADS-05.** Open the web app. **Expect:** no ads anywhere.
+
+**ADS-06.** In a development build, check the banner. **Expect:** it is labeled "Test Ad". A release build requests the real Where To Park unit.
+Unit: `src/lib/ads.test.ts`
