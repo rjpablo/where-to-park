@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { TrackCapacityField } from '../../src/components/TrackCapacityField';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
@@ -14,6 +15,7 @@ import {
   rateSummary,
 } from '../../src/lib/rates';
 import { daysLabel } from '../../src/lib/rateForm';
+import { plannedPriceDetail } from '../../src/lib/reservations';
 import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import {
   manilaTimeNow,
@@ -228,6 +230,8 @@ export default function RatesScreen() {
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="rates-ready">
       <Text style={styles.subtitle}>{locationName}</Text>
 
+      {locationId ? <TrackCapacityField locationId={locationId} /> : null}
+
       <View style={styles.preview} testID="quote-preview">
         <Text style={styles.heading}>Price preview</Text>
         <Text style={styles.label}>Vehicle</Text>
@@ -292,6 +296,18 @@ export default function RatesScreen() {
                 {quote.billed_hours}h billed
               </Text>
             )}
+            {(plannedPriceDetail(quote)?.lines ?? [])
+              .filter(
+                (line) =>
+                  line.label.includes('Flat for first') ||
+                  line.label.includes('succeeding hour') ||
+                  line.label.startsWith('Overnight')
+              )
+              .map((line) => (
+                <Text key={line.label} style={styles.meta} testID="quote-flat-part">
+                  {line.label} · {formatPeso(line.amount)}
+                </Text>
+              ))}
             <Text style={styles.meta} testID="quote-for">
               {quotedFor}
             </Text>
@@ -488,7 +504,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   label: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },

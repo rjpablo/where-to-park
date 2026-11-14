@@ -7,6 +7,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../lib/theme';
 
 interface ButtonProps {
@@ -18,6 +19,7 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   testID?: string;
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
 }
 
 export function Button({
@@ -29,6 +31,7 @@ export function Button({
   disabled = false,
   style,
   testID,
+  icon,
 }: ButtonProps) {
   const buttonStyle = [
     styles.button,
@@ -55,7 +58,17 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={variant === 'outline' ? theme.colors.primary : '#fff'} />
       ) : (
-        <Text style={textStyle}>{title}</Text>
+        <>
+          {icon ? (
+            <Ionicons
+              name={icon}
+              size={size === 'small' ? 16 : size === 'large' ? 20 : 18}
+              color={variant === 'outline' ? theme.colors.primary : '#fff'}
+              style={styles.icon}
+            />
+          ) : null}
+          <Text style={textStyle}>{title}</Text>
+        </>
       )}
     </TouchableOpacity>
   );
@@ -100,6 +113,7 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
+  icon: { marginRight: 8 },
   text: {
     fontWeight: '600',
   },

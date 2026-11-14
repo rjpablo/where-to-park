@@ -9,6 +9,7 @@ import {
   presetsForLocation,
   removableFees,
   canEditSession,
+  canEditSessionDetails,
   paymentPrefill,
   plateActiveMessage,
   plateConflict,
@@ -187,7 +188,34 @@ test('session set rate label and split breakdown lines (0057)', () => {
     priceBreakdownLines({ breakdown: [{ rate_name: 'M', months: 2, amount: 8000 }] }, 'X'),
     ['M: 2 mo · ₱8,000.00']
   );
+  assert.deepEqual(
+    priceBreakdownLines(
+      { breakdown: [{ rate_name: 'Overnight', rate_type: 'overnight', nights: 1, amount: 200 }] },
+      null
+    ),
+    ['Overnight: 1 night · ₱200.00']
+  );
   assert.deepEqual(priceBreakdownLines(null), []);
+  assert.deepEqual(
+    priceBreakdownLines(
+      {
+        breakdown: [
+          {
+            rate_name: 'Valet',
+            rate_type: 'flat_then_hourly',
+            hours: 5,
+            amount: 180,
+            first_hours: 3,
+            first_amount: 100,
+            succeeding_hours: 2,
+            succeeding_amount: 80,
+          },
+        ],
+      },
+      'Valet'
+    ),
+    ['Flat for first 3h · ₱100.00', '2 succeeding hours · ₱80.00']
+  );
 });
 
 test('filterByPlate: case- and space-insensitive substring; empty query keeps all', () => {
@@ -235,10 +263,23 @@ test('session page actions: edit while open; pay only with a balance; prefill', 
   assert.equal(canEditSession({ status: 'overdue' }), true);
   assert.equal(canEditSession({ status: 'ended' }), false);
   assert.equal(canEditSession(null), false);
+  const at = Date.parse('2026-11-09T00:00:00Z');
+  assert.equal(
+    canEditSessionDetails({ status: 'active', started_at: '2026-11-08T00:00:00Z' }, at),
+    true
+  );
+  assert.equal(
+    canEditSessionDetails({ status: 'active', started_at: '2026-11-10T00:00:00Z' }, at),
+    false
+  );
   assert.equal(canApplyPayment({ status: 'active' }, '50.00'), true);
   assert.equal(canApplyPayment({ status: 'active' }, 0), false);
   assert.equal(canApplyPayment({ status: 'active' }, -20), false);
   assert.equal(canApplyPayment({ status: 'ended' }, 50), false);
+  const future = { status: 'active', started_at: '2026-11-10T00:00:00Z' };
+  assert.equal(canApplyPayment({ ...future, approval_status: 'pending' }, 50, at), false);
+  assert.equal(canApplyPayment({ ...future, approval_status: 'approved' }, 50, at), true);
+  assert.equal(canApplyPayment({ ...future, approval_status: null }, 50, at), true);
   assert.equal(paymentPrefill(undefined, '120.5'), '120.50');
   assert.equal(paymentPrefill('40', 120), '40.00');
   assert.equal(paymentPrefill('500', 120), '120.00');

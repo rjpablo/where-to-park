@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
+import { PlannedPrice } from '../../src/components/PlannedPrice';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { FilterDropdown } from '../../src/components/FilterDropdown';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
@@ -26,8 +27,6 @@ import { supabase } from '../../src/lib/supabase';
 import { theme } from '../../src/lib/theme';
 import { showToast } from '../../src/stores/toastStore';
 import { useAuthStore } from '../../src/stores/authStore';
-import { formatPeso } from '../../src/utils/formatters';
-
 type SavedVehicle = {
   id: string;
   nickname: string;
@@ -71,7 +70,7 @@ export default function ReserveScreen() {
   const [endDate, setEndDate] = React.useState('');
   const [endTime, setEndTime] = React.useState('');
   const [locked, setLocked] = React.useState<string | null>(null);
-  const [quote, setQuote] = React.useState<number | null>(null);
+  const [quote, setQuote] = React.useState<unknown>(null);
   const [quoteError, setQuoteError] = React.useState<string | null>(null);
   const [quoting, setQuoting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -205,7 +204,7 @@ export default function ReserveScreen() {
           setQuoteError(reservationErrorMessage(data?.error || rpcError?.message));
           return;
         }
-        setQuote(Number(data.amount));
+        setQuote(data.price ?? (data.amount != null ? { amount: data.amount } : null));
         setQuoteError(null);
       });
     return () => {
@@ -387,9 +386,12 @@ export default function ReserveScreen() {
         />
       </View>
 
-      <Text style={styles.price} testID="reserve-price">
-        Planned price: {quoting ? '…' : quote != null && !blocker ? formatPeso(quote) : '—'}
-      </Text>
+      <PlannedPrice
+        price={blocker ? null : quote}
+        quoting={quoting}
+        alwaysOpen
+        testID="reserve-price"
+      />
       {blocker ? (
         <Text style={styles.error} testID="reserve-block">
           {blocker}
@@ -461,13 +463,6 @@ const styles = StyleSheet.create({
   checkLabel: { ...theme.typography.body, color: theme.colors.text.primary },
   timeRow: { flexDirection: 'row', gap: theme.spacing.sm },
   timeField: { flex: 1 },
-  price: {
-    ...theme.typography.body,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-    marginTop: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-  },
   error: {
     ...theme.typography.bodySmall,
     color: theme.colors.danger,

@@ -7,13 +7,14 @@ import {
   ActivityIndicator,
   TextInput,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { FilterDropdown } from '../../src/components/FilterDropdown';
 import { SlideToConfirm } from '../../src/components/SlideToConfirm';
 import { AREA_SELECT, areaAllowsVehicle, sortAreas, type Area } from '../../src/lib/areas';
-import { reservationErrorMessage } from '../../src/lib/reservations';
+import { reservationErrorMessage, plannedPriceDetail } from '../../src/lib/reservations';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
@@ -25,13 +26,13 @@ import {
   isNegativeBalance,
   canApplyPayment,
   canEditSession,
+  canEditSessionDetails,
   paymentsDisplay,
   refundAmountError,
   startsIn,
   sessionReturnRoute,
   walkInErrorMessage,
   type PaymentMethod,
-  priceBreakdownLines,
   setRateLabel,
 } from '../../src/lib/walkIn';
 import { VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
@@ -69,12 +70,15 @@ export default function SessionScreen() {
   const [payAmount, setPayAmount] = React.useState('');
   const [cancelReason, setCancelReason] = React.useState('');
   const [cancelAttempt, setCancelAttempt] = React.useState(0);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [areas, setAreas] = React.useState<Area[]>([]);
   const [areaError, setAreaError] = React.useState<string | null>(null);
   const [approving, setApproving] = React.useState(false);
   const [rejecting, setRejecting] = React.useState(false);
   const [rejectAttempt, setRejectAttempt] = React.useState(0);
+  const [rejectOpen, setRejectOpen] = React.useState(false);
+  const [priceOpen, setPriceOpen] = React.useState(true);
   const [payMethod, setPayMethod] = React.useState<PaymentMethod>('cash');
   const [payNote, setPayNote] = React.useState('');
   const [payError, setPayError] = React.useState<string | null>(null);
@@ -295,28 +299,30 @@ export default function SessionScreen() {
   const ended = s.status === 'ended';
   // A future start is a reservation (0049): cancelled, not ended, before it starts.
   const reservation = !ended && !!s.reservation;
+  const pendingApproval = reservation && s.approval_status === 'pending';
   const open = canEditSession(s);
-  // Apply payment (only with a balance) and Add fee: above End session (rj t134u); a
-  // reservation has no End, so they sit under Edit details there.
-  const moneyButtons = open ? (
-    <View style={styles.moneyRow} testID="session-money-actions">
-      {canApplyPayment(s, d.balance) ? (
+  // Apply payment (only with a balance) and Add fee: above End session (rj t134u). A
+  // reservation that is still For Approval has neither; an approved one does.
+  const moneyButtons =
+    open && !pendingApproval ? (
+      <View style={styles.moneyRow} testID="session-money-actions">
+        {canApplyPayment(s, d.balance) ? (
+          <Button
+            title="Apply payment"
+            onPress={() => openPay()}
+            testID="session-pay"
+            style={styles.action}
+          />
+        ) : null}
         <Button
-          title="Apply payment"
-          onPress={() => openPay()}
-          testID="session-pay"
+          title="Add fee"
+          variant="outline"
+          onPress={openFee}
+          testID="session-add-fee"
           style={styles.action}
         />
-      ) : null}
-      <Button
-        title="Add fee"
-        variant="outline"
-        onPress={openFee}
-        testID="session-add-fee"
-        style={styles.action}
-      />
-    </View>
-  ) : null;
+      </View>
+    ) : null;
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="session-ready">
       <View style={styles.header}>
@@ -351,11 +357,39 @@ export default function SessionScreen() {
             Set rate: {setRateLabel(s)}
           </Text>
         ) : null}
-        {priceBreakdownLines(d.price, s.set_rate_name).map((line, i) => (
-          <Text key={i} style={styles.meta} testID={`session-part-${i}`}>
-            {line}
-          </Text>
-        ))}
+        {(() => {
+          const calc = plannedPriceDetail(d.price);
+          const canCalc = !!calc && (calc.lines.length > 0 || !!calc.summary);
+          if (!canCalc || !calc) return null;
+          return (
+            <>
+              <TouchableOpacity
+                onPress={() => setPriceOpen((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: priceOpen }}
+                testID="session-price-toggle"
+              >
+                <Text style={styles.toggle}>
+                  {priceOpen ? '▾ Hide calculation' : '▸ How this is calculated'}
+                </Text>
+              </TouchableOpacity>
+              {priceOpen ? (
+                <View testID="session-price-calc">
+                  {calc.summary ? <Text style={styles.meta}>{calc.summary}</Text> : null}
+                  {calc.lines.map((line, i) => (
+                    <Text
+                      key={`${line.label}-${i}`}
+                      style={styles.meta}
+                      testID={`session-part-${i}`}
+                    >
+                      {line.label} · {formatPeso(line.amount)}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </>
+          );
+        })()}
         {s.rate_changed_from?.name ? (
           <Text style={styles.rateChanged} testID="session-rate-changed">
             Rate changed from {s.rate_changed_from.name} (deactivated). Its hours are now priced by
@@ -375,7 +409,7 @@ export default function SessionScreen() {
               Extra fees: {formatPeso(d.extra_fees)}
             </Text>
             {d.charges.map((c: any) => {
-              const removable = open && c.type === 'additional_fee';
+              const removable = open && !pendingApproval && c.type === 'additional_fee';
               return (
                 <View key={c.id}>
                   <View style={styles.feeRow} testID={`fee-row-${c.description}`}>
@@ -487,7 +521,7 @@ export default function SessionScreen() {
         </Text>
       </View>
 
-      {open ? (
+      {canEditSessionDetails(s) ? (
         <View style={styles.actions} testID="session-actions">
           <Button
             title="Edit details"
@@ -498,7 +532,7 @@ export default function SessionScreen() {
           />
         </View>
       ) : null}
-      {open && reservation ? (
+      {open && reservation && !pendingApproval ? (
         <View style={{ marginHorizontal: theme.spacing.md }}>{moneyButtons}</View>
       ) : null}
       {notice ? (
@@ -605,47 +639,98 @@ export default function SessionScreen() {
             />
           )}
           <View style={{ marginTop: theme.spacing.md }}>
-            <SlideToConfirm
-              label="Slide to reject"
-              onConfirm={reject}
-              loading={rejecting}
-              resetKey={rejectAttempt}
+            <Button
+              title="Reject"
+              variant="danger"
+              onPress={() => setRejectOpen(true)}
               testID="reservation-reject"
             />
           </View>
         </View>
       ) : null}
 
-      {reservation ? (
+      {reservation && !pendingApproval ? (
         <View style={styles.section} testID="reservation-cancel-box">
-          <Text style={styles.heading}>Cancel reservation</Text>
-          <Text style={styles.meta}>
-            This reservation hasn't started, so it can't be ended yet. Cancelling closes it with no
-            parking fee. Payments already applied stay recorded (refund them outside the app).
-          </Text>
-          <TextInput
-            style={[styles.input, { marginTop: theme.spacing.sm }]}
-            value={cancelReason}
-            onChangeText={setCancelReason}
-            placeholder="Reason (optional)"
-            testID="cancel-reason"
+          <Button
+            title="Cancel reservation"
+            variant="danger"
+            onPress={() => setCancelOpen(true)}
+            testID="reservation-cancel"
           />
-          {cancelError ? (
-            <Text style={styles.error} testID="cancel-error">
-              {cancelError}
+        </View>
+      ) : null}
+      <Modal
+        visible={rejectOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!rejecting) setRejectOpen(false);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="reservation-reject-dialog">
+            <Text style={styles.dialogTitle}>Reject this reservation?</Text>
+            <SlideToConfirm
+              label="Slide to reject"
+              onConfirm={reject}
+              loading={rejecting}
+              resetKey={rejectAttempt}
+              testID="reservation-reject-slide"
+            />
+            <Button
+              title="Keep it"
+              variant="outline"
+              onPress={() => setRejectOpen(false)}
+              disabled={rejecting}
+              testID="reservation-reject-keep"
+            />
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={cancelOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!ending) setCancelOpen(false);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} testID="reservation-cancel-dialog">
+            <Text style={styles.dialogTitle}>Cancel this reservation?</Text>
+            <Text style={styles.meta}>
+              It hasn't started, so cancelling closes it with no parking fee. Payments already
+              applied stay recorded.
             </Text>
-          ) : null}
-          <View style={{ marginTop: theme.spacing.sm }}>
+            <TextInput
+              style={styles.input}
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              placeholder="Reason (optional)"
+              testID="cancel-reason"
+            />
+            {cancelError ? (
+              <Text style={styles.error} testID="cancel-error">
+                {cancelError}
+              </Text>
+            ) : null}
             <SlideToConfirm
               label="Slide to cancel"
               onConfirm={cancelReservation}
               loading={ending}
               resetKey={cancelAttempt}
-              testID="reservation-cancel"
+              testID="reservation-cancel-slide"
+            />
+            <Button
+              title="Keep it"
+              variant="outline"
+              onPress={() => setCancelOpen(false)}
+              disabled={ending}
+              testID="reservation-cancel-keep"
             />
           </View>
         </View>
-      ) : null}
+      </Modal>
 
       {!ended && !reservation ? (
         <View style={styles.section} testID="session-end-box">
@@ -704,14 +789,48 @@ export default function SessionScreen() {
           {error}
         </Text>
       ) : null}
+      <Button
+        title="Open Chat"
+        icon="chatbubble-outline"
+        variant="outline"
+        onPress={() =>
+          router.push(
+            (s.driver_id
+              ? `/chat/${s.location_id}?driverId=${s.driver_id}`
+              : `/chat/${s.location_id}`) as never
+          )
+        }
+        testID="session-chat"
+        style={styles.chat}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  dialog: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+  },
+  dialogTitle: { ...theme.typography.h3, color: theme.colors.text.primary },
   areaDropdown: { maxWidth: '100%', alignSelf: 'flex-start', marginTop: theme.spacing.xs },
   refundRow: { color: theme.colors.danger },
+  chat: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
   actions: {
     flexDirection: 'row',
     gap: theme.spacing.sm,

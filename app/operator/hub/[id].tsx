@@ -46,7 +46,7 @@ export default function ListingHubScreen() {
           supabase
             .from('locations')
             .select(
-              'id, name, verification_status, published, tracking_mode, available_count, free_spaces, marked_full, capacity, open_status, operator_id, availability_updated_at'
+              'id, name, verification_status, published, tracking_mode, available_count, free_spaces, marked_full, capacity, open_status, operator_id, availability_updated_at, is_free'
             )
             .eq('id', id)
             .is('deleted_at', null)
@@ -136,7 +136,7 @@ export default function ListingHubScreen() {
       <View style={styles.container} testID="hub-error">
         <Text style={styles.title}>Listing not found</Text>
         <Text style={styles.meta}>
-          {error || (location ? 'You do not staff this location.' : 'It may have been deleted.')}
+          {error || (location ? 'You do not staff this listing.' : 'It may have been deleted.')}
         </Text>
         <Button title="My listings" onPress={() => router.replace('/operator/listings')} />
       </View>
@@ -189,17 +189,19 @@ export default function ListingHubScreen() {
               onPress={() => go('/operator/rates', { locationId: location.id })}
               testID="hub-rates"
             />
-            <Button
-              title="Fee presets"
-              variant="outline"
-              onPress={() =>
-                go('/operator/fees', {
-                  locationId: location.id,
-                  operatorId: location.operator_id,
-                })
-              }
-              testID="hub-fees"
-            />
+            {location.is_free ? null : (
+              <Button
+                title="Fee presets"
+                variant="outline"
+                onPress={() =>
+                  go('/operator/fees', {
+                    locationId: location.id,
+                    operatorId: location.operator_id,
+                  })
+                }
+                testID="hub-fees"
+              />
+            )}
             <Button
               title="Staff"
               variant="outline"
@@ -220,7 +222,7 @@ export default function ListingHubScreen() {
           testID="hub-messages"
         />
         <Button
-          title="View location details"
+          title="View listing"
           variant="outline"
           onPress={() => go('/location/[id]', { id: location.id })}
           testID="hub-location"

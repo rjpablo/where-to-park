@@ -16,7 +16,7 @@ import { firstParam } from '../../src/lib/params';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { SessionSummary, sessionCardStyles } from '../../src/components/SessionSummary';
 import { fetchActiveSessions } from '../../src/lib/activeSessions';
-import { filterByPlate } from '../../src/lib/walkIn';
+import { filterByPlate, isReservation } from '../../src/lib/walkIn';
 import { FilterDropdown } from '../../src/components/FilterDropdown';
 import {
   AREA_SELECT,
@@ -48,13 +48,14 @@ export default function AvailabilityScreen() {
   const cancelledPlate = firstParam(sp.cancelled);
   const slotsSaved = firstParam(sp.slots) === 'saved';
   const areaParam = firstParam(sp.areaId);
-  // Sessions only (rj t136u/t137u): the count from sessions (counted_spaces), the pencil to
-  // the Available slots editor, the Full switch and the active sessions. No tabs.
+  // Sessions and reservations are separate lists. Each keeps its own plate filter.
   const [sessions, setSessions] = useState<any[]>([]);
   const [previews, setPreviews] = useState<Record<string, any>>({});
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
-  const [plateQuery, setPlateQuery] = useState('');
+  const [listTab, setListTab] = useState<'sessions' | 'reservations'>('sessions');
+  const [sessionPlate, setSessionPlate] = useState('');
+  const [reservationPlate, setReservationPlate] = useState('');
   const [location, setLocation] = useState<any>(null);
   // rj t139u: availability is managed per area; the dropdown picks which (Main by default,
   // the only choice when Main is the only area).
@@ -133,7 +134,7 @@ export default function AvailabilityScreen() {
       }
     } catch (err: any) {
       console.error('Load error:', err);
-      setError(err.message || 'Failed to load location data');
+      setError(err.message || 'Failed to load the listing');
     } finally {
       setLoading(false);
     }
@@ -185,7 +186,7 @@ export default function AvailabilityScreen() {
   if (!location) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.errorText}>No locations found</Text>
+        <Text style={styles.errorText}>No listing found</Text>
       </View>
     );
   }
@@ -193,8 +194,13 @@ export default function AvailabilityScreen() {
   const area = areas.find((x) => x.id === areaId) || null;
   const full = !!area?.marked_full;
   const monitored = area ? area.monitored : true;
-  const areaSessions = area ? sessions.filter((x) => x.area_id === area.id) : sessions;
-  const shownSessions = filterByPlate(areaSessions, plateQuery);
+  const inArea = area ? sessions.filter((x) => x.area_id === area.id) : sessions;
+  const sessionRows = inArea.filter((x) => !isReservation(x));
+  const reservationRows = inArea.filter((x) => isReservation(x));
+  const showingReservations = listTab === 'reservations';
+  const listRows = showingReservations ? reservationRows : sessionRows;
+  const plateQuery = showingReservations ? reservationPlate : sessionPlate;
+  const shownRows = filterByPlate(listRows, plateQuery);
   const listing = listingAvailability(location.free_spaces, !location.listing_full);
 
   return (
@@ -336,9 +342,39 @@ export default function AvailabilityScreen() {
             Reservation cancelled: {cancelledPlate}
           </Text>
         ) : null}
+        <View style={styles.listTabs} testID="availability-list-tabs">
+          <TouchableOpacity
+            style={[styles.listTab, !showingReservations && styles.listTabOn]}
+            onPress={() => setListTab('sessions')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: !showingReservations }}
+            testID="availability-tab-sessions"
+          >
+            <Text
+              style={[styles.listTabText, !showingReservations && styles.listTabTextOn]}
+              testID="sessions-count"
+            >
+              Sessions ({sessionRows.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.listTab, showingReservations && styles.listTabOn]}
+            onPress={() => setListTab('reservations')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: showingReservations }}
+            testID="availability-tab-reservations"
+          >
+            <Text
+              style={[styles.listTabText, showingReservations && styles.listTabTextOn]}
+              testID="reservations-count"
+            >
+              Reservations ({reservationRows.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.sessionsHead}>
-          <Text style={[styles.sectionTitle, styles.sessionsTitle]} testID="sessions-count">
-            Active sessions ({areaSessions.length})
+          <Text style={[styles.sectionTitle, styles.sessionsTitle]}>
+            {showingReservations ? 'Reservations' : 'Active sessions'}
           </Text>
           <TouchableOpacity
             style={styles.addButton}
@@ -353,8 +389,8 @@ export default function AvailabilityScreen() {
               })
             }
             accessibilityRole="button"
-            accessibilityLabel="Add a session"
-            testID="sessions-add"
+            accessibilityLabel={showingReservations ? 'Add a reservation' : 'Add a session'}
+            testID={showingReservations ? 'reservations-add' : 'sessions-add'}
           >
             <Text style={styles.addButtonText}>+</Text>
           </TouchableOpacity>
@@ -362,18 +398,20 @@ export default function AvailabilityScreen() {
         <TextInput
           style={styles.filterInput}
           value={plateQuery}
-          onChangeText={setPlateQuery}
+          onChangeText={showingReservations ? setReservationPlate : setSessionPlate}
           placeholder="Filter by plate number"
           autoCapitalize="characters"
           autoCorrect={false}
           clearButtonMode="while-editing"
-          testID="sessions-filter"
+          testID={showingReservations ? 'reservations-filter' : 'sessions-filter'}
         />
         {sessionsError ? <Text style={styles.errorText}>{sessionsError}</Text> : null}
         {!sessionsLoaded ? (
-          <Text style={styles.activityText}>Loading sessions…</Text>
-        ) : shownSessions.length ? (
-          shownSessions.map((item) => (
+          <Text style={styles.activityText}>
+            {showingReservations ? 'Loading reservations…' : 'Loading sessions…'}
+          </Text>
+        ) : shownRows.length ? (
+          shownRows.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={[
@@ -387,15 +425,24 @@ export default function AvailabilityScreen() {
                 })
               }
               accessibilityRole="button"
-              accessibilityLabel={`Open session ${item.plate || ''}`}
-              testID={`avail-session-${item.plate}`}
+              accessibilityLabel={`Open ${showingReservations ? 'reservation' : 'session'} ${item.plate || ''}`}
+              testID={`${showingReservations ? 'avail-reservation' : 'avail-session'}-${item.plate}`}
             >
               <SessionSummary item={item} preview={previews[item.id] || null} />
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={styles.activityText} testID="sessions-empty">
-            {areaSessions.length ? 'No sessions match this plate' : 'No active sessions'}
+          <Text
+            style={styles.activityText}
+            testID={showingReservations ? 'reservations-empty' : 'sessions-empty'}
+          >
+            {listRows.length
+              ? showingReservations
+                ? 'No reservations match this plate'
+                : 'No sessions match this plate'
+              : showingReservations
+                ? 'No reservations'
+                : 'No active sessions'}
           </Text>
         )}
       </View>
@@ -604,6 +651,27 @@ const styles = StyleSheet.create({
   stepperValue: {
     ...theme.typography.h3,
   },
+  listTabs: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.md,
+  },
+  listTab: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  listTabOn: { backgroundColor: theme.colors.primary },
+  listTabText: {
+    ...theme.typography.bodySmall,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+  },
+  listTabTextOn: { color: '#fff' },
   sessionsHead: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -63,6 +63,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     vehicleType: null,
     rateType: null,
     showFull: false,
+    freeOnly: false,
     distanceKm: DEFAULT_DISTANCE_KM,
   },
   sortBy: 'distance',

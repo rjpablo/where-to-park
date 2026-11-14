@@ -88,6 +88,52 @@ export function coordinateOffset(
   };
 }
 
+/**
+ * How far, in pixels, a point may sit from the screen centre and still be seen.
+ * Overlays shrink that, but only while the centre itself stays visible. A sheet
+ * that covers the centre is ignored: zooming out cannot uncover the centre, and
+ * pins on the map under the sheet are still on screen.
+ */
+function visibleHalf(size: number, insetStart: number, insetEnd: number, margin: number): number {
+  const mid = size / 2;
+  const start = insetStart + margin;
+  const end = size - insetEnd - margin;
+  if (start >= mid || end <= mid) return Math.max(1, mid - margin);
+  return Math.min(mid - start, end - mid);
+}
+
+/**
+ * Zoom that keeps `center` and brings every point onto the map. Null when
+ * `currentZoom` already shows them: this never zooms in and never recentres.
+ */
+export function zoomOutToFit(
+  points: LngLat[],
+  center: LngLat,
+  currentZoom: number,
+  size: Size,
+  insets: Insets = NO_INSETS,
+  margin = 24
+): number | null {
+  if (!points.length || size.width <= 0 || size.height <= 0 || !Number.isFinite(currentZoom)) {
+    return null;
+  }
+  const maxDx = visibleHalf(size.width, insets.left, insets.right, margin);
+  const maxDy = visibleHalf(size.height, insets.top, insets.bottom, margin);
+  if (maxDx <= 1 || maxDy <= 1) return null;
+
+  let zoom = Infinity;
+  const cx = mercX(center[0]);
+  const cy = mercY(center[1]);
+  for (const [lng, lat] of points) {
+    const dx = Math.abs(mercX(lng) - cx) * TILE;
+    const dy = Math.abs(mercY(lat) - cy) * TILE;
+    if (dx > 0) zoom = Math.min(zoom, Math.log2(maxDx / dx));
+    if (dy > 0) zoom = Math.min(zoom, Math.log2(maxDy / dy));
+  }
+  if (!Number.isFinite(zoom) || zoom >= currentZoom - 0.01) return null;
+  return Math.max(0, zoom);
+}
+
 /** Great-circle distance in metres. */
 export function distanceMeters(a: LngLat, b: LngLat): number {
   const R = 6371008.8;

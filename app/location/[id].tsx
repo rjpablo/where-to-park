@@ -21,6 +21,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
 import { rateSummary } from '../../src/lib/rates';
 import { reservationsAllowed } from '../../src/lib/reservations';
+import { OvernightSetting } from '../../src/components/OvernightSetting';
 import {
   deleteReviewPhoto,
   locationPhotoPublicUrl,
@@ -251,7 +252,7 @@ export default function LocationDetailScreen() {
 
   const loadLocation = async () => {
     if (!id) {
-      setError('No location ID provided');
+      setError('No listing ID provided');
       setLoading(false);
       return;
     }
@@ -296,7 +297,7 @@ export default function LocationDetailScreen() {
       setLocation(data || null);
     } catch (err: any) {
       console.error('Load location error:', err);
-      setError(err.message || 'Failed to load location');
+      setError(err.message || 'Failed to load the listing');
     } finally {
       setLoading(false);
     }
@@ -477,7 +478,29 @@ export default function LocationDetailScreen() {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>{location.name}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{location.name}</Text>
+            {location.is_free ? (
+              <Text style={styles.freeBadge} testID="listing-free">
+                Free
+              </Text>
+            ) : null}
+            <Text
+              style={[
+                styles.verifyBadge,
+                location.verification_status === 'verified'
+                  ? styles.verifyBadgeOn
+                  : styles.verifyBadgeOff,
+              ]}
+              testID={
+                location.verification_status === 'verified'
+                  ? 'listing-verified'
+                  : 'listing-unverified'
+              }
+            >
+              {location.verification_status === 'verified' ? 'Verified' : 'Unverified'}
+            </Text>
+          </View>
           <TouchableOpacity
             onPress={() => setTab('reviews')}
             accessibilityRole="button"
@@ -612,13 +635,6 @@ export default function LocationDetailScreen() {
               testID="navigate"
               style={{ marginBottom: theme.spacing.sm }}
             />
-            <Button
-              title="Message"
-              variant="outline"
-              onPress={() => router.push(`/chat/${id}`)}
-              testID="location-message"
-              style={{ marginBottom: theme.spacing.sm }}
-            />
             {user ? (
               <Button
                 title="Report listing"
@@ -654,7 +670,11 @@ export default function LocationDetailScreen() {
             {/* Rates */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Rates</Text>
-              {location.rates?.filter((r: any) => r.active).length > 0 ? (
+              {location.is_free ? (
+                <Text style={styles.placeholderText} testID="rates-free">
+                  Free parking
+                </Text>
+              ) : location.rates?.filter((r: any) => r.active).length > 0 ? (
                 location.rates
                   .filter((r: any) => r.active)
                   .map((rate: any) => (
@@ -669,9 +689,23 @@ export default function LocationDetailScreen() {
                     </View>
                   ))
               ) : (
-                <Text style={styles.placeholderText}>Contact location for rates</Text>
+                <Text style={styles.placeholderText}>Contact the listing for rates</Text>
               )}
             </View>
+
+            {location.is_free ? null : (
+              <OvernightSetting
+                locationId={String(id)}
+                operatorId={location.operator_id}
+                policy={
+                  Array.isArray(location.location_policies)
+                    ? location.location_policies[0]
+                    : location.location_policies
+                }
+                userId={userId}
+                onSaved={loadLocation}
+              />
+            )}
 
             {/* Rules & Policies */}
             {location.location_policies?.length > 0 && (
@@ -690,6 +724,14 @@ export default function LocationDetailScreen() {
               <Text style={styles.sectionTitle}>Contact</Text>
               <Text style={styles.contactText}>{location.contact || 'No contact provided'}</Text>
             </View>
+            <Button
+              title="Open Chat"
+              icon="chatbubble-outline"
+              variant="outline"
+              onPress={() => router.push(`/chat/${id}`)}
+              testID="location-message"
+              style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.md }}
+            />
           </View>
         ) : null}
 
@@ -1010,9 +1052,42 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: theme.spacing.lg,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
   title: {
     ...theme.typography.h2,
-    marginBottom: theme.spacing.xs,
+    flexShrink: 1,
+  },
+  freeBadge: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.inverse,
+    backgroundColor: theme.colors.success,
+    fontWeight: '700',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.full,
+    overflow: 'hidden',
+  },
+  verifyBadge: {
+    ...theme.typography.bodySmall,
+    fontWeight: '700',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.full,
+    overflow: 'hidden',
+  },
+  verifyBadgeOn: {
+    color: theme.colors.text.inverse,
+    backgroundColor: theme.colors.success,
+  },
+  verifyBadgeOff: {
+    color: '#fff',
+    backgroundColor: theme.colors.warning,
   },
   listedBy: {
     flexDirection: 'row',

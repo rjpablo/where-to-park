@@ -145,7 +145,7 @@ export default function ChatScreen() {
 
   const openThread = React.useCallback(async () => {
     if (!locationId) {
-      setError('No location');
+      setError('No listing');
       setLoading(false);
       return;
     }
