@@ -139,7 +139,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done        | Profile name, photo, and maps app. The photo is used in chat and reviews                                    |
 | Done        | Saved vehicles: type, plate, optional nickname, one default. Search starts on that type                      |
 | Done        | Shortcuts                                                                                                    |
-| Done        | Privacy Policy, public                                                                                       |
+| Done        | Privacy Policy, public. Discloses AdMob ads and the advertising ID                                           |
 | Done        | Contact Us for guests and signed-in people: category, message, up to five images                             |
 | Partial     | Phone sign-in. The screen can show it when `PHONE_SIGN_IN_ENABLED` is on. It is off                         |
 | Not started | Vehicle height, width, and length on a saved vehicle                                                         |

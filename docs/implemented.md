@@ -195,7 +195,7 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 
 **Shortcuts** (`/shortcuts`) are the signed-in user's saved listings. On Listing details, **Add shortcut** saves the listing. The shortcuts screen reorders them by holding a row and dragging, and delete asks first. Signing in can merge shortcuts that were saved on the device before the account existed.
 
-**Privacy Policy** (`/privacy`) is public.
+**Privacy Policy** (`/privacy`) is public. Its Advertising section discloses the Google AdMob banner ads in the Android app and the advertising ID (last updated November 15, 2026).
 
 **Contact Us** (`/contact`) is public. Category is Issue, Feedback, or Suggestion, with a message and up to five images. A reply email or phone is optional. Guests are remembered on the device so the same person is not treated as a new sender every time.
 

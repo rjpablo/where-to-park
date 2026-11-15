@@ -268,6 +268,9 @@ Unit: `src/lib/privacyPolicy.test.ts`
 **ACCOUNT-09.** Send Contact Us as a guest, twice, with a category, a message, and up to five images. Leave the reply contact empty, then send one with an email or a phone. **Expect:** Issue, Feedback, and Suggestion are the categories. A message is required. More than five images is refused. A reply contact is optional and, when present, must be an email or a phone. The second guest submission is treated as the same sender.
 Unit: `src/lib/contact.test.ts`
 
+**ACCOUNT-10.** Open Privacy Policy and read the Advertising section. **Expect:** it says the Android app shows banner ads from Google AdMob and the web app shows none, lists the advertising ID, IP address, device and usage information and approximate location, explains how to reset the advertising ID or opt out in Android settings, and links to Google's partner-sites and ads policies. 'Last updated' reads November 15, 2026.
+Unit: `src/lib/privacyPolicy.test.ts`
+
 ## Admin
 
 **ADMIN-01.** Open the Verification Queue. **Expect:** listings waiting for verification are listed, each as Hidden or Published, and Unverified. Open shows the public page. An unpublished listing can still be opened by the admin.
