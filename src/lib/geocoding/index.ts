@@ -2,6 +2,7 @@ import { createPhotonProvider } from './photon';
 import type { GeocodingProvider } from './types';
 
 export * from './types';
+export { coordinateAddress, placeAddress, resolveListingAddress } from './address';
 
 let provider: GeocodingProvider | null = null;
 

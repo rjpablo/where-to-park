@@ -8,8 +8,9 @@ import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import {
-  canEditSession,
+  canEditSessionDetails,
   fullAreaPrompt,
+  isReservation,
   plateActiveMessage,
   plateConflict,
   type FullAreaPrompt,
@@ -103,7 +104,7 @@ export default function SessionEditScreen() {
       <Text style={styles.title}>
         {s.plate} · {s.location_name}
       </Text>
-      {canEditSession(s) ? (
+      {canEditSessionDetails(s) ? (
         <>
           <WalkInForm
             locationId={s.location_id}
@@ -137,7 +138,9 @@ export default function SessionEditScreen() {
         </>
       ) : (
         <Text style={styles.meta} testID="session-edit-closed">
-          This session has ended, so its details can't be edited.
+          {isReservation(s)
+            ? "A reservation's details can't be edited. Change its area from the session screen."
+            : "This session has ended, so its details can't be edited."}
         </Text>
       )}
     </ScrollView>

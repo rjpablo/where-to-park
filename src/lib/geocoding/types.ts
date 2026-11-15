@@ -40,4 +40,6 @@ export interface GeocodingProvider {
   suggest(query: string, options?: SuggestOptions): Promise<PlaceSuggestion[]>;
   /** Short place name for a coordinate, or null when the provider has no name. */
   reverse(coordinate: Coordinate, options?: ReverseOptions): Promise<string | null>;
+  /** Street-level line for a coordinate, or null when the provider has no place. */
+  reverseAddress(coordinate: Coordinate, options?: ReverseOptions): Promise<string | null>;
 }

@@ -189,6 +189,8 @@ export function rateSummary(
       return present(rate.daily_amount) ? `${peso(rate.daily_amount!)}/day` : null;
     case 'monthly':
       return present(rate.monthly_amount) ? `${peso(rate.monthly_amount!)}/mo` : null;
+    case 'free':
+      return 'Free';
     case 'flat_then_hourly':
       return present(rate.first_hours) &&
         present(rate.first_amount) &&
@@ -203,9 +205,14 @@ export function rateSummary(
 /** Result card price: the hourly starting rate as before, else the listing's other rate
  *  (search_nearby.starting_rate_info, 0061: flat then hourly, daily, monthly), else 'See rates'. */
 export function cardRateText(
-  item: { starting_rate?: number | string | null; starting_rate_info?: RateAmounts | null },
+  item: {
+    is_free?: boolean | null;
+    starting_rate?: number | string | null;
+    starting_rate_info?: RateAmounts | null;
+  },
   peso: (n: number | string) => string
 ): string {
+  if (item.is_free || item.starting_rate_info?.rate_type === 'free') return 'Free';
   if (present(item.starting_rate)) return `${peso(item.starting_rate!)}/h`;
   return (item.starting_rate_info && rateSummary(item.starting_rate_info, peso)) || 'See rates';
 }

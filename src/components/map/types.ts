@@ -87,5 +87,12 @@ export interface MapPinPickerProps {
   /** True while a finger is on the map, false when the touch ends: the screen's ScrollView
    *  turns scrolling off meanwhile so drags and pinches pan / zoom the map, not the page. */
   onMapGestureChange?: (active: boolean) => void;
+  /** Optional street address, edited under the map. Blank means "use the pin". */
+  address?: string;
+  onAddressChange?: (address: string) => void;
+  /** True when `address` was filled from the pin, so moving the pin may replace it. */
+  addressDerived?: boolean;
+  onAddressDerivedChange?: (derived: boolean) => void;
+  addressTestID?: string;
   style?: ViewStyle;
 }

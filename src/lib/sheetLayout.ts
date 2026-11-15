@@ -21,6 +21,20 @@ export function normalHeight(screenHeight: number, fraction: number, minimized: 
   return Math.max(Math.round(screenHeight * fraction), Math.ceil(minimized) + 1);
 }
 
+/** Map height when the minimized sheet covers only `underSheet` px of the map's bottom. */
+export function mapHeightAboveSheet(
+  screenHeight: number,
+  minimized: number,
+  underSheet: number
+): number {
+  return Math.max(0, screenHeight - minimized + underSheet);
+}
+
+/** How much of that shortened map the sheet covers at its current height. */
+export function sheetCoverOnMap(sheetPx: number, minimized: number, underSheet: number): number {
+  return Math.max(0, sheetPx - minimized + underSheet);
+}
+
 /** Maximized sheet height: up to `gapBelowHeader` px below the header, i.e. the search
  *  screen's height (it starts right under the header) minus the gap; kept above Normal. */
 export function maximizedHeight(
