@@ -15,7 +15,8 @@ Unit: `src/lib/sidebar.test.ts`
 
 **NAV-02.** Open the sidebar while signed in, with no listing and no staff membership. **Expect:** My profile, Messages, Notifications, Sessions, and Saved vehicles, plus List your parking space. My listings is absent.
 
-**NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space.
+**NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space. An owner or a manager also sees Reports under My listings. Staff do not.
+Unit: `src/lib/sidebar.test.ts`
 
 **NAV-04.** Open the sidebar as an admin. **Expect:** Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. A pending count shows on the row that has one, and the red attention dot follows `get_sidebar_counts`. A trigger turned off in the database does not light the dot.
 Unit: `src/lib/sidebar.test.ts`
@@ -224,6 +225,9 @@ Unit: `src/lib/rateForm.test.ts`
 
 **MANAGE-12.** Invite staff by an email that has an account, and by one that does not. **Expect:** the screen does not say whether the account exists. The person is not added immediately. They get a notification with Accept and Decline and appear in Members only after Accept. Resend waits three minutes. An invite can be limited to specific listings.
 Unit: `src/lib/staffInvite.test.ts`
+
+**MANAGE-13.** As an owner or manager, open Reports and then Collections. **Expect:** Today is selected, in Philippine time, and All listings is selected. Collected is payments minus refunds. Payments are split by method. Extra fees, waivers, and refunds follow the dates. Still to collect is the open balance now, and the note says it does not follow the dates. A payment line shows the time, listing, plate, method, amount, and who recorded it. Staff who are not an owner or manager do not see Reports.
+Unit: `src/lib/collections.test.ts`, `src/lib/sidebar.test.ts`
 
 ## Chat and notifications
 

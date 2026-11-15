@@ -174,12 +174,12 @@ Candidates for a Reports screen that only an admin can open. None of these are b
 
 ## Operator reports
 
-Candidates for a Reports screen for an owner or a manager, covering only that operator's listings. Staff do not get this screen. Reports sits in the sidebar under My listings. Collections is the first report: a date range in Philippine time, all listings or one, what was collected by method, extra fees, waivers, refunds, and the open balance now. The others are not built. A shift cash summary for staff is already listed under Sessions and money.
+Candidates for a Reports screen for an owner or a manager, covering only that operator's listings. Staff do not get this screen. Reports sits in the sidebar under My listings. Collections is built. The others are not. A shift cash summary for staff is already listed under Sessions and money.
 
 | Status      | Feature                                                                                                                    |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Not started | Sessions: stays started and ended on their listings, walk-in or reservation, by listing, area, and vehicle type           |
-| Not started | Collections: what was collected in a date range, by method, plus extra fees, waivers, refunds, and balances still open now, for their listings |
+| Done        | Collections: what was collected in a date range, by method, plus extra fees, waivers, refunds, and balances still open now, for their listings |
 | Not started | Occupancy: how full each of their listings was, and the busiest hours                                                     |
 | Not started | Reservations: requested, approved, rejected, cancelled, and no-show, for their listings                                   |
 | Not started | Reviews: new reviews and the average rating, for their listings                                                           |

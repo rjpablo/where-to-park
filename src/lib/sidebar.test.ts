@@ -62,7 +62,12 @@ test('items: driver vs operator vs admin are role-appropriate', () => {
     'sign_out',
   ]);
   const op = buildSidebarItems({ isAdmin: false, hasWorkspace: true }, base).map((i) => i.key);
-  assert.ok(op.includes('listings') && !op.includes('list_space') && !op.includes('verify'));
+  assert.ok(
+    op.includes('listings') &&
+      !op.includes('list_space') &&
+      !op.includes('verify') &&
+      !op.includes('reports')
+  );
   const admin = buildSidebarItems({ isAdmin: true, hasWorkspace: true }, base);
   assert.deepEqual(
     admin.filter((i) => i.section === 'admin').map((i) => i.key),
@@ -102,6 +107,16 @@ test('items: each shows its own count; red only for enabled triggers', () => {
   assert.equal(byKey.contact_admin.alert, false, 'informational');
   assert.equal(byKey.contact.countLabel, '');
   assert.equal(byKey.sign_out.countLabel, '');
+});
+
+test('items: Reports sits under My listings for an owner or manager', () => {
+  const owner = buildSidebarItems(
+    { isAdmin: false, hasWorkspace: true, canReport: true },
+    base
+  ).map((i) => i.key);
+  assert.equal(owner[owner.indexOf('listings') + 1], 'reports');
+  const staff = buildSidebarItems({ isAdmin: false, hasWorkspace: true }, base).map((i) => i.key);
+  assert.ok(!staff.includes('reports'));
 });
 
 test('items: unseen verify/reject outcomes show on My listings in red', () => {

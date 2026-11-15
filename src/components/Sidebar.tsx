@@ -52,10 +52,10 @@ export function SidebarToggle() {
   );
 }
 
-type Props = { hasWorkspace: boolean };
+type Props = { hasWorkspace: boolean; canReport?: boolean };
 
 /** Collapsible drawer with the account destinations (replaces the Profile screen buttons). */
-export function Sidebar({ hasWorkspace }: Props) {
+export function Sidebar({ hasWorkspace, canReport }: Props) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -96,7 +96,10 @@ export function Sidebar({ hasWorkspace }: Props) {
     }
   }, [open, progress, refresh]);
 
-  const items = buildSidebarItems(user ? { isAdmin: !!user.is_admin, hasWorkspace } : null, counts);
+  const items = buildSidebarItems(
+    user ? { isAdmin: !!user.is_admin, hasWorkspace, canReport } : null,
+    counts
+  );
 
   const close = () => setOpen(false);
 

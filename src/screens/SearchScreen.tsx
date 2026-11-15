@@ -186,6 +186,7 @@ export function SearchScreen() {
   const navApp = preferredNavApp(authUser?.preferred_nav_app);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
+  const [canReport, setCanReport] = useState(false);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   // Expanded, the sheet reaches the screen bottom (behind the nav bar): end the list above it.
@@ -441,18 +442,22 @@ export function SearchScreen() {
   useEffect(() => {
     if (!authUser) {
       setHasWorkspace(false);
+      setCanReport(false);
       return;
     }
     // Account switch: don't keep the previous account's workspace while loading.
     setHasWorkspace(!!authUser.is_admin || authUser.account_type === 'operator');
+    setCanReport(false);
     loadMyMemberships(authUser.id)
       .then((rows) => {
         setHasWorkspace(
           !!authUser.is_admin || authUser.account_type === 'operator' || rows.length > 0
         );
+        setCanReport(rows.some((row) => row.role === 'owner' || row.role === 'manager'));
       })
       .catch(() => {
         setHasWorkspace(!!authUser.is_admin || authUser.account_type === 'operator');
+        setCanReport(false);
       });
   }, [authUser]);
 
@@ -996,7 +1001,7 @@ export function SearchScreen() {
           </View>
         </BottomSheet>
 
-        <Sidebar hasWorkspace={hasWorkspace} />
+        <Sidebar hasWorkspace={hasWorkspace} canReport={canReport} />
       </View>
       {/* Bottom of the screen, below the map and the results sheet (rj t196u). */}
       <AdBanner onShownChange={onBannerShownChange} testID="search-ad" />
