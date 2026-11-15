@@ -416,7 +416,7 @@ PayMongo (GCash), webhooks, online reservation-fee checkout, manual payouts
 
 ### Phase 5: Scale
 
-Next.js web dashboard, Google Maps adapter (optional), iOS/App Store (if decided), Filipino language, analytics, occupancy reports, gate/sensor integrations
+Next.js web dashboard, Google Maps adapter (optional), iOS/App Store (if decided), Filipino language, admin and operator reports (the candidate list is in feature-status.md; the operator report to build first is Collections), session QR codes, gate/sensor integrations
 
 ## Risks and Mitigations
 

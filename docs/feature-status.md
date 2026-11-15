@@ -1,6 +1,6 @@
 # Feature status
 
-**As of 15 Nov 2026.** Planned features, and whether each one is in the app.
+**As of 16 Nov 2026.** Planned features, and whether each one is in the app.
 
 Add a row when a feature is planned. Status:
 
@@ -87,6 +87,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done        | Refund an overpaid ended session, or a cancelled reservation that was already paid                                  |
 | Done        | Overdue notification when a scheduled end passes                                                                    |
 | Not started | Shift cash summary per staff                                                                                         |
+| Not started | A QR code for a session, and a scan that opens that session                                                          |
 | Not started | Online checkout (PayMongo, GCash), webhooks, and payouts                                                             |
 
 ## Availability and areas
@@ -154,6 +155,36 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Done   | One switch per push type                                                                                               |
 | Done   | System Settings, admins only: the search radius limit                                                                  |
 
+## Admin reports
+
+Candidates for a Reports screen that only an admin can open. None of these are built. Each one is a date range, for the whole platform or one listing, that the admin can generate. Pick which ones to implement.
+
+| Status      | Feature                                                                                                                                                          |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Not started | Sessions: stays started and ended, walk-in or reservation, by listing, area, and vehicle type                                                                   |
+| Not started | Collections: payments collected by method, extra fees, waivers, refunds, and balances still open                                                                |
+| Not started | Occupancy: how full each listing was over the period, and the busiest hours, from sessions and capacity                                                         |
+| Not started | Reservations: requested, approved, rejected, cancelled, and no-show, by listing                                                                                 |
+| Not started | Listings: new, published, hidden, verified, unverified, and free or paid                                                                                        |
+| Not started | Reviews: new reviews and the average rating, by listing                                                                                                         |
+| Not started | Moderation: driver reports of listings and reviews, still open or already handled                                                                               |
+| Not started | Contact messages: Issue, Feedback, and Suggestion, still open or already handled                                                                                |
+| Not started | Accounts: new driver and operator accounts                                                                                                                      |
+| Not started | Operators: new operators, how many listings each has, published or hidden, and whether they had a session in the period                                        |
+
+## Operator reports
+
+Candidates for a Reports screen for an owner or a manager, covering only that operator's listings. Staff do not get this screen. Reports sits in the sidebar under My listings. Collections is the first report: a date range in Philippine time, all listings or one, what was collected by method, extra fees, waivers, refunds, and the open balance now. The others are not built. A shift cash summary for staff is already listed under Sessions and money.
+
+| Status      | Feature                                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Not started | Sessions: stays started and ended on their listings, walk-in or reservation, by listing, area, and vehicle type           |
+| Not started | Collections: what was collected in a date range, by method, plus extra fees, waivers, refunds, and balances still open now, for their listings |
+| Not started | Occupancy: how full each of their listings was, and the busiest hours                                                     |
+| Not started | Reservations: requested, approved, rejected, cancelled, and no-show, for their listings                                   |
+| Not started | Reviews: new reviews and the average rating, for their listings                                                           |
+| Not started | Staff: check-ins, payments recorded, and sessions ended, per staff member, for their listings                             |
+
 ## Ads
 
 | Status      | Feature                                                                                                                                              |
@@ -169,6 +200,6 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Not started | iOS release                                                                  |
 | Not started | Filipino language                                                            |
 | Not started | Operator web dashboard                                                       |
-| Not started | Occupancy reports and analytics                                              |
+| Not started | Occupancy reports and analytics. The candidate reports are listed under Admin reports and Operator reports |
 | Not started | Gate or sensor integrations                                                  |
 | Not started | A second map provider (Google Maps) behind the current map                   |
