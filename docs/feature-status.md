@@ -179,7 +179,7 @@ Candidates for a Reports screen for an owner or a manager, covering only that op
 | Status      | Feature                                                                                                                    |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Not started | Sessions: stays started and ended on their listings, walk-in or reservation, by listing, area, and vehicle type           |
-| Done        | Collections: what was collected in a date range, by method, plus extra fees, waivers, refunds, and balances still open now, for their listings |
+| Done        | Collections: a listing dropdown and a date-range dropdown. Custom dates use the system date picker. One payments total, collected, waivers, refunds, and balances still open now, for their listings. No split by payment method, and extra fees are not shown |
 | Not started | Occupancy: how full each of their listings was, and the busiest hours                                                     |
 | Not started | Reservations: requested, approved, rejected, cancelled, and no-show, for their listings                                   |
 | Not started | Reviews: new reviews and the average rating, for their listings                                                           |

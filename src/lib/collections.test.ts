@@ -84,6 +84,7 @@ test('the report payload fills every method and drops an unknown line', () => {
   assert.ok(!('error' in report));
   if ('error' in report) return;
   assert.equal(report.collected, 80.5);
+  assert.equal(report.payments, 120);
   assert.deepEqual(
     report.byMethod.map((m) => [m.label, m.amount]),
     [

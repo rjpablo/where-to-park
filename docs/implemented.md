@@ -179,7 +179,7 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 
 **Reports** (`/operator/reports`) is for an owner or a manager. Staff do not see it. When the account runs more than one operator, the screen asks which one. The only report is Collections.
 
-**Collections** (`/operator/reports/collections`) shows what that operator collected. The range starts at Today, in Philippine time, and can be Yesterday, Last 7 days, This month, or two dates. All listings is the default, and one listing can be chosen. Collected is payments minus refunds. Payments are also split by Cash, GCash, Maya, Card, and Other. Extra fees, waivers, and refunds in the range are listed separately. Still to collect is the unpaid balance of sessions that are still open, as of now, and it does not follow the dates. Each payment and refund in the range is listed underneath, newest first, up to 200 lines.
+**Collections** (`/operator/reports/collections`) shows what that operator collected. A listing dropdown starts on All listings. Under it, a date-range dropdown starts on Today, in Philippine time, and can be Yesterday, Last 7 days, This month, or Custom. Custom opens the system date picker for the start and the end. Payments is one total for the range, not split by method. Collected is payments minus refunds. Extra fees are not shown. Waivers and refunds in the range are listed separately. Still to collect is the unpaid balance of sessions that are still open, as of now, and it does not follow the dates. Each payment and refund in the range is listed underneath, newest first, up to 200 lines, and a payment line names its method.
 
 ## Chat and notifications
 

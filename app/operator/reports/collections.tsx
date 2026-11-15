@@ -1,6 +1,8 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { DateTimeField } from '../../../src/components/DateTimeField';
+import { FilterDropdown } from '../../../src/components/FilterDropdown';
 import { useBottomInset } from '../../../src/hooks/useBottomInset';
 import {
   formatManilaWhen,
@@ -38,7 +40,6 @@ export default function CollectionsScreen() {
   );
   const [operatorId, setOperatorId] = React.useState<string | null>(requestedId ?? null);
   const [allowed, setAllowed] = React.useState<boolean | null>(null);
-  const [operatorName, setOperatorName] = React.useState('');
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [locationId, setLocationId] = React.useState<string | null>(null);
   const [preset, setPreset] = React.useState<RangePreset | 'custom'>('today');
@@ -72,23 +73,12 @@ export default function CollectionsScreen() {
         role: string;
         created_at: string;
       }[];
-      const ids = [...new Set(memberships.map((row) => row.operator_id))];
-      const names = new Map<string, string | null>();
-      if (ids.length) {
-        const { data: ops } = await supabase
-          .from('operators')
-          .select('id, display_name')
-          .in('id', ids);
-        for (const op of (ops || []) as { id: string; display_name: string | null }[]) {
-          names.set(op.id, op.display_name);
-        }
-      }
       if (cancelled) return;
       const rows: MembershipRow[] = memberships.map((row) => ({
         operatorId: row.operator_id,
         role: row.role,
         createdAt: row.created_at,
-        name: names.get(row.operator_id) ?? null,
+        name: null,
       }));
       const list = reportOperators(rows);
       if (requestedId && !list.some((op) => op.id === requestedId)) {
@@ -105,7 +95,6 @@ export default function CollectionsScreen() {
       }
       setOperatorId(id);
       setLocationId(null);
-      setOperatorName(chosen.name);
       setAllowed(true);
       const { data: locs } = await supabase
         .from('locations')
@@ -184,66 +173,55 @@ export default function CollectionsScreen() {
       contentContainerStyle={[styles.content, bottomInset]}
       testID={loading && !report ? 'collections-loading' : 'collections-ready'}
     >
-      {operatorName ? <Text style={styles.subtitle}>{operatorName}</Text> : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-        {PRESETS.map((item) => {
-          const on = item.key === preset;
-          return (
-            <Pressable
-              key={item.key}
-              onPress={() => choosePreset(item.key)}
-              style={[styles.chip, on && styles.chipOn]}
-              testID={`collections-range-${item.key}`}
-            >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{item.label}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <Text style={styles.label}>Listing</Text>
+      <FilterDropdown
+        label="Listing"
+        showLabel={false}
+        value={locationId}
+        options={[
+          { value: null, label: 'All listings' },
+          ...listings.map((listing) => ({ value: listing.id, label: listing.name })),
+        ]}
+        onChange={setLocationId}
+        highlightActive={false}
+        style={styles.dropdown}
+        testID="collections-listing"
+      />
+      <Text style={styles.label}>Date range</Text>
+      <FilterDropdown<RangePreset | 'custom'>
+        label="Date range"
+        showLabel={false}
+        value={preset}
+        options={PRESETS.map((item) => ({ value: item.key, label: item.label }))}
+        onChange={(next) => {
+          if (next) choosePreset(next);
+        }}
+        highlightActive={false}
+        style={styles.dropdown}
+        testID="collections-range"
+      />
       {preset === 'custom' ? (
-        <View style={styles.dates}>
-          <TextInput
+        <View>
+          <Text style={styles.label}>Start</Text>
+          <DateTimeField
+            mode="date"
             value={startDate}
-            onChangeText={setStartDate}
-            placeholder="Start YYYY-MM-DD"
-            autoCapitalize="none"
-            style={styles.input}
+            onChange={setStartDate}
+            placeholder="Start date"
+            style={styles.date}
             testID="collections-start"
           />
-          <TextInput
+          <Text style={styles.label}>End</Text>
+          <DateTimeField
+            mode="date"
             value={endDate}
-            onChangeText={setEndDate}
-            placeholder="End YYYY-MM-DD"
-            autoCapitalize="none"
-            style={styles.input}
+            onChange={setEndDate}
+            placeholder="End date"
+            style={styles.date}
             testID="collections-end"
           />
         </View>
       ) : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-        <Pressable
-          onPress={() => setLocationId(null)}
-          style={[styles.chip, locationId === null && styles.chipOn]}
-          testID="collections-listing-all"
-        >
-          <Text style={[styles.chipText, locationId === null && styles.chipTextOn]}>
-            All listings
-          </Text>
-        </Pressable>
-        {listings.map((listing) => {
-          const on = locationId === listing.id;
-          return (
-            <Pressable
-              key={listing.id}
-              onPress={() => setLocationId(listing.id)}
-              style={[styles.chip, on && styles.chipOn]}
-              testID={`collections-listing-${listing.id}`}
-            >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{listing.name}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
       {error ? (
         <Text style={styles.error} testID="collections-error">
           {error}
@@ -252,23 +230,14 @@ export default function CollectionsScreen() {
       {loading && !report ? <Text style={styles.meta}>Loading...</Text> : null}
       {report ? (
         <View>
-          <Text style={styles.totalLabel}>Collected</Text>
-          <Text style={styles.total} testID="collections-collected">
-            {peso(report.collected)}
-          </Text>
-          <Text style={styles.meta}>Payments minus refunds</Text>
-          <Text style={styles.section}>By method</Text>
-          {report.byMethod.map((method) => (
-            <View
-              key={method.method}
-              style={styles.row}
-              testID={`collections-method-${method.method}`}
-            >
-              <Text style={styles.rowLabel}>{method.label}</Text>
-              <Text style={styles.rowValue}>{peso(method.amount)}</Text>
-            </View>
-          ))}
-          <Total label="Extra fees" amount={report.extraFees} testID="collections-fees" />
+          <View style={styles.collected}>
+            <Text style={styles.totalLabel}>Collected</Text>
+            <Text style={styles.total} testID="collections-collected">
+              {peso(report.collected)}
+            </Text>
+            <Text style={styles.collectedMeta}>Payments minus refunds</Text>
+          </View>
+          <Total label="Payments" amount={report.payments} testID="collections-payments" />
           <Total label="Waived" amount={report.waived} testID="collections-waived" />
           <Total label="Refunded" amount={report.refunded} testID="collections-refunded" />
           <Total label="Still to collect" amount={report.openBalance} testID="collections-open" />
@@ -325,44 +294,42 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   content: { paddingBottom: theme.spacing.lg },
   centered: { alignItems: 'center', justifyContent: 'center', padding: theme.spacing.lg },
-  subtitle: {
-    ...theme.typography.body,
-    color: theme.colors.text.secondary,
-    marginHorizontal: theme.spacing.md,
-    marginTop: theme.spacing.md,
-  },
-  chipRow: { flexGrow: 0, paddingVertical: theme.spacing.sm },
-  chip: {
-    marginLeft: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  chipOn: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-  chipText: { ...theme.typography.bodySmall, color: theme.colors.text.primary },
-  chipTextOn: { color: theme.colors.text.inverse, fontWeight: '600' },
-  dates: { paddingHorizontal: theme.spacing.md, gap: theme.spacing.sm },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-    ...theme.typography.body,
-    color: theme.colors.text.primary,
-  },
-  totalLabel: {
+  label: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,
     marginHorizontal: theme.spacing.md,
     marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+  },
+  dropdown: {
+    alignSelf: 'stretch',
+    maxWidth: '100%',
+    marginHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  date: { marginHorizontal: theme.spacing.md },
+  collected: {
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  totalLabel: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
   },
   total: {
-    ...theme.typography.h2,
+    ...theme.typography.h1,
     color: theme.colors.text.primary,
-    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+  },
+  collectedMeta: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
   },
   section: {
     ...theme.typography.h3,

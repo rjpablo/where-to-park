@@ -116,9 +116,7 @@ export default function ReportsScreen() {
             );
           })}
         </ScrollView>
-      ) : (
-        <Text style={styles.subtitle}>{selected.name}</Text>
-      )}
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Pressable
         style={styles.card}
@@ -137,11 +135,6 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   centered: { alignItems: 'center', justifyContent: 'center', padding: theme.spacing.lg },
-  subtitle: {
-    ...theme.typography.body,
-    color: theme.colors.text.secondary,
-    margin: theme.spacing.md,
-  },
   body: { ...theme.typography.bodySmall, color: theme.colors.text.secondary },
   error: { ...theme.typography.bodySmall, color: theme.colors.danger, margin: theme.spacing.md },
   chips: { flexGrow: 0, paddingVertical: theme.spacing.md },
@@ -159,7 +152,7 @@ const styles = StyleSheet.create({
   chipTextOn: { color: theme.colors.text.inverse, fontWeight: '600' },
   card: {
     marginHorizontal: theme.spacing.md,
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.md,
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,

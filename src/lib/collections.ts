@@ -36,6 +36,8 @@ export type MethodTotal = { method: CollectionMethod; label: string; amount: num
 
 export type CollectionsReport = {
   collected: number;
+  /** Money recorded as payments in the range. Refunds are separate. */
+  payments: number;
   byMethod: MethodTotal[];
   extraFees: number;
   waived: number;
@@ -151,6 +153,11 @@ export function parseCollectionsReport(data: unknown): CollectionsReport | { err
   const methods =
     d.by_method && typeof d.by_method === 'object' ? (d.by_method as Record<string, unknown>) : {};
   const rawLines = Array.isArray(d.lines) ? d.lines : [];
+  const byMethod = COLLECTION_METHODS.map((method) => ({
+    method,
+    label: METHOD_LABELS[method],
+    amount: num(methods[method]),
+  }));
   const lines: CollectionLine[] = [];
   for (const row of rawLines) {
     if (!row || typeof row !== 'object') continue;
@@ -171,11 +178,8 @@ export function parseCollectionsReport(data: unknown): CollectionsReport | { err
   }
   return {
     collected: num(d.collected),
-    byMethod: COLLECTION_METHODS.map((method) => ({
-      method,
-      label: METHOD_LABELS[method],
-      amount: num(methods[method]),
-    })),
+    payments: Math.round(byMethod.reduce((sum, method) => sum + method.amount, 0) * 100) / 100,
+    byMethod,
     extraFees: num(d.extra_fees),
     waived: num(d.waived),
     refunded: num(d.refunded),
