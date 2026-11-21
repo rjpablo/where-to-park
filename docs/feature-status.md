@@ -1,6 +1,6 @@
 # Feature status
 
-**As of 21 Nov 2026.** Planned features, and whether each one is in the app.
+**As of 22 Nov 2026.** Planned features, and whether each one is in the app.
 
 Add a row when a feature is planned. Status:
 
@@ -149,7 +149,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 
 | Status | Feature                                                                                                                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 🟡     | A link to https://where-to-park.expo.app opens the installed Android app on that page. Chrome can offer Open in the app. Google sign-in on the website stays in the browser. iOS claims the same host; the Apple file waits on the Apple Team ID |
+| 🟡     | A link to the public site (the first host in `web-host.json`, today https://where-to-park.expo.app) opens the installed Android app on that page. Chrome can offer Open in the app. Google sign-in on the website stays in the browser. iOS claims the same hosts; the Apple file waits on the Apple Team ID. Replacing the address is in eas-build.md |
 
 ## Admin
 

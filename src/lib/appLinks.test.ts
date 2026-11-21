@@ -3,17 +3,22 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import {
   ANDROID_PACKAGE,
   ANDROID_SHA256_CERT_FINGERPRINTS,
   APPLE_TEAM_ID,
   WEB_HOST,
+  WEB_HOSTS,
   androidAssetLinks,
   androidIntentFilters,
   appleAppSiteAssociation,
+  assertWebHosts,
   httpsLinkOpensApp,
   iosAssociatedDomains,
 } from './appLinks.ts';
+
+const require = createRequire(import.meta.url);
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -34,6 +39,27 @@ test('an https page on the site opens the app; Google website return does not', 
   assert.equal(httpsLinkOpensApp('not a url'), false);
 });
 
+test('the host list is web-host.json, and a second host is claimed with it', () => {
+  const listed = JSON.parse(readFileSync(join(root, 'web-host.json'), 'utf8')).hosts;
+  assert.deepEqual(WEB_HOSTS, listed);
+  assert.equal(WEB_HOST, listed[0]);
+  assert.equal(readFileSync(join(root, 'app.json'), 'utf8').includes(WEB_HOST), false);
+  const hosts = ['parking.example', WEB_HOST];
+  assert.equal(httpsLinkOpensApp('https://parking.example/location/abc', hosts), true);
+  assert.equal(httpsLinkOpensApp(`https://${WEB_HOST}/search`, hosts), true);
+  assert.deepEqual(iosAssociatedDomains(hosts), [
+    'applinks:parking.example',
+    `applinks:${WEB_HOST}`,
+  ]);
+  const data = androidIntentFilters(hosts)[0].data;
+  assert.equal(
+    data.filter((item) => item.host === 'parking.example').length,
+    data.filter((item) => item.host === WEB_HOST).length
+  );
+  assert.throws(() => assertWebHosts([]), /web-host.json/);
+  assert.throws(() => assertWebHosts(['https://parking.example']), /names only/);
+});
+
 test('the site file and the Android claim use the preview certificate', () => {
   const statement = androidAssetLinks()[0];
   assert.deepEqual(statement.relation, ['delegate_permission/common.handle_all_urls']);
@@ -47,11 +73,14 @@ test('the site file and the Android claim use the preview certificate', () => {
 });
 
 test('app config claims the site on Android and iOS', () => {
-  const app = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8')).expo;
-  assert.deepEqual(app.ios.associatedDomains, iosAssociatedDomains());
-  assert.deepEqual(app.android.intentFilters, androidIntentFilters());
-  assert.equal(app.android.package, ANDROID_PACKAGE);
-  assert.equal(app.ios.bundleIdentifier, ANDROID_PACKAGE);
+  const appJson = require('../../app.json');
+  const config = require('../../app.config.js')({ config: appJson.expo });
+  assert.deepEqual(config.ios.associatedDomains, iosAssociatedDomains());
+  assert.deepEqual(config.android.intentFilters, androidIntentFilters());
+  assert.equal(config.android.package, ANDROID_PACKAGE);
+  assert.equal(config.ios.bundleIdentifier, ANDROID_PACKAGE);
+  assert.equal(appJson.expo.ios.associatedDomains, undefined);
+  assert.equal(appJson.expo.android.intentFilters, undefined);
   const data = androidIntentFilters()[0].data;
   assert.equal(
     data.some((item) => 'pathPrefix' in item && item.pathPrefix === '/oauth-callback'),
