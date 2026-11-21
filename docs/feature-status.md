@@ -1,6 +1,6 @@
 # Feature status
 
-**As of 16 Nov 2026.** Planned features, and whether each one is in the app.
+**As of 21 Nov 2026.** Planned features, and whether each one is in the app.
 
 Add a row when a feature is planned. Status:
 
@@ -144,6 +144,12 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | Contact Us for guests and signed-in people: category, message, up to five images                             |
 | 🟡     | Phone sign-in. The screen can show it when `PHONE_SIGN_IN_ENABLED` is on. It is off                         |
 | 🔴     | Vehicle height, width, and length on a saved vehicle                                                         |
+
+## Links
+
+| Status | Feature                                                                                                                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🟡     | A link to https://where-to-park.expo.app opens the installed Android app on that page. Chrome can offer Open in the app. Google sign-in on the website stays in the browser. iOS claims the same host; the Apple file waits on the Apple Team ID |
 
 ## Admin
 

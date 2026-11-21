@@ -46,7 +46,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.thebadcompany.wheretopark"
+      "bundleIdentifier": "com.thebadcompany.wheretopark",
+      "associatedDomains": ["applinks:where-to-park.expo.app"]
     },
     "android": {
       "adaptiveIcon": {
@@ -57,6 +58,100 @@
       },
       "package": "com.thebadcompany.wheretopark",
       "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "path": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/search"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/location"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/auth"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/privacy"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/contact"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/profile"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/accounts"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/vehicles"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/shortcuts"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/notifications"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/sessions"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/reserve"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/chat"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/operator"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/staff"
+            },
+            {
+              "scheme": "https",
+              "host": "where-to-park.expo.app",
+              "pathPrefix": "/admin"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

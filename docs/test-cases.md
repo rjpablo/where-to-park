@@ -1,6 +1,6 @@
 # Test cases
 
-**As of 15 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
+**As of 21 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
 
 ```bash
 node --experimental-strip-types --test path/to/file.test.ts
@@ -32,6 +32,9 @@ Unit: `src/lib/backToExit.test.ts`
 **NAV-08.** Repeat NAV-07 with the sheet at Normal. **Expect:** the same press-again-to-close prompt. The sheet is not minimized first.
 
 **NAV-09.** From a listing opened on top of Find Parking, press hardware back. **Expect:** the app returns to Find Parking. The exit prompt does not appear.
+
+**NAV-10.** On a phone with the app installed, open https://where-to-park.expo.app, a search link, or a listing link from another app. **Expect:** the app opens on that page. Typing the address in Chrome can offer Open in the app. With no app installed, the page stays in the browser. Google sign-in that returns to the website's `/oauth-callback` stays in the browser.
+Unit: `src/lib/appLinks.test.ts`
 
 ## Finding parking
 

@@ -1,6 +1,6 @@
 # Implemented features and screens
 
-**As of 16 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
+**As of 21 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
 
 Where To Park is an Expo SDK 54 app (Android first, web for preview). Routes live in `app/`. The backend is Supabase: Postgres, Auth, Realtime, Storage, and RPCs. Money is Philippine pesos. Listing times and rate days use Asia/Manila. The product language is English.
 
@@ -17,6 +17,7 @@ A feature that depends on a database function only works after that migration ha
 - **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking, Collections report
 - **Messages:** inbox, chat, photos in chat, notifications, push
 - **Account:** email sign-in, Google sign-in, accounts on this device, profile, saved vehicles, shortcuts, privacy policy, contact us
+- **Links:** an https link to where-to-park.expo.app opens that page in the installed Android app
 - **Admin:** verification queue, moderation, contact messages, push switches, search radius limit
 - **Ads:** AdMob banners on Android (not on web, not for admins)
 
@@ -81,6 +82,10 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | System Settings        | `/admin/settings`        | System Settings        |
 
 Opening a screen from a link with no back history still shows Back. It goes to that screen's parent (`src/lib/backFallback.ts`) instead of leaving the app.
+
+## Links from the web
+
+`https://where-to-park.expo.app` and its pages (home, search, a listing, and the other screens) are Android App Links. Tapping one with the app installed opens that page in the app. Typing the address in Chrome can offer Open in the app. With no app installed, the page stays in the browser. The site serves `/.well-known/assetlinks.json` for `com.thebadcompany.wheretopark`, using the preview keystore certificate. A Play-installed build also needs Google Play's app-signing certificate in that file. Google sign-in that returns to `/oauth-callback` on the website stays in the browser. iOS is set to claim `applinks:where-to-park.expo.app`. The Apple association file is not published: it needs the Apple Team ID, and iOS is not released. `wheretopark://` links still open the app. None of the https behavior is live until the website is deployed and the phone installs a build that includes the claim.
 
 ## Finding parking
 
