@@ -86,7 +86,7 @@ Unit: `src/lib/distance.test.ts`
 **SEARCH-16.** Run a search, set Car, Hourly, Free parking and sort by price, then tap Share on the results sheet. **Expect:** Android opens the share sheet; the web opens the browser share sheet or shows 'Link copied'. The link is `https://where-to-park.expo.app/search?lat=…&lng=…&place=…&r=…&v=car&rate=hourly&free=1&full=0&sort=price`.
 Unit: `src/lib/searchLink.test.ts`
 
-**SEARCH-17.** Open that link in a browser, and on an Android phone with a build that includes the host list. **Expect:** the same place, distance, filters and sort, and the same results. A signed-in driver with a different default vehicle still gets the link's vehicle. On the web the address bar then keeps only lat, lng and place.
+**SEARCH-17.** Open that link in a browser, and on an Android phone with a build that includes the host list. **Expect:** the same place, distance, filters and sort, and the same results. A signed-in driver with a different default vehicle still gets the link's vehicle. On the web the address bar shows the same full link, and changing a filter (for example Free parking) updates it.
 Unit: `src/lib/searchLink.test.ts`
 
 **SEARCH-18.** Open `/search?lat=abc&lng=1`, `/search?v=spaceship&lat=14.55&lng=121.02`, and `wheretopark://search?lat=14.55&lng=121.02`. **Expect:** the first opens Find Parking as usual (device location); the second searches that point with the screen's own vehicle filter; the third opens the app on that search.

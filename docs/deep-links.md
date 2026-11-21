@@ -33,9 +33,11 @@ slower; the coordinates in the link make the search exact.
 The share always writes every filter, including `all` and `0`, so the receiver
 gets exactly the sender's search rather than their own defaults. The link's
 vehicle beats the receiver's default vehicle. The link's distance holds until the
-receiver taps Search this area. On the web, the filter params are removed from
-the address bar once applied (lat/lng/place stay), so a reload or a copied
-address bar does not bring back an old filter; use Share for the full link.
+receiver taps Search this area. On the web, the address bar is kept in step with
+the screen (centre, place, distance, filters, sort), so the address bar is the
+same link Share sends, and a reload keeps the search. (`router.setParams` with
+`undefined` does not remove a param in expo-router 6, so the params are kept
+current instead of removed.)
 
 `wheretopark://search?lat=…&lng=…` (the app scheme) is handled by the same
 route, as is `/?lat=…&lng=…` (the home route forwards every param to `/search`).

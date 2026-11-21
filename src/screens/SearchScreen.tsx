@@ -65,6 +65,7 @@ import {
   parseSearchLinkFilters,
   sameSearchCenter,
   searchLinkFiltersKey,
+  shareSearchParams,
   searchSeo,
   type SearchLinkQuery,
   searchCenterKey,
@@ -150,6 +151,7 @@ export function SearchScreen() {
   // A shared link set the vehicle filter, so the account's default vehicle does not replace it.
   const linkSetVehicle = useRef(false);
   const appliedLinkFilters = useRef<string | null>(null);
+  const publishedFilters = useRef<string | null>(null);
   const {
     results,
     loading,
@@ -438,6 +440,8 @@ export function SearchScreen() {
     });
     const key = searchLinkFiltersKey(linked);
     if (key === searchLinkFiltersKey({}) || appliedLinkFilters.current === key) return;
+    // Our own address-bar update (web), not a link.
+    if (publishedFilters.current === key) return;
     appliedLinkFilters.current = key;
     const store = useSearchStore.getState();
     const next: Partial<typeof store.filters> = {};
@@ -456,17 +460,6 @@ export function SearchScreen() {
     }
     if (Object.keys(next).length) setFilters(next);
     if (linked.sortBy && linked.sortBy !== store.sortBy) setSortBy(linked.sortBy);
-    if (Platform.OS === 'web') {
-      appliedLinkFilters.current = null;
-      router.setParams({
-        r: undefined,
-        v: undefined,
-        rate: undefined,
-        free: undefined,
-        full: undefined,
-        sort: undefined,
-      });
-    }
   }, [
     latParam,
     lngParam,
@@ -477,8 +470,24 @@ export function SearchScreen() {
     sortParam,
     setFilters,
     setSortBy,
-    router,
   ]);
+
+  // Web: the address bar carries the distance, filters and sort too, so it is
+  // the same link Share sends, and a reload keeps the search.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !location) return;
+    const params = shareSearchParams({ ...location, ...filters, sortBy });
+    const own = parseSearchLinkFilters(params);
+    publishedFilters.current = searchLinkFiltersKey(own);
+    router.setParams({
+      r: params.r,
+      v: params.v,
+      rate: params.rate,
+      free: params.free,
+      full: params.full,
+      sort: params.sort,
+    });
+  }, [location, filters, sortBy, router]);
 
   const searchThisArea = () => {
     if (!movedViewport) return;
