@@ -28,6 +28,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | Each result row has Navigate, using the maps app chosen on Profile                                                                                              |
 | 🟢     | Returning from Listing details keeps the camera, results, filters, sort, and sheet position                                                                    |
 | 🟢     | Android hardware back on Find Parking, with nothing to go back to: a maximized sheet minimizes. Minimized or Normal uses "Press back again to close the app"   |
+| 🟢     | 🟧 Bug fix: the map shows (the Philippines) while there is no location yet or location is denied; no search runs there |
 | 🟢     | 🟧 Share a search: Share on the results sheet sends a link with the place, distance, filters and sort. The link reruns that search on the website or in the Android app |
 | 🟢     | 🟧 Search page SEO on the web: title and description from the place, canonical, Open Graph and Twitter tags. Site-wide defaults in the served HTML; the place-based tags are set in the browser |
 | 🔴     | In-app turn-by-turn navigation                                                                                                                                   |

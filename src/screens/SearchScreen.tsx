@@ -121,6 +121,18 @@ const RECENTER_GAP = 16;
 const CENTRE_CURSOR = 28;
 /** How far the minimized sheet overlaps the map, so the edge does not show a gap. */
 const MAP_UNDER_SHEET = 8;
+/**
+ * Bug fix (map missing): the map shows the Philippines while there is no search
+ * centre yet (no link, device location pending, denied, or unavailable). It is
+ * only a view: no search runs there. The first real centre flies the map to it.
+ */
+const PLACEHOLDER_REGION: MapRegion = {
+  latitude: 12.8797,
+  longitude: 121.774,
+  latitudeDelta: 15,
+  longitudeDelta: 15,
+};
+const PLACEHOLDER_ZOOM = 4.5;
 export function SearchScreen() {
   const router = useRouter();
   const routeParams = useLocalSearchParams<SearchLinkQuery>();
@@ -257,15 +269,23 @@ export function SearchScreen() {
         }
       : null
   );
-  if (mapCenter && !regionRef.current) {
+  // From the first search centre only. A pan or a place pick on the placeholder
+  // map must not snap the camera to it.
+  if (location && !regionRef.current) {
+    // The placeholder map is replaced by one opening here (see `key` on <Map>), so
+    // its viewport must not size this search. The new map's first viewport then
+    // searches again with the real one, as when the screen opens from a link.
+    latestViewport.current = null;
     regionRef.current = {
-      latitude: mapCenter.latitude,
-      longitude: mapCenter.longitude,
+      latitude: location.lat,
+      longitude: location.lng,
       latitudeDelta: 0.05,
       longitudeDelta: 0.05,
     };
   }
   const region = regionRef.current;
+  const mapRegion = region ?? PLACEHOLDER_REGION;
+  const mapZoom = region ? SEARCH_START_ZOOM : PLACEHOLDER_ZOOM;
 
   const handleViewportChange = useCallback((viewport: MapViewport) => {
     const user = viewport.isUserInteraction;
@@ -867,24 +887,25 @@ export function SearchScreen() {
           </Head>
         ) : null}
         {/* Map with location pins */}
-        {region ? (
-          <Map
-            ref={mapRef}
-            region={region}
-            initialZoom={SEARCH_START_ZOOM}
-            pins={pins}
-            onPinPress={handlePinPress}
-            style={StyleSheet.flatten([
-              styles.map,
-              { bottom: Math.max(0, peekPx - MAP_UNDER_SHEET) },
-            ])}
-            showsUserLocation={false}
-            userLocation={userLocation}
-            clusterPins
-            overlayInsets={overlayInsets}
-            onViewportChange={handleViewportChange}
-          />
-        ) : null}
+        <Map
+          // A new map at the first search centre, not a flight from the placeholder:
+          // a flight can be cut short by the sheet's camera nudge.
+          key={region ? 'search' : 'placeholder'}
+          ref={mapRef}
+          region={mapRegion}
+          initialZoom={mapZoom}
+          pins={pins}
+          onPinPress={handlePinPress}
+          style={StyleSheet.flatten([
+            styles.map,
+            { bottom: Math.max(0, peekPx - MAP_UNDER_SHEET) },
+          ])}
+          showsUserLocation={false}
+          userLocation={userLocation}
+          clusterPins
+          overlayInsets={overlayInsets}
+          onViewportChange={handleViewportChange}
+        />
 
         <View
           pointerEvents="none"

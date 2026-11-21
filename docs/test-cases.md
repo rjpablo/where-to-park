@@ -81,6 +81,8 @@ Unit: `src/lib/sheetLayout.test.ts`
 **SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** a short toast on the map says the search was limited to that distance, and its close button dismisses it. The map zooms in so its farthest corner is the limit. The slider and the search stop at the limit. A map that already fits does not show the toast or zoom in.
 Unit: `src/lib/distance.test.ts`
 
+**SEARCH-20.** Open Find Parking with location denied, with location off, and with location allowed but before the first fix (web and Android). **Expect:** the map is always drawn: a view of the Philippines while there is no location, with no search there. Denied shows the short location message. When the fix arrives the map opens on it at the usual zoom and searches (distance about 3 km on a phone screen). Panning the Philippines view offers Search this area.
+
 **SEARCH-16.** Run a search, set Car, Hourly, Free parking and sort by price, then tap Share on the results sheet. **Expect:** Android opens the share sheet; the web opens the browser share sheet or shows 'Link copied'. The link is `https://where-to-park.expo.app/search?lat=…&lng=…&place=…&r=…&v=car&rate=hourly&free=1&full=0&sort=price`.
 Unit: `src/lib/searchLink.test.ts`
 
