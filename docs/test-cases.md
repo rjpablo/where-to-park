@@ -81,6 +81,18 @@ Unit: `src/lib/sheetLayout.test.ts`
 **SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** a short toast on the map says the search was limited to that distance, and its close button dismisses it. The map zooms in so its farthest corner is the limit. The slider and the search stop at the limit. A map that already fits does not show the toast or zoom in.
 Unit: `src/lib/distance.test.ts`
 
+**SEARCH-16.** Run a search, set Car, Hourly, Free parking and sort by price, then tap Share on the results sheet. **Expect:** Android opens the share sheet; the web opens the browser share sheet or shows 'Link copied'. The link is `https://where-to-park.expo.app/search?lat=…&lng=…&place=…&r=…&v=car&rate=hourly&free=1&full=0&sort=price`.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-17.** Open that link in a browser, and on an Android phone with a build that includes the host list. **Expect:** the same place, distance, filters and sort, and the same results. A signed-in driver with a different default vehicle still gets the link's vehicle. On the web the address bar then keeps only lat, lng and place.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-18.** Open `/search?lat=abc&lng=1`, `/search?v=spaceship&lat=14.55&lng=121.02`, and `wheretopark://search?lat=14.55&lng=121.02`. **Expect:** the first opens Find Parking as usual (device location); the second searches that point with the screen's own vehicle filter; the third opens the app on that search.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-19.** On the web, open a search link with a place and view the page source and the live tags. **Expect:** the served HTML has the site-wide title, description, Open Graph and Twitter tags. Once loaded, the title is 'Parking near <place> | Where To Park', the description names the place, and canonical, og:* and twitter:* tags match, with no duplicate description tag.
+Unit: `src/lib/searchLink.test.ts`
+
 ## Listing details
 
 **LISTING-01.** Open a published listing as a guest. **Expect:** Overview, Reviews, and Photos. Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated.
