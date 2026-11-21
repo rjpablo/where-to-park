@@ -1,6 +1,6 @@
 # Implemented features and screens
 
-**As of 15 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
+**As of 22 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
 
 Where To Park is an Expo SDK 54 app (Android first, web for preview). Routes live in `app/`. The backend is Supabase: Postgres, Auth, Realtime, Storage, and RPCs. Money is Philippine pesos. Listing times and rate days use Asia/Manila. The product language is English.
 
@@ -14,9 +14,10 @@ A feature that depends on a database function only works after that migration ha
 - **Pricing:** hourly, daily, flat then hourly, monthly, default rate, days and dates, overnight, free parking, price breakdown
 - **Sessions:** walk-in check-in, payments, fees, custom fees, refunds, waive balance, end session
 - **Availability:** areas, spot count, Full switch, reserved and unavailable, sessions tab, reservations tab
-- **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking
+- **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking, Collections report
 - **Messages:** inbox, chat, photos in chat, notifications, push
 - **Account:** email sign-in, Google sign-in, accounts on this device, profile, saved vehicles, shortcuts, privacy policy, contact us
+- **Links:** an https link to the public site opens that page in the installed Android app. The host list is `web-host.json`
 - **Admin:** verification queue, moderation, contact messages, push switches, search radius limit
 - **Ads:** AdMob banners on Android (not on web, not for admins)
 
@@ -32,7 +33,7 @@ A feature that depends on a database function only works after that migration ha
 
 Operator membership roles are `owner`, `manager`, and `staff`. Admin is a profile flag, not a membership.
 
-The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
+The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. An owner or a manager also sees Reports. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
 
 ## Screen index
 
@@ -63,6 +64,8 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | New rate / Edit rate   | `/operator/rate-edit`    | Rate                   |
 | Fee Presets            | `/operator/fees`         | Fee Presets            |
 | Staff                  | `/operator/staff`        | Staff                  |
+| Reports                | `/operator/reports`      | Reports                |
+| Collections            | `/operator/reports/collections` | Collections     |
 | Messages (inbox)       | `/operator/inbox`        | Messages               |
 | Availability           | `/operator/availability` | Availability           |
 | Available slots editor | `/operator/slots-editor` | Available slots editor |
@@ -79,6 +82,10 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | System Settings        | `/admin/settings`        | System Settings        |
 
 Opening a screen from a link with no back history still shows Back. It goes to that screen's parent (`src/lib/backFallback.ts`) instead of leaving the app.
+
+## Links from the web
+
+The public site is the first host in `web-host.json` (today `where-to-park.expo.app`). Its pages (home, search, a listing, and the other screens) are Android App Links. Tapping one with an app build that includes that host opens that page in the app. Typing the address in Chrome can offer Open in the app. With no app installed, the page stays in the browser. The site serves `/.well-known/assetlinks.json` for `com.thebadcompany.wheretopark`, using the preview keystore certificate. A Play-installed build also needs Google Play's app-signing certificate in that file. Google sign-in that returns to `/oauth-callback` on the website stays in the browser. iOS claims the same hosts. The Apple association file is not published: it needs the Apple Team ID, and iOS is not released. `wheretopark://` links still open the app. Replacing the address is in [eas-build.md](eas-build.md). The current website already serves the association file. An already-installed app opens https links only after a build that includes the host list.
 
 ## Finding parking
 
@@ -174,6 +181,10 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 **Fee Presets** (`/operator/fees`) are named extra charges (for example a lost ticket) that staff can apply to a session.
 
 **Staff** (`/operator/staff`) invites by email or phone. The screen never says whether that account already exists. An existing account is not added immediately. They get a notification with Accept and Decline, and appear in Members only after Accept. Resend waits three minutes. An invite can assign the person to specific listings.
+
+**Reports** (`/operator/reports`) is for an owner or a manager. Staff do not see it. When the account runs more than one operator, the screen asks which one. The only report is Collections.
+
+**Collections** (`/operator/reports/collections`) shows what that operator collected. A listing dropdown starts on All listings. Under it, a date-range dropdown starts on Today, in Philippine time, and can be Yesterday, Last 7 days, This month, or Custom. Custom opens the system date picker for the start and the end. Payments is one total for the range, not split by method. Collected is payments minus refunds. Extra fees are not shown. Waivers and refunds in the range are listed separately. Still to collect is the unpaid balance of sessions that are still open, as of now, and it does not follow the dates. Each payment and refund in the range is listed underneath, newest first, up to 200 lines, and a payment line names its method.
 
 ## Chat and notifications
 

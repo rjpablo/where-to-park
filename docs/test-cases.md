@@ -1,6 +1,6 @@
 # Test cases
 
-**As of 15 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
+**As of 22 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
 
 ```bash
 node --experimental-strip-types --test path/to/file.test.ts
@@ -15,7 +15,8 @@ Unit: `src/lib/sidebar.test.ts`
 
 **NAV-02.** Open the sidebar while signed in, with no listing and no staff membership. **Expect:** My profile, Messages, Notifications, Sessions, and Saved vehicles, plus List your parking space. My listings is absent.
 
-**NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space.
+**NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space. An owner or a manager also sees Reports under My listings. Staff do not.
+Unit: `src/lib/sidebar.test.ts`
 
 **NAV-04.** Open the sidebar as an admin. **Expect:** Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. A pending count shows on the row that has one, and the red attention dot follows `get_sidebar_counts`. A trigger turned off in the database does not light the dot.
 Unit: `src/lib/sidebar.test.ts`
@@ -31,6 +32,9 @@ Unit: `src/lib/backToExit.test.ts`
 **NAV-08.** Repeat NAV-07 with the sheet at Normal. **Expect:** the same press-again-to-close prompt. The sheet is not minimized first.
 
 **NAV-09.** From a listing opened on top of Find Parking, press hardware back. **Expect:** the app returns to Find Parking. The exit prompt does not appear.
+
+**NAV-10.** On a phone with a build that includes the host list, open the public site (the first host in `web-host.json`), a search link, or a listing link from another app. **Expect:** the app opens on that page. Typing the address in Chrome can offer Open in the app. With no app installed, the page stays in the browser. Google sign-in that returns to the website's `/oauth-callback` stays in the browser. A second host in `web-host.json` opens the app the same way.
+Unit: `src/lib/appLinks.test.ts`
 
 ## Finding parking
 
@@ -224,6 +228,9 @@ Unit: `src/lib/rateForm.test.ts`
 
 **MANAGE-12.** Invite staff by an email that has an account, and by one that does not. **Expect:** the screen does not say whether the account exists. The person is not added immediately. They get a notification with Accept and Decline and appear in Members only after Accept. Resend waits three minutes. An invite can be limited to specific listings.
 Unit: `src/lib/staffInvite.test.ts`
+
+**MANAGE-13.** As an owner or manager, open Reports and then Collections. **Expect:** the listing dropdown starts on All listings. The date-range dropdown under it starts on Today, in Philippine time. Custom opens the system date picker for the start and the end, not a text field. Payments is one total, not split by method. Collected is payments minus refunds. Extra fees are not shown. Waivers and refunds follow the dates. Still to collect is the open balance now, and the note says it does not follow the dates. A payment line shows the time, listing, plate, method, amount, and who recorded it. Staff who are not an owner or manager do not see Reports.
+Unit: `src/lib/collections.test.ts`, `src/lib/sidebar.test.ts`
 
 ## Chat and notifications
 

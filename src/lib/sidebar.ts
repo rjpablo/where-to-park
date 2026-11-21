@@ -52,6 +52,7 @@ export type SidebarItemKey =
   | 'notifications'
   | 'listings'
   | 'list_space'
+  | 'reports'
   | 'sessions'
   | 'vehicles'
   | 'verify'
@@ -79,6 +80,8 @@ export type SidebarUser = {
   isAdmin: boolean;
   /** Operator account, staff/owner membership, or admin. */
   hasWorkspace: boolean;
+  /** Owner or manager. Staff-only accounts do not see Reports. */
+  canReport?: boolean;
 } | null;
 
 export function formatCount(n: number): string {
@@ -139,6 +142,9 @@ export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): Sid
     );
   } else {
     items.push(item('list_space', 'List your parking space', undefined, counts));
+  }
+  if (user.canReport) {
+    items.push(item('reports', 'Reports', '/operator/reports', counts));
   }
   items.push(item('sessions', 'Sessions', '/sessions', counts));
   items.push(item('vehicles', 'Saved vehicles', '/vehicles', counts, 'vehicles'));

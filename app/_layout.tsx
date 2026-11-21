@@ -99,6 +99,8 @@ export default function RootLayout() {
           <Stack.Screen name="sessions/index" options={{ title: 'Sessions' }} />
           <Stack.Screen name="sessions/[id]" options={{ title: 'Session' }} />
           <Stack.Screen name="operator/listings" options={{ title: 'My listings' }} />
+          <Stack.Screen name="operator/reports/index" options={{ title: 'Reports' }} />
+          <Stack.Screen name="operator/reports/collections" options={{ title: 'Collections' }} />
           <Stack.Screen name="operator/hub/[id]" options={{ title: 'Listing' }} />
           <Stack.Screen name="operator/onboarding" options={{ title: 'List Your Space' }} />
           <Stack.Screen name="operator/edit/[id]" options={{ title: 'Edit listing' }} />
