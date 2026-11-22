@@ -48,6 +48,10 @@ test('edit keeps hidden fields (area, max per day, active, default)', () => {
   // the default is never area-limited (0047); a normal rate keeps its area
   assert.equal(p.p_area_id, null);
   assert.equal(rateUpsertPayload('L', v, { ...rate, is_default: false }).p_area_id, 'a1');
+  // PAD-6: a new rate gets the area it was added to; an edit keeps the rate's own area.
+  assert.equal(rateUpsertPayload('L', v, undefined, 'a2').p_area_id, 'a2');
+  assert.equal(rateUpsertPayload('L', v, { ...rate, is_default: false }, 'a2').p_area_id, 'a1');
+  assert.equal(rateUpsertPayload('L', v, rate, 'a2').p_area_id, null);
   assert.equal(p.p_max_per_day, '500.00');
   assert.equal(p.p_is_default, true);
   assert.equal(p.p_hourly_amount, 60);

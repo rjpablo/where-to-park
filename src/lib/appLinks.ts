@@ -34,11 +34,13 @@ export const ANDROID_PACKAGE = 'com.thebadcompany.wheretopark';
 export const IOS_BUNDLE_ID = 'com.thebadcompany.wheretopark';
 
 /**
- * SHA-256 of the preview keystore (docs/eas-build.md). A Play-installed build
- * also needs the Play app-signing certificate in this list.
+ * SHA-256 certificates allowed to open the https links:
+ * 1. the EAS keystore (upload key; signs EAS APKs, docs/eas-build.md);
+ * 2. Google Play App Signing key (Classical), which re-signs Play installs.
  */
 export const ANDROID_SHA256_CERT_FINGERPRINTS = [
   '49:3E:FE:0F:CD:7C:72:3A:F4:D8:B9:B2:00:DC:48:1B:E0:CB:87:3A:63:85:EE:28:C4:77:E8:EC:42:45:B2:25',
+  '66:71:4A:EB:D0:C4:59:5F:F8:05:80:E2:0D:A8:20:37:50:BC:AD:19:56:7C:33:B6:4E:C9:75:33:C1:62:16:A7',
 ];
 
 /** Null until an Apple Developer Team ID exists. iOS is not released. */

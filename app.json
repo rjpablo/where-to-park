@@ -3,7 +3,7 @@
     "name": "Where To Park",
     "slug": "where-to-park",
     "owner": "the-bad-company",
-    "version": "1.0.18",
+    "version": "1.0.19",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -65,7 +65,7 @@
         "VIBRATE",
         "com.google.android.gms.permission.AD_ID"
       ],
-      "versionCode": 19
+      "versionCode": 20
     },
     "web": {
       "favicon": "./assets/favicon.png"

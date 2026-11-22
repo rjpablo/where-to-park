@@ -50,6 +50,7 @@ import {
   SEARCH_START_ZOOM,
   centerToCornerMeters,
   distanceAfterSearch,
+  fitDistanceToMax,
   searchCapKm,
   searchLimitMessage,
   sliderMaxKm,
@@ -59,11 +60,15 @@ import { showToast } from '../stores/toastStore';
 import { getGeocoder, type PlaceSuggestion } from '../lib/geocoding';
 import { firstParam } from '../lib/params';
 import {
+  buildSearchShareUrl,
   parseSearchLink,
+  parseSearchLinkFilters,
   sameSearchCenter,
+  searchLinkFiltersKey,
+  shareSearchParams,
+  searchSeo,
+  type SearchLinkQuery,
   searchCenterKey,
-  searchDocumentDescription,
-  searchDocumentTitle,
   searchLinkParams,
   type SearchCenter,
 } from '../lib/searchLink';
@@ -88,6 +93,11 @@ import { AdBanner } from '../components/AdBanner';
 import { listingAvailability, listingPinLabel, visibleResults } from '../lib/areas';
 import { useAvailabilityChanges } from '../hooks/useAvailabilityChanges';
 import { changeAffectsSearch, LIVE_REFRESH_DEBOUNCE_MS } from '../lib/liveAvailability';
+import { shareLink } from '../utils/shareLink';
+import webHost from '../../web-host.json';
+
+/** The public site: shared links and the canonical address use it. */
+const SITE_ORIGIN = `https://${webHost.hosts[0]}`;
 
 // Results sheet, three modes (snap points, drag the handle between them):
 // - Minimized: fits its top part (title, summary, one row of filters, distance slider);
@@ -112,19 +122,36 @@ const RECENTER_GAP = 16;
 const CENTRE_CURSOR = 28;
 /** How far the minimized sheet overlaps the map, so the edge does not show a gap. */
 const MAP_UNDER_SHEET = 8;
+/**
+ * Bug fix (map missing): the map shows the Philippines while there is no search
+ * centre yet (no link, device location pending, denied, or unavailable). It is
+ * only a view: no search runs there. The first real centre flies the map to it.
+ */
+const PLACEHOLDER_REGION: MapRegion = {
+  latitude: 12.8797,
+  longitude: 121.774,
+  latitudeDelta: 15,
+  longitudeDelta: 15,
+};
+const PLACEHOLDER_ZOOM = 4.5;
 export function SearchScreen() {
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{
-    lat?: string | string[];
-    lng?: string | string[];
-    place?: string | string[];
-  }>();
+  const routeParams = useLocalSearchParams<SearchLinkQuery>();
   // First paint only: a link already in the URL, so the map and the first search
   // start there. With no link, the first search waits for the device location.
   const openingLink = useRef(parseSearchLink(routeParams)).current;
   const openingCenter: SearchCenter | null = openingLink
     ? { lat: openingLink.lat, lng: openingLink.lng }
     : null;
+  // A shared link's radius: new searches use it (not the visible-map max) until the
+  // driver runs a search of their own. Only with the link's coordinates.
+  const linkRadiusKm = useRef<number | null>(
+    openingLink ? (parseSearchLinkFilters(routeParams).distanceKm ?? null) : null
+  );
+  // A shared link set the vehicle filter, so the account's default vehicle does not replace it.
+  const linkSetVehicle = useRef(false);
+  const appliedLinkFilters = useRef<string | null>(null);
+  const publishedFilters = useRef<string | null>(null);
   const {
     results,
     loading,
@@ -244,15 +271,23 @@ export function SearchScreen() {
         }
       : null
   );
-  if (mapCenter && !regionRef.current) {
+  // From the first search centre only. A pan or a place pick on the placeholder
+  // map must not snap the camera to it.
+  if (location && !regionRef.current) {
+    // The placeholder map is replaced by one opening here (see `key` on <Map>), so
+    // its viewport must not size this search. The new map's first viewport then
+    // searches again with the real one, as when the screen opens from a link.
+    latestViewport.current = null;
     regionRef.current = {
-      latitude: mapCenter.latitude,
-      longitude: mapCenter.longitude,
+      latitude: location.lat,
+      longitude: location.lng,
       latitudeDelta: 0.05,
       longitudeDelta: 0.05,
     };
   }
   const region = regionRef.current;
+  const mapRegion = region ?? PLACEHOLDER_REGION;
+  const mapZoom = region ? SEARCH_START_ZOOM : PLACEHOLDER_ZOOM;
 
   const handleViewportChange = useCallback((viewport: MapViewport) => {
     const user = viewport.isUserInteraction;
@@ -344,6 +379,12 @@ export function SearchScreen() {
   const latParam = firstParam(routeParams.lat);
   const lngParam = firstParam(routeParams.lng);
   const placeParam = firstParam(routeParams.place);
+  const radiusParam = firstParam(routeParams.r);
+  const vehicleParam = firstParam(routeParams.v);
+  const rateParam = firstParam(routeParams.rate);
+  const freeParam = firstParam(routeParams.free);
+  const fullParam = firstParam(routeParams.full);
+  const sortParam = firstParam(routeParams.sort);
   // A URL with coordinates (including one that arrives while this screen is open)
   // becomes the search. Our own address update is ignored.
   useEffect(() => {
@@ -360,6 +401,7 @@ export function SearchScreen() {
       return;
     }
     if (!same) {
+      linkRadiusKm.current = parseSearchLinkFilters({ r: radiusParam }).distanceKm ?? null;
       localPublish.current = null;
       pickedName.current = null;
       locationRef.current = center;
@@ -382,7 +424,70 @@ export function SearchScreen() {
     if (!linked.place && reversedFor.current !== key) {
       void publishSearchLink(center, null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latParam, lngParam, placeParam, publishSearchLink]);
+
+  // Filters and sort from a shared link (only with valid coordinates). Bad values are
+  // ignored. On the web they then leave the address bar, which keeps lat/lng/place.
+  useEffect(() => {
+    if (!parseSearchLink({ lat: latParam, lng: lngParam })) return;
+    const linked = parseSearchLinkFilters({
+      v: vehicleParam,
+      rate: rateParam,
+      free: freeParam,
+      full: fullParam,
+      sort: sortParam,
+    });
+    const key = searchLinkFiltersKey(linked);
+    if (key === searchLinkFiltersKey({}) || appliedLinkFilters.current === key) return;
+    // Our own address-bar update (web), not a link.
+    if (publishedFilters.current === key) return;
+    appliedLinkFilters.current = key;
+    const store = useSearchStore.getState();
+    const next: Partial<typeof store.filters> = {};
+    if (linked.vehicleType !== undefined) {
+      linkSetVehicle.current = true;
+      if (linked.vehicleType !== store.filters.vehicleType) next.vehicleType = linked.vehicleType;
+    }
+    if (linked.rateType !== undefined && linked.rateType !== store.filters.rateType) {
+      next.rateType = linked.rateType;
+    }
+    if (linked.freeOnly !== undefined && linked.freeOnly !== store.filters.freeOnly) {
+      next.freeOnly = linked.freeOnly;
+    }
+    if (linked.showFull !== undefined && linked.showFull !== store.filters.showFull) {
+      next.showFull = linked.showFull;
+    }
+    if (Object.keys(next).length) setFilters(next);
+    if (linked.sortBy && linked.sortBy !== store.sortBy) setSortBy(linked.sortBy);
+  }, [
+    latParam,
+    lngParam,
+    vehicleParam,
+    rateParam,
+    freeParam,
+    fullParam,
+    sortParam,
+    setFilters,
+    setSortBy,
+  ]);
+
+  // Web: the address bar carries the distance, filters and sort too, so it is
+  // the same link Share sends, and a reload keeps the search.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !location) return;
+    const params = shareSearchParams({ ...location, ...filters, sortBy });
+    const own = parseSearchLinkFilters(params);
+    publishedFilters.current = searchLinkFiltersKey(own);
+    router.setParams({
+      r: params.r,
+      v: params.v,
+      rate: params.rate,
+      free: params.free,
+      full: params.full,
+      sort: params.sort,
+    });
+  }, [location, filters, sortBy, router]);
 
   const searchThisArea = () => {
     if (!movedViewport) return;
@@ -394,6 +499,8 @@ export function SearchScreen() {
     latestViewport.current = view;
     // The cursor sits on the map centre, so that centre is the search point.
     const next: SearchCenter = { lat: view.center.latitude, lng: view.center.longitude };
+    // The driver's own search: back to the visible-map distance.
+    linkRadiusKm.current = null;
     locationRef.current = next;
     // The search effect recomputes the slider max for this centre and viewport.
     setLocation(next);
@@ -491,7 +598,8 @@ export function SearchScreen() {
           .maybeSingle();
         type = vehicle?.vehicle_type ?? null;
       }
-      if (!cancelled) setFilters({ vehicleType: defaultVehicleFilter(!!authUserId, type) });
+      if (cancelled || linkSetVehicle.current) return;
+      setFilters({ vehicleType: defaultVehicleFilter(!!authUserId, type) });
     })();
     return () => {
       cancelled = true;
@@ -558,7 +666,10 @@ export function SearchScreen() {
       limitToCap.current = limited != null;
       if (limited) showToast(limited, 'info', 'map');
     }
-    const next = distanceAfterSearch(isNewSearch, filters.distanceKm, maxKm);
+    const next =
+      isNewSearch && linkRadiusKm.current != null
+        ? fitDistanceToMax(linkRadiusKm.current, maxKm)
+        : distanceAfterSearch(isNewSearch, filters.distanceKm, maxKm);
     if (next !== filters.distanceKm) {
       setFilters({ distanceKm: next }); // re-runs this effect (same search) with the new value
       return;
@@ -748,34 +859,68 @@ export function SearchScreen() {
     [etas, navApp, router]
   );
 
+  const seo = searchSeo(SITE_ORIGIN, location ? { ...location, place: placeLabel } : null);
+  const shareSearch = () => {
+    if (!location) return;
+    const url = buildSearchShareUrl(SITE_ORIGIN, {
+      ...location,
+      place: placeLabel,
+      distanceKm: filters.distanceKm,
+      vehicleType: filters.vehicleType,
+      rateType: filters.rateType,
+      freeOnly: filters.freeOnly,
+      showFull: filters.showFull,
+      sortBy,
+    });
+    void shareLink(url, seo.title);
+  };
+
   return (
     <View style={styles.screen}>
       <View style={styles.container} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
         {Platform.OS === 'web' ? (
           <Head>
-            <title>{searchDocumentTitle(placeLabel)}</title>
-            <meta name="description" content={searchDocumentDescription(placeLabel)} />
+            <title>{seo.title}</title>
+            <meta name="description" content={seo.description} />
+            <link rel="canonical" href={seo.canonical} />
+            <meta property="og:type" content="website" />
+            <meta property="og:site_name" content="Where To Park" />
+            <meta property="og:title" content={seo.title} />
+            <meta property="og:description" content={seo.description} />
+            <meta property="og:url" content={seo.canonical} />
+            <meta property="og:image" content={seo.image} />
+            <meta property="og:image:secure_url" content={seo.image} />
+            <meta property="og:image:type" content="image/png" />
+            <meta property="og:image:width" content={String(seo.imageWidth)} />
+            <meta property="og:image:height" content={String(seo.imageHeight)} />
+            <meta property="og:image:alt" content={seo.imageAlt} />
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content={seo.title} />
+            <meta name="twitter:description" content={seo.description} />
+            <meta name="twitter:image" content={seo.image} />
+            <meta name="twitter:image:alt" content={seo.imageAlt} />
           </Head>
         ) : null}
         {/* Map with location pins */}
-        {region ? (
-          <Map
-            ref={mapRef}
-            region={region}
-            initialZoom={SEARCH_START_ZOOM}
-            pins={pins}
-            onPinPress={handlePinPress}
-            style={StyleSheet.flatten([
-              styles.map,
-              { bottom: Math.max(0, peekPx - MAP_UNDER_SHEET) },
-            ])}
-            showsUserLocation={false}
-            userLocation={userLocation}
-            clusterPins
-            overlayInsets={overlayInsets}
-            onViewportChange={handleViewportChange}
-          />
-        ) : null}
+        <Map
+          // A new map at the first search centre, not a flight from the placeholder:
+          // a flight can be cut short by the sheet's camera nudge.
+          key={region ? 'search' : 'placeholder'}
+          ref={mapRef}
+          region={mapRegion}
+          initialZoom={mapZoom}
+          pins={pins}
+          onPinPress={handlePinPress}
+          style={StyleSheet.flatten([
+            styles.map,
+            { bottom: Math.max(0, peekPx - MAP_UNDER_SHEET) },
+          ])}
+          showsUserLocation={false}
+          userLocation={userLocation}
+          clusterPins
+          overlayInsets={overlayInsets}
+          onViewportChange={handleViewportChange}
+        />
 
         <View
           pointerEvents="none"
@@ -887,6 +1032,23 @@ export function SearchScreen() {
                       {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(shown)}
                     </Text>
                   </View>
+                  {location ? (
+                    <TouchableOpacity
+                      style={styles.shareButton}
+                      onPress={shareSearch}
+                      accessibilityRole="button"
+                      accessibilityLabel="Share this search"
+                      hitSlop={8}
+                      testID="search-share"
+                    >
+                      <Ionicons
+                        name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'}
+                        size={20}
+                        color={theme.colors.primary}
+                      />
+                      <Text style={styles.shareText}>Share</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
 
                 {/* Vehicle, Rate, Free parking, then Show Full. The row scrolls sideways on
@@ -1141,6 +1303,21 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 1,
     marginRight: theme.spacing.sm,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  shareText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   sheetSummary: {
     ...theme.typography.bodySmall,

@@ -86,7 +86,9 @@ export function rateDatesError(v: Pick<RateFormValues, 'from' | 'to'>): string |
 export function rateUpsertPayload(
   locationId: string,
   v: RateFormValues,
-  existing?: any
+  existing?: any,
+  /** PAD-6: the area a new rate is added to (an existing rate keeps its own). */
+  areaId?: string | null
 ): Record<string, unknown> {
   const t = v.rateType;
   return {
@@ -102,7 +104,8 @@ export function rateUpsertPayload(
     p_first_amount: t === 'flat_then_hourly' ? Number(v.firstAmount) : null,
     p_succeeding_hourly_amount: t === 'flat_then_hourly' ? Number(v.succeeding) : null,
     p_max_per_day: existing?.max_per_day ?? null,
-    p_area_id: existing?.is_default ? null : (existing?.area_id ?? null),
+    // PAD-6: every rate except the default belongs to an area.
+    p_area_id: existing?.is_default ? null : (existing?.area_id ?? areaId ?? null),
     p_active: existing?.is_default ? true : (existing?.active ?? true),
     // The default rate applies every day with no dates (0042): never send them for it.
     p_effective_from: existing?.is_default ? null : fromDayStart(v.from),

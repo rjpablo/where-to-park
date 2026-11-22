@@ -28,6 +28,10 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | Each result row has Navigate, using the maps app chosen on Profile                                                                                              |
 | 🟢     | Returning from Listing details keeps the camera, results, filters, sort, and sheet position                                                                    |
 | 🟢     | Android hardware back on Find Parking, with nothing to go back to: a maximized sheet minimizes. Minimized or Normal uses "Press back again to close the app"   |
+| 🟢     | 🟧 Bug fix: the map shows (the Philippines) while there is no location yet or location is denied; no search runs there |
+| 🟢     | 🟧 Share a search: Share on the results sheet sends a link with the place, distance, filters and sort. The link reruns that search on the website or in the Android app |
+| 🟢     | 🟧 Search page SEO on the web: title and description from the place, canonical, Open Graph and Twitter tags. Site-wide defaults in the served HTML; the place-based tags are set in the browser |
+| 🟢     | 🟧 Crawling and link previews: robots.txt, sitemap.xml with popular places and listing areas (generated at deploy), branded share image, Search Console verification tag set (Nov 22) |
 | 🔴     | In-app turn-by-turn navigation                                                                                                                                   |
 
 ## Listing details
@@ -67,8 +71,12 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | ------ | -------------------------------------------------------------------------------------------------------------------------- |
 | 🟢     | One price function, `price_stay`, for session quotes, reservation quotes, walk-in quotes, and the Rates preview            |
 | 🟢     | Hourly, daily, flat then hourly, and monthly. Monthly prices a stay only when that rate is chosen                          |
-| 🟢     | A rate can be limited to days, dates, one vehicle type, and one area. Each billed hour uses the rate in effect then        |
-| 🟢     | One default rate, always applicable, not deletable until another rate is made the default                                  |
+| 🟢     | 🟧 Every rate except the default belongs to one area and inherits its vehicle types. Pricing uses the session's area rates, then the default |
+| 🟢     | 🟧 Rates screen: default on top, a section per area with Add rate; Price preview in a bottom sheet with an area choice |
+| 🟢     | 🟧 Location details group rates by area when a listing has 2+ areas; search counts any area's rates that take the vehicle |
+| 🟢     | 🟧 Deleting an area soft-deletes its rates; blocked while the area has open sessions or reservations |
+| 🟢     | A rate can be limited to days, dates, and one vehicle type (within its area). Each billed hour uses the rate in effect then |
+| 🟢     | One default rate, always applicable, never deletable. 🟧 Set as default is gone (PAD-6); edit the default itself          |
 | 🟢     | Deactivate, activate, archive, and restore. Deactivating a rate that is in use moves those hours onto the rates in effect  |
 | 🟢     | Overnight is a listing setting: one fee per night, including a window that crosses midnight. A monthly stay is unchanged   |
 | 🟢     | Free parking prices a stay at ₱0. The rate list stays available                                                            |
@@ -108,6 +116,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 
 | Status | Feature                                                                                                                    |
 | ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 🟢     | 🟧 After submitting List Your Space, the app opens the new listing's menu (not Location details); Back does not return to the form |
 | 🟢     | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking. Track capacity starts off. Off hides the field and keeps the number |
 | 🟢     | Guests see List your parking space. Choosing it asks them to sign in or create an account, then opens listing setup |
 | 🟢     | A new listing stays hidden until an admin publishes it                                                                     |
@@ -141,7 +150,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | Profile name, photo, and maps app. The photo is used in chat and reviews                                    |
 | 🟢     | Saved vehicles: type, plate, optional nickname, one default. Search starts on that type                      |
 | 🟢     | Shortcuts                                                                                                    |
-| 🟢     | Privacy Policy, public                                                                                       |
+| 🟢     | Privacy Policy, public. Discloses AdMob ads and the advertising ID                                           |
 | 🟢     | Contact Us for guests and signed-in people: category, message, up to five images                             |
 | 🟡     | Phone sign-in. The screen can show it when `PHONE_SIGN_IN_ENABLED` is on. It is off                         |
 | 🔴     | Vehicle height, width, and length on a saved vehicle                                                         |

@@ -84,6 +84,34 @@ Unit: `src/lib/sheetLayout.test.ts`
 **SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** a short toast on the map says the search was limited to that distance, and its close button dismisses it. The map zooms in so its farthest corner is the limit. The slider and the search stop at the limit. A map that already fits does not show the toast or zoom in.
 Unit: `src/lib/distance.test.ts`
 
+**SEARCH-20.** Open Find Parking with location denied, with location off, and with location allowed but before the first fix (web and Android). **Expect:** the map is always drawn: a view of the Philippines while there is no location, with no search there. Denied shows the short location message. When the fix arrives the map opens on it at the usual zoom and searches (distance about 3 km on a phone screen). Panning the Philippines view offers Search this area.
+
+**SEARCH-16.** Run a search, set Car, Hourly, Free parking and sort by price, then tap Share on the results sheet. **Expect:** Android opens the share sheet; the web opens the browser share sheet or shows 'Link copied'. The link is `https://where-to-park.expo.app/search?lat=…&lng=…&place=…&r=…&v=car&rate=hourly&free=1&full=0&sort=price`.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-17.** Open that link in a browser, and on an Android phone with a build that includes the host list. **Expect:** the same place, distance, filters and sort, and the same results. A signed-in driver with a different default vehicle still gets the link's vehicle. On the web the address bar shows the same full link, and changing a filter (for example Free parking) updates it.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-18.** Open `/search?lat=abc&lng=1`, `/search?v=spaceship&lat=14.55&lng=121.02`, and `wheretopark://search?lat=14.55&lng=121.02`. **Expect:** the first opens Find Parking as usual (device location); the second searches that point with the screen's own vehicle filter; the third opens the app on that search.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-19.** On the web, open a search link with a place and view the page source and the live tags. **Expect:** the served HTML has the site-wide title, description, Open Graph and Twitter tags. Once loaded, the title is 'Parking near <place> | Where To Park', the description names the place, and canonical, og:* and twitter:* tags match, with no duplicate description tag.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-21.** 🟧 Open `https://where-to-park.expo.app/robots.txt` and `/sitemap.xml`. **Expect:** both 200; robots.txt is `text/plain`, allows `/`, disallows the private screens (`/operator`, `/admin`, `/profile`, …) and ends with the `Sitemap:` line; sitemap.xml is valid XML with the home page, every place in `seo/popular-places.json`, and each city with published listings not already covered, each with a `<lastmod>` and `&amp;` between parameters.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-22.** 🟧 Open a sitemap link (for example Makati CBD) in a browser and inspect `<link rel="canonical">`. **Expect:** exactly the sitemap URL (same coordinates, place, no filters); the title is 'Parking near Makati CBD | Where To Park'.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-23.** 🟧 Paste a search link into the Facebook Sharing Debugger (or a Messenger chat). **Expect:** a large preview with the Where To Park image (1200×630: 'Find parking near you', the Google Play badge and a QR code), the site title and description. `/og-image.png` returns `image/png`. After an image change, press Scrape Again in the debugger to drop Facebook's cached preview.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-24.** 🟧 Set `googleSiteVerification` in `web-host.json` and redeploy. **Expect:** the served HTML has one `<meta name="google-site-verification" content="…">`; with it empty there is none. Search Console verifies the URL-prefix property.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-25.** 🟧 Scan the QR code on `/og-image.png` with a phone camera, from the full image and from a Facebook preview. **Expect:** it opens the Where To Park Play listing (`com.thebadcompany.wheretopark`); testers see the app, others see 'not found' until the app is public. `npm run og:image` reports OK at 1200, 600, 500, 400 and 360 px wide.
+
 ## Listing details
 
 **LISTING-01.** Open a published listing as a guest. **Expect:** Overview, Reviews, and Photos. Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated.
@@ -147,8 +175,18 @@ Unit: `src/lib/quotePreview.test.ts`
 **PRICE-03.** Limit a rate to weekdays, a date range, one vehicle type, and one area. Start a stay on a Manila day outside that limit. **Expect:** that rate is not used. The default rate still applies: every day, no dates, no vehicle, no area.
 Unit: `src/lib/rateForm.test.ts`, `src/lib/rates.test.ts`
 
-**PRICE-04.** Try to delete the default rate, then make another rate the default and delete the old one. **Expect:** the first delete is refused. The second succeeds. Deactivating a rate that is in use moves those hours onto the rates still in effect.
+**PRICE-04.** Try to delete the default rate. **Expect:** it is refused, and 🟧 no rate offers Set as default (PAD-6). Deactivating a rate that is in use moves those hours onto the rates still in effect.
 Unit: `src/lib/rates.test.ts`
+
+**PRICE-07.** 🟧 On a listing with Main (all vehicles) and a motorcycle-only area, open Rates. **Expect:** the default rate is on top, then a Main section and a motorcycle-area section, each with Add rate to <area>. Add a rate from the motorcycle section: the form says the area and only offers Motorcycle (or Any vehicle in this area). Open **Price preview**: a bottom sheet with Area chips; picking the motorcycle area limits the vehicle chips to Motorcycle and the quote uses that area's rate; Main quotes with the default. On a single-area listing the sections have no area name and the sheet has no Area choice.
+Unit: `src/lib/areaRates.test.ts`, `src/lib/rateForm.test.ts`
+
+**PRICE-08.** 🟧 Check in a walk-in in the motorcycle area, then one in Main. **Expect:** the rate list and Automatic use that area's rates plus the default; Main doesn't show the motorcycle area's rates. Move a reservation to the other area: an automatic rate is picked again for it.
+
+**PRICE-09.** 🟧 Open that listing's Location details, then a single-area listing. **Expect:** with 2+ areas the default comes first, then each area's rates under its name (areas with no rates are left out); a single-area listing looks as before. In search, a monthly rate only in the motorcycle area makes the listing match Monthly for Motorcycle or no vehicle, not for Car.
+Unit: `src/lib/areaRates.test.ts`
+
+**PRICE-10.** 🟧 Delete an area that has a reservation, then one with an open session, then one with neither but with rates. **Expect:** the first is refused ('This area has reservations…'), the second too ('This area has open sessions…'). The third is deleted, and its rates disappear from Rates (including Show archived) and are no longer used for pricing.
 
 **PRICE-05.** Turn overnight on and quote a stay that crosses the window, including one that crosses midnight, and one that sits entirely inside the window. **Expect:** overnight hours are left out of the hourly total. One overnight fee is added per night the stay covers. The line reads "Overnight: 1 night". A stay entirely inside the window is the overnight fee only. A monthly stay is unchanged.
 Unit: `src/lib/overnight.test.ts`
@@ -203,6 +241,9 @@ Unit: `src/lib/areas.test.ts`
 
 **MANAGE-02.** Complete List Your Space with a name, a pin, rules, a photo, areas, and the reservation-requests switch. Leave the address blank. **Expect:** the address field is on the pin step. The blank address is filled from the pinned place. The listing is submitted hidden, and it stays out of search until an admin publishes it.
 Unit: `src/lib/geocoding/address.test.ts`, `src/lib/pinRestore.test.ts`
+
+**MANAGE-02b.** 🟧 Submit List Your Space for a paid listing, then for a free listing; then make the photo upload fail and tap **Continue without photo**, and make a later step fail and tap **Open listing**. **Expect:** each time the new listing's menu opens (its name, Edit, Areas, Rates, Staff, Availability, View location details), not Location details. Back from the menu does not reopen the form.
+Unit: `src/lib/listingRoutes.test.ts`
 
 **MANAGE-03.** On the capacity step, leave both switches off, then turn Track capacity on, enter a number, and turn it off. Try 0 while it is on. Turn Free parking on, then turn it off. **Expect:** Track capacity starts off and the capacity field is hidden. The review still shows the capacity and says it is not counted. Turning tracking on shows the field. 0 is refused. A whole number of at least 1 is kept when tracking is turned off again. Free parking hides the rate fields and the cash-payment note, and a rate is not required. Turning free parking off turns tracking off again. Place search and ◎ work on the pin map. Dragging the map pans the map rather than the form. There is no restore-pin button, because a new listing has no saved pin.
 Unit: `src/lib/listingCapacity.test.ts`, `src/lib/pinRestore.test.ts`
@@ -277,6 +318,9 @@ Unit: `src/lib/privacyPolicy.test.ts`
 
 **ACCOUNT-09.** Send Contact Us as a guest, twice, with a category, a message, and up to five images. Leave the reply contact empty, then send one with an email or a phone. **Expect:** Issue, Feedback, and Suggestion are the categories. A message is required. More than five images is refused. A reply contact is optional and, when present, must be an email or a phone. The second guest submission is treated as the same sender.
 Unit: `src/lib/contact.test.ts`
+
+**ACCOUNT-10.** Open Privacy Policy and read the Advertising section. **Expect:** it says the Android app shows banner ads from Google AdMob and the web app shows none, lists the advertising ID, IP address, device and usage information and approximate location, explains how to reset the advertising ID or opt out in Android settings, and links to Google's partner-sites and ads policies. 'Last updated' reads November 15, 2026.
+Unit: `src/lib/privacyPolicy.test.ts`
 
 ## Admin
 
