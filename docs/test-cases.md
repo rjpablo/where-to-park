@@ -95,6 +95,18 @@ Unit: `src/lib/searchLink.test.ts`
 **SEARCH-19.** On the web, open a search link with a place and view the page source and the live tags. **Expect:** the served HTML has the site-wide title, description, Open Graph and Twitter tags. Once loaded, the title is 'Parking near <place> | Where To Park', the description names the place, and canonical, og:* and twitter:* tags match, with no duplicate description tag.
 Unit: `src/lib/searchLink.test.ts`
 
+**SEARCH-21.** 🟧 Open `https://where-to-park.expo.app/robots.txt` and `/sitemap.xml`. **Expect:** both 200; robots.txt is `text/plain`, allows `/`, disallows the private screens (`/operator`, `/admin`, `/profile`, …) and ends with the `Sitemap:` line; sitemap.xml is valid XML with the home page, every place in `seo/popular-places.json`, and each city with published listings not already covered, each with a `<lastmod>` and `&amp;` between parameters.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-22.** 🟧 Open a sitemap link (for example Makati CBD) in a browser and inspect `<link rel="canonical">`. **Expect:** exactly the sitemap URL (same coordinates, place, no filters); the title is 'Parking near Makati CBD | Where To Park'.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-23.** 🟧 Paste a search link into the Facebook Sharing Debugger (or a Messenger chat). **Expect:** a large preview with the Where To Park image (1200×630), the site title and description. `/og-image.png` returns `image/png`.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-24.** 🟧 Set `googleSiteVerification` in `web-host.json` and redeploy. **Expect:** the served HTML has one `<meta name="google-site-verification" content="…">`; with it empty there is none. Search Console verifies the URL-prefix property.
+Unit: `src/lib/sitemap.test.ts`
+
 ## Listing details
 
 **LISTING-01.** Open a published listing as a guest. **Expect:** Overview, Reviews, and Photos. Overview shows the name, a Verified or Unverified badge, the address, who listed it, how many people are viewing, free spots, and when availability was last updated.

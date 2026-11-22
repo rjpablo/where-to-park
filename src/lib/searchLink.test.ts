@@ -108,7 +108,10 @@ test('builds canonical, Open Graph image and title for a search', () => {
     seo.canonical,
     'https://where-to-park.expo.app/search?lat=14.55473&lng=121.02445&place=Makati%20City'
   );
-  assert.equal(seo.image, 'https://where-to-park.expo.app/icon-512.png');
+  assert.equal(seo.image, 'https://where-to-park.expo.app/og-image.png');
+  assert.equal(seo.imageWidth, 1200);
+  assert.equal(seo.imageHeight, 630);
+  assert.equal(seo.imageAlt, 'Where To Park: find parking near Makati City');
   assert.equal(searchCanonicalUrl(`${ORIGIN}/`, null), `${ORIGIN}/search`);
   assert.equal(searchSeo(ORIGIN, null).title, 'Find Parking Near You | Where To Park');
 });

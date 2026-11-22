@@ -208,8 +208,14 @@ export type SearchSeo = {
   title: string;
   description: string;
   canonical: string;
+  /** public/og-image.png, made by scripts/og/make-og-image.py. */
   image: string;
+  imageWidth: number;
+  imageHeight: number;
+  imageAlt: string;
 };
+
+export const OG_IMAGE = { path: '/og-image.png', width: 1200, height: 630 } as const;
 
 /** Title, description, canonical link and share image for the Find Parking page. */
 export function searchSeo(
@@ -221,6 +227,11 @@ export function searchSeo(
     title: searchDocumentTitle(place),
     description: searchDocumentDescription(place),
     canonical: searchCanonicalUrl(origin, link),
-    image: `${origin.replace(/\/+$/, '')}/icon-512.png`,
+    image: `${origin.replace(/\/+$/, '')}${OG_IMAGE.path}`,
+    imageWidth: OG_IMAGE.width,
+    imageHeight: OG_IMAGE.height,
+    imageAlt: place
+      ? `Where To Park: find parking near ${place}`
+      : 'Where To Park: find parking near you on a live map',
   };
 }

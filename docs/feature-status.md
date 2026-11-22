@@ -31,6 +31,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | 🟧 Bug fix: the map shows (the Philippines) while there is no location yet or location is denied; no search runs there |
 | 🟢     | 🟧 Share a search: Share on the results sheet sends a link with the place, distance, filters and sort. The link reruns that search on the website or in the Android app |
 | 🟢     | 🟧 Search page SEO on the web: title and description from the place, canonical, Open Graph and Twitter tags. Site-wide defaults in the served HTML; the place-based tags are set in the browser |
+| 🟢     | 🟧 Crawling and link previews: robots.txt, sitemap.xml with popular places and listing areas (generated at deploy), branded share image, Search Console tag from config (code not set yet) |
 | 🔴     | In-app turn-by-turn navigation                                                                                                                                   |
 
 ## Listing details

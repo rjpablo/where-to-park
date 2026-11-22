@@ -889,10 +889,16 @@ export function SearchScreen() {
             <meta property="og:description" content={seo.description} />
             <meta property="og:url" content={seo.canonical} />
             <meta property="og:image" content={seo.image} />
-            <meta name="twitter:card" content="summary" />
+            <meta property="og:image:secure_url" content={seo.image} />
+            <meta property="og:image:type" content="image/png" />
+            <meta property="og:image:width" content={String(seo.imageWidth)} />
+            <meta property="og:image:height" content={String(seo.imageHeight)} />
+            <meta property="og:image:alt" content={seo.imageAlt} />
+            <meta name="twitter:card" content="summary_large_image" />
             <meta name="twitter:title" content={seo.title} />
             <meta name="twitter:description" content={seo.description} />
             <meta name="twitter:image" content={seo.image} />
+            <meta name="twitter:image:alt" content={seo.imageAlt} />
           </Head>
         ) : null}
         {/* Map with location pins */}

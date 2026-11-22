@@ -73,6 +73,8 @@ Google's checker:
 
 ## Search page SEO
 
+robots.txt, sitemap.xml, the share image and Google Search Console are in [seo.md](seo.md). 🟧
+
 `app.json` has no `web.output`, so the site is a single-page app
 (`web.output: "single"`): EAS Hosting serves the same `index.html` for every
 path, and the per-search tags are set in the browser by `expo-router/head`:
