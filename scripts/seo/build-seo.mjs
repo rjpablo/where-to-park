@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildSitemapXml,
   distanceKm,
+  normalLabel,
   groupListingAreas,
   injectHeadTag,
   isoDate,
@@ -67,6 +68,9 @@ async function townCentre(label, near) {
   return null;
 }
 
+/** The search page's default distance (km) for a link without `r`. */
+const SEARCH_KM = 3;
+
 async function listingAreas() {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -86,7 +90,10 @@ async function listingAreas() {
   for (const area of areas) {
     await sleep(300);
     const centre = await townCentre(area.label, area).catch(() => null);
-    if (centre) Object.assign(area, centre);
+    // Use the town centre only when the page opened there (3 km default search
+    // distance) still shows every listing of the area; otherwise keep their centre.
+    const mine = points.filter((p) => normalLabel(p.city ?? '') === normalLabel(area.label));
+    if (centre && mine.every((p) => distanceKm(centre, p) <= SEARCH_KM)) Object.assign(area, centre);
   }
   return areas;
 }

@@ -59,7 +59,7 @@ export function isoDate(value: string | Date | null | undefined, fallback: strin
   return Number.isNaN(d.getTime()) ? fallback : d.toISOString().slice(0, 10);
 }
 
-function normalLabel(label: string): string {
+export function normalLabel(label: string): string {
   return label
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

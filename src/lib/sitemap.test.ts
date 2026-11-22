@@ -7,6 +7,7 @@ import {
   groupListingAreas,
   injectHeadTag,
   mergeAreas,
+  normalLabel,
   parseEwkbPoint,
   siteVerificationMeta,
   sitemapEntries,
@@ -197,4 +198,10 @@ test('the served HTML has the large share image tags', () => {
   assert.equal(png.readUInt32BE(16), 1200);
   assert.equal(png.readUInt32BE(20), 630);
   assert.ok(png.length < 300 * 1024);
+});
+
+test('place names match without "City", accents or punctuation', () => {
+  assert.equal(normalLabel('Baguio City'), normalLabel('baguio'));
+  assert.equal(normalLabel('City of Parañaque'), normalLabel('Paranaque'));
+  assert.notEqual(normalLabel('Pasay'), normalLabel('Pasig'));
 });
