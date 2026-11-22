@@ -16,7 +16,7 @@ export const PRIVACY_POLICY_SOURCE_URL =
 
 export const PRIVACY_POLICY: PolicyBlock[] = [
   { type: 'h1', segments: [{ text: 'Privacy Policy' }] },
-  { type: 'p', segments: [{ text: 'Last updated: November 02, 2026' }] },
+  { type: 'p', segments: [{ text: 'Last updated: November 15, 2026' }] },
   {
     type: 'p',
     segments: [
@@ -195,6 +195,14 @@ export const PRIVACY_POLICY: PolicyBlock[] = [
       },
     ],
   },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: "When You use the Android Application, Usage Data may also include Your device's advertising ID (the resettable identifier provided by Google Play services), which is used for advertising as described in the Advertising section below.",
+      },
+    ],
+  },
   { type: 'h4', segments: [{ text: 'Information Collected While Using the Application' }] },
   {
     type: 'p',
@@ -275,6 +283,15 @@ export const PRIVACY_POLICY: PolicyBlock[] = [
       { text: 'To provide You', bold: true },
       {
         text: ' with news, special offers, and general information about other goods, services and events which We offer that are similar to those that You have already purchased or inquired about. We send such marketing communications only where permitted by applicable law: where prior consent is required (for example, under the laws applicable in the EEA and the UK), We will send them only with Your consent; otherwise, We may send them until You opt out. You may opt out or withdraw Your consent at any time by using the unsubscribe link in any marketing email We send or by contacting Us.',
+      },
+    ],
+  },
+  {
+    type: 'li',
+    segments: [
+      { text: 'To show advertising:', bold: true },
+      {
+        text: ' to display, measure and personalize ads in the Android Application, and to prevent ad fraud, through Our advertising partner Google AdMob.',
       },
     ],
   },
@@ -700,6 +717,60 @@ export const PRIVACY_POLICY: PolicyBlock[] = [
       {
         text: 'https://www.google.com/intl/en/policies/privacy/',
         href: 'https://www.google.com/intl/en/policies/privacy/',
+      },
+    ],
+  },
+  { type: 'h3', segments: [{ text: 'Advertising' }] },
+  {
+    type: 'p',
+    segments: [
+      {
+        text: 'The Android Application shows banner ads to support the Service. The web version of the Service does not show ads.',
+      },
+    ],
+  },
+  { type: 'li', segments: [{ text: 'Google AdMob', bold: true }] },
+  {
+    type: 'lic',
+    segments: [
+      {
+        text: 'Google AdMob is an advertising service operated by Google. The ads in the Android Application are served by Google AdMob.',
+      },
+    ],
+  },
+  {
+    type: 'lic',
+    segments: [
+      {
+        text: "Google and its partners may collect and use Your device's advertising ID, IP address, device and app usage information, and approximate location to show, measure and personalize ads and to prevent fraud.",
+      },
+    ],
+  },
+  {
+    type: 'lic',
+    segments: [
+      {
+        text: 'You can reset Your advertising ID or opt out of personalized ads at any time in Your Android device settings (for example, Settings > Google > Ads, or Settings > Privacy > Ads, depending on Your device).',
+      },
+    ],
+  },
+  {
+    type: 'lic',
+    segments: [
+      { text: 'For more information on how Google uses this information, please visit: ' },
+      {
+        text: 'https://policies.google.com/technologies/partner-sites',
+        href: 'https://policies.google.com/technologies/partner-sites',
+      },
+    ],
+  },
+  {
+    type: 'lic',
+    segments: [
+      { text: 'For more information on how Google uses data for advertising, please visit: ' },
+      {
+        text: 'https://policies.google.com/technologies/ads',
+        href: 'https://policies.google.com/technologies/ads',
       },
     ],
   },

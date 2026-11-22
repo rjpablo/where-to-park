@@ -9,6 +9,19 @@ test('screens with history navigate back normally', () => {
   assert.equal(press(true, 100), 'navigate');
 });
 
+test('a maximized search sheet minimizes and does not arm the exit warning', () => {
+  const press = createBackToExit();
+  assert.equal(press(false, 0, null, true), 'minimize');
+  assert.equal(press(false, 100, null, false), 'warn');
+  assert.equal(press(false, 500, null, false), 'exit');
+});
+
+test('history and a parent page win over a maximized sheet', () => {
+  const press = createBackToExit();
+  assert.equal(press(true, 0, null, true), 'navigate');
+  assert.equal(press(false, 100, '/search', true), 'up');
+});
+
 test('root screen: warn first, exit on a second press within 2s', () => {
   const press = createBackToExit();
   assert.equal(press(false, 1000), 'warn');

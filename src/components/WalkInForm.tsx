@@ -18,6 +18,7 @@ import {
   type FullAreaPrompt,
   type RateOption,
 } from '../lib/walkIn';
+import { plannedPriceDetail } from '../lib/reservations';
 import { formatLocalDateTime, formatPeso } from '../utils/formatters';
 import {
   AREA_SELECT,
@@ -166,6 +167,8 @@ export function WalkInForm({
         p_location_id: locationId,
         p_vehicle_type: vehicle,
         p_start_at: startAt,
+        // PAD-6: rates belong to areas (NULL = Main).
+        p_area_id: area?.id ?? null,
       })
       .then(({ data, error: e }) => {
         if (!live) return;
@@ -182,7 +185,7 @@ export function WalkInForm({
     return () => {
       live = false;
     };
-  }, [locationId, vehicle, startAt, refreshKey]);
+  }, [locationId, vehicle, startAt, refreshKey, area?.id]);
 
   // Without an end the amount runs to now: refresh it every minute.
   React.useEffect(() => {
@@ -210,6 +213,7 @@ export function WalkInForm({
         p_start_at: times.startAt,
         p_end_at: times.endAt,
         p_rate_id: rateId,
+        p_area_id: area?.id ?? null,
       });
       if (!live) return;
       if (e || data?.error) {
@@ -225,7 +229,7 @@ export function WalkInForm({
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationId, vehicle, startAt, endAt, rateId, tick, refreshKey]);
+  }, [locationId, vehicle, startAt, endAt, rateId, tick, refreshKey, area?.id]);
 
   const setNow = () => {
     const now = manilaDateTime(new Date().toISOString());
@@ -267,7 +271,7 @@ export function WalkInForm({
     }
   };
 
-  const parts: any[] = Array.isArray(quote?.breakdown) ? quote.breakdown : [];
+  const priceLines = plannedPriceDetail(quote)?.lines ?? [];
   const rateOptions = [
     { value: null, label: autoOptionLabel(auto ?? null) },
     ...options.map((o) => ({ value: o.id, label: rateOptionLabel(o) })),
@@ -429,14 +433,9 @@ export function WalkInForm({
                 ? `${quote.billed_months} month${quote.billed_months === 1 ? '' : 's'}`
                 : `${quote.billed_hours}h billed`}
             </Text>
-            {parts.map((p: any, i: number) => (
-              <Text
-                key={`${p.rate_id}-${i}`}
-                style={styles.meta}
-                testID={`walkin-part-${p.rate_name}`}
-              >
-                {p.rate_name}: {p.months ? `${p.months} mo` : `${p.hours}h`} ·{' '}
-                {formatPeso(p.amount)}
+            {priceLines.map((line, i) => (
+              <Text key={`${line.label}-${i}`} style={styles.meta} testID="walkin-part">
+                {line.label} · {formatPeso(line.amount)}
               </Text>
             ))}
           </>

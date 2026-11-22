@@ -133,6 +133,8 @@ export function areaErrorMessage(
       return 'Enter an area name.';
     case 'area_has_sessions':
       return 'This area has open sessions. End or move them first.';
+    case 'area_has_reservations':
+      return 'This area has reservations. Cancel them or move them to another area first.';
     case 'capacity_invalid':
       return 'Enter the total number of spots (0 or more).';
     case 'capacity_below_in_use':

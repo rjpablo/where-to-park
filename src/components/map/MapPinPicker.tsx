@@ -1,9 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+} from 'react-native';
 import { theme } from '../../lib/theme';
 import { pickerMapHeight, remainingTouches, showRestorePin } from '../../lib/pinRestore';
 import { RECENTER_ZOOM } from '../../lib/userLocation';
-import type { PlaceSuggestion } from '../../lib/geocoding';
+import {
+  coordinateAddress,
+  getGeocoder,
+  placeAddress,
+  type PlaceSuggestion,
+} from '../../lib/geocoding';
 import { useLocateMe } from '../../hooks/useLocateMe';
 import { PlaceSearchBox } from '../PlaceSearchBox';
 import { LocateButton, LocationNotice } from './LocateButton';
@@ -19,11 +31,20 @@ const OVERLAY_INSETS = { top: 64, right: 0, bottom: 0, left: 0 };
 // the map moves there and the pin goes there) and the ◎ button (map and pin go to the
 // device location). With savedCoordinate (edit listing), a small 'Restore saved pin'
 // button shows while the pin is away from the saved spot.
+function coordKey(coordinate: Coordinate): string {
+  return `${coordinate.latitude.toFixed(5)},${coordinate.longitude.toFixed(5)}`;
+}
+
 export const MapPinPicker: React.FC<MapPinPickerProps> = ({
   initialCoordinate,
   onCoordinateSelect,
   savedCoordinate,
   onMapGestureChange,
+  address = '',
+  onAddressChange,
+  addressDerived = false,
+  onAddressDerivedChange,
+  addressTestID = 'pin-address',
   style,
 }) => {
   const mapRef = useRef<MapHandle>(null);
@@ -39,6 +60,52 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
     longitudeDelta: 0.05,
   });
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  // The last address this picker filled in. A different value was typed by the user.
+  const derivedRef = useRef<string | null>(
+    addressDerived && address.trim() ? address.trim() : null
+  );
+  const addressRef = useRef(address);
+  addressRef.current = address;
+  const onAddressChangeRef = useRef(onAddressChange);
+  onAddressChangeRef.current = onAddressChange;
+  const onDerivedRef = useRef(onAddressDerivedChange);
+  onDerivedRef.current = onAddressDerivedChange;
+  const lookupSeq = useRef(0);
+  // A place search already named this pin, so a reverse lookup must not replace it.
+  const placedKey = useRef<string | null>(null);
+
+  const canReplaceAddress = useCallback(() => {
+    const current = addressRef.current.trim();
+    return !current || current === derivedRef.current;
+  }, []);
+
+  const applyDerived = useCallback(
+    (line: string) => {
+      if (!canReplaceAddress()) return;
+      const next = line.trim();
+      if (!next) return;
+      derivedRef.current = next;
+      onAddressChangeRef.current?.(next);
+      onDerivedRef.current?.(true);
+    },
+    [canReplaceAddress]
+  );
+
+  const fillFromPin = useCallback(
+    async (coordinate: Coordinate) => {
+      if (!canReplaceAddress()) return;
+      const seq = ++lookupSeq.current;
+      let line: string | null = null;
+      try {
+        line = await getGeocoder().reverseAddress(coordinate);
+      } catch {
+        line = null;
+      }
+      if (seq !== lookupSeq.current || !canReplaceAddress()) return;
+      applyDerived((line || '').trim() || coordinateAddress(coordinate));
+    },
+    [applyDerived, canReplaceAddress]
+  );
 
   const movePin = useCallback(
     (coordinate: Coordinate) => {
@@ -57,11 +124,22 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
 
   const handlePlaceSelect = useCallback(
     (place: PlaceSuggestion) => {
+      placedKey.current = coordKey(place.coordinate);
+      applyDerived(placeAddress(place) || coordinateAddress(place.coordinate));
       movePin(place.coordinate);
       mapRef.current?.focus(place);
     },
-    [movePin]
+    [applyDerived, movePin]
   );
+
+  // A pin with no typed address takes its address from the place at that point.
+  const pinLat = selectedCoordinate.latitude;
+  const pinLng = selectedCoordinate.longitude;
+  useEffect(() => {
+    const coordinate = { latitude: pinLat, longitude: pinLng };
+    if (placedKey.current === coordKey(coordinate)) return;
+    void fillFromPin(coordinate);
+  }, [pinLat, pinLng, fillFromPin]);
 
   const handleLocate = useCallback(
     (coordinate: Coordinate) => {
@@ -157,6 +235,28 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
       </View>
 
       <Text style={styles.hint}>Search a place, tap ◎, or tap the map to drop the pin</Text>
+
+      <Text style={styles.label}>Address</Text>
+      <Text style={styles.meta}>Optional. Leave this blank and it is taken from the pin.</Text>
+      <TextInput
+        style={styles.input}
+        value={address}
+        onChangeText={(text) => {
+          addressRef.current = text;
+          onAddressChange?.(text);
+          if (!text.trim()) {
+            derivedRef.current = null;
+            placedKey.current = null;
+            onDerivedRef.current?.(true);
+            void fillFromPin(selectedCoordinate);
+          } else if (text.trim() !== derivedRef.current) {
+            onDerivedRef.current?.(false);
+          }
+        }}
+        placeholder="Street, city"
+        multiline
+        testID={addressTestID}
+      />
     </View>
   );
 };
@@ -220,5 +320,17 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingTop: theme.spacing.sm,
+  },
+  label: { ...theme.typography.body, fontWeight: '600', marginTop: theme.spacing.md },
+  meta: { ...theme.typography.bodySmall, color: theme.colors.text.secondary, marginTop: 2 },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    marginTop: theme.spacing.xs,
+    minHeight: 72,
+    textAlignVertical: 'top',
   },
 });

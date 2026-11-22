@@ -5,7 +5,7 @@ import { formatLocalDateTime, formatPeso, formatRelativeTime } from '../utils/fo
 import { isNegativeBalance, isReservation, sessionWaived, startsIn } from '../lib/walkIn';
 
 /**
- * The body of an active-session card: plate, vehicle, Reservation / OVERDUE / Waived badges,
+ * The body of an active-session card: plate, vehicle, For Approval / Approved / OVERDUE / Waived badges,
  * start (or 'Starts … (in …)'), scheduled end, listing, parking so far, extra fees, balance
  * and the overdue note. Used by the Availability Sessions tab.
  */
@@ -34,8 +34,8 @@ export function SessionSummary({ item, preview }: { item: any; preview: any | nu
             <Text style={styles.approvalBadgeText}>For Approval</Text>
           </View>
         ) : reservation ? (
-          <View style={styles.reservationBadge} testID={`reservation-badge-${item.plate}`}>
-            <Text style={styles.reservationBadgeText}>Reservation</Text>
+          <View style={styles.approvedBadge} testID={`approved-badge-${item.plate}`}>
+            <Text style={styles.approvedBadgeText}>Approved</Text>
           </View>
         ) : null}
         {isOverdue && (
@@ -115,12 +115,13 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textTransform: 'uppercase',
   },
-  reservationBadge: {
-    backgroundColor: '#dbeafe',
+  approvedBadge: {
+    backgroundColor: '#dcfce7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
+  approvedBadgeText: { color: '#166534', fontWeight: '700', fontSize: 12 },
   approvalBadge: {
     backgroundColor: '#fef3c7',
     paddingHorizontal: 8,
@@ -128,7 +129,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   approvalBadgeText: { ...theme.typography.caption, color: '#92400e', fontWeight: '700' },
-  reservationBadgeText: { color: '#1e3a8a', fontWeight: '700', fontSize: 12 },
   waivedBadge: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,

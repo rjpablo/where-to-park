@@ -1,0 +1,270 @@
+{
+  "_about": "Popular places listed in sitemap.xml as /search?lat&lng&place links (scripts/seo/build-seo.mjs). label is the page title place: \"Parking near <label> | Where To Park\". Each point was geocoded with Nominatim (OpenStreetMap) and checked by reverse geocoding to fall inside the named city or municipality. Keep 5 decimals. Edit, then redeploy the web app.",
+  "reviewed": "2026-11-22",
+  "places": [
+    {
+      "label": "Makati CBD",
+      "lat": 14.551,
+      "lng": 121.02881,
+      "verified": "Nominatim/OSM way/462035253 (Ayala Avenue); reverse lands in Makati"
+    },
+    {
+      "label": "Bonifacio Global City (BGC), Taguig",
+      "lat": 14.55081,
+      "lng": 121.05097,
+      "verified": "Nominatim/OSM node/14023498207 (Bonifacio Global City); reverse lands in Taguig"
+    },
+    {
+      "label": "Ortigas Center, Pasig",
+      "lat": 14.58433,
+      "lng": 121.06152,
+      "verified": "Nominatim/OSM way/67328018 (Ortigas Center Pedestrian Link Bridge); reverse lands in Pasig"
+    },
+    {
+      "label": "Quezon City",
+      "lat": 14.65145,
+      "lng": 121.04929,
+      "verified": "Nominatim/OSM relation/12322420 (Quezon Memorial Circle); reverse lands in Quezon City"
+    },
+    {
+      "label": "Araneta City, Cubao",
+      "lat": 14.62051,
+      "lng": 121.05428,
+      "verified": "Nominatim/OSM relation/12992097 (Araneta City); reverse lands in Quezon City"
+    },
+    {
+      "label": "Eastwood City, Quezon City",
+      "lat": 14.60961,
+      "lng": 121.07997,
+      "verified": "Nominatim/OSM way/27350736 (Eastwood City); reverse lands in Quezon City"
+    },
+    {
+      "label": "UP Diliman, Quezon City",
+      "lat": 14.65038,
+      "lng": 121.06764,
+      "verified": "Nominatim/OSM relation/20670730 (University of the Philippines Diliman); reverse lands in Quezon City"
+    },
+    {
+      "label": "Manila",
+      "lat": 14.5893,
+      "lng": 120.98164,
+      "verified": "Nominatim/OSM relation/452620 (Manila City Hall); reverse lands in Manila"
+    },
+    {
+      "label": "Intramuros, Manila",
+      "lat": 14.59096,
+      "lng": 120.97465,
+      "verified": "Nominatim/OSM relation/103707 (Intramuros); reverse lands in Manila"
+    },
+    {
+      "label": "Binondo, Manila",
+      "lat": 14.59992,
+      "lng": 120.97403,
+      "verified": "Nominatim/OSM relation/141867 (Binondo); reverse lands in Manila"
+    },
+    {
+      "label": "Rizal Park (Luneta), Manila",
+      "lat": 14.58298,
+      "lng": 120.97927,
+      "verified": "Nominatim/OSM way/24159887 (Parque Rizal); reverse lands in Manila"
+    },
+    {
+      "label": "SM Mall of Asia, Pasay",
+      "lat": 14.53518,
+      "lng": 120.9816,
+      "verified": "Nominatim/OSM relation/21624091 (SM Mall of Asia); reverse lands in Pasay"
+    },
+    {
+      "label": "Pasay",
+      "lat": 14.54388,
+      "lng": 120.99448,
+      "verified": "Nominatim/OSM node/7841782517 (Pasay City Hall); reverse lands in Pasay"
+    },
+    {
+      "label": "NAIA Terminal 1",
+      "lat": 14.50537,
+      "lng": 121.00647,
+      "verified": "Nominatim/OSM way/303140568 (NAIA Terminal 1); reverse lands in Parañaque"
+    },
+    {
+      "label": "NAIA Terminal 2",
+      "lat": 14.51005,
+      "lng": 121.01277,
+      "verified": "Nominatim/OSM node/3238982941 (NAIA Terminal 2); reverse lands in Pasay"
+    },
+    {
+      "label": "NAIA Terminal 3",
+      "lat": 14.51923,
+      "lng": 121.01375,
+      "verified": "Nominatim/OSM way/303142869 (NAIA Terminal 3); reverse lands in Pasay"
+    },
+    {
+      "label": "Entertainment City, Parañaque",
+      "lat": 14.51431,
+      "lng": 120.97971,
+      "verified": "Nominatim/OSM relation/7935161 (Okada Manila); reverse lands in Parañaque"
+    },
+    {
+      "label": "Alabang, Muntinlupa",
+      "lat": 14.42367,
+      "lng": 121.02972,
+      "verified": "Nominatim/OSM relation/19103182 (Alabang Town Center); reverse lands in Muntinlupa"
+    },
+    {
+      "label": "Greenhills, San Juan",
+      "lat": 14.60174,
+      "lng": 121.04992,
+      "verified": "Nominatim/OSM way/30086770 (Greenhills Shopping Center); reverse lands in San Juan"
+    },
+    {
+      "label": "Mandaluyong",
+      "lat": 14.5777,
+      "lng": 121.03366,
+      "verified": "Nominatim/OSM way/112549085 (Mandaluyong City Hall); reverse lands in Mandaluyong"
+    },
+    {
+      "label": "Marikina",
+      "lat": 14.63303,
+      "lng": 121.09895,
+      "verified": "Nominatim/OSM way/7972240 (Marikina City Hall); reverse lands in Marikina"
+    },
+    {
+      "label": "Antipolo",
+      "lat": 14.58769,
+      "lng": 121.17666,
+      "verified": "Nominatim/OSM way/94093055 (Antipolo Cathedral); reverse lands in Antipolo"
+    },
+    {
+      "label": "Baguio",
+      "lat": 16.4125,
+      "lng": 120.59751,
+      "verified": "Nominatim/OSM way/1190964348 (Session Road); reverse lands in Baguio"
+    },
+    {
+      "label": "Tagaytay",
+      "lat": 14.11529,
+      "lng": 120.96198,
+      "verified": "Nominatim/OSM way/890829772 (Tagaytay Rotonda); reverse lands in Tagaytay"
+    },
+    {
+      "label": "Clark Freeport Zone, Pampanga",
+      "lat": 15.18107,
+      "lng": 120.52743,
+      "verified": "Nominatim/OSM node/10704760914 (BIR RDO 21C - Clark Freeport Zone); reverse lands in Mabalacat"
+    },
+    {
+      "label": "Angeles City",
+      "lat": 15.16554,
+      "lng": 120.60802,
+      "verified": "Nominatim/OSM way/96584426 (Angeles City Hall); reverse lands in Angeles"
+    },
+    {
+      "label": "Subic Bay Freeport Zone",
+      "lat": 14.82032,
+      "lng": 120.28211,
+      "verified": "Nominatim/OSM way/317449618 (Subic Bay Freeport Zone); reverse lands in Olongapo"
+    },
+    {
+      "label": "Batangas City",
+      "lat": 13.75574,
+      "lng": 121.05803,
+      "verified": "Nominatim/OSM way/131893368 (Bahay Pamahalaan Lungsod ng Batangas); reverse lands in Batangas City"
+    },
+    {
+      "label": "Lipa",
+      "lat": 13.95723,
+      "lng": 121.16462,
+      "verified": "Nominatim/OSM way/55557212 (Lipa City Hall); reverse lands in Lipa"
+    },
+    {
+      "label": "Vigan",
+      "lat": 17.56779,
+      "lng": 120.38764,
+      "verified": "Nominatim/OSM way/88477833 (Calle Crisologo); reverse lands in Vigan"
+    },
+    {
+      "label": "Naga City, Camarines Sur",
+      "lat": 13.62607,
+      "lng": 123.19868,
+      "verified": "Nominatim/OSM way/23669724 (Naga City Hall); reverse lands in Naga"
+    },
+    {
+      "label": "Cebu City",
+      "lat": 10.29287,
+      "lng": 123.90167,
+      "verified": "Nominatim/OSM way/855225484 (Cebu City Hall); reverse lands in Cebu City"
+    },
+    {
+      "label": "Cebu IT Park",
+      "lat": 10.3308,
+      "lng": 123.90683,
+      "verified": "Nominatim/OSM relation/16298925 (Cebu I.T. Park); reverse lands in Cebu City"
+    },
+    {
+      "label": "Ayala Center Cebu",
+      "lat": 10.3181,
+      "lng": 123.90516,
+      "verified": "Nominatim/OSM way/1290804007 (Ayala Center Cebu); reverse lands in Cebu City"
+    },
+    {
+      "label": "Mactan-Cebu International Airport",
+      "lat": 10.31034,
+      "lng": 123.97931,
+      "verified": "Nominatim/OSM relation/4040104 (Mactan–Cebu International Airport); reverse lands in Lapu-Lapu"
+    },
+    {
+      "label": "Iloilo City",
+      "lat": 10.69336,
+      "lng": 122.57323,
+      "verified": "Nominatim/OSM way/174033035 (Iloilo City Hall); reverse lands in Iloilo City"
+    },
+    {
+      "label": "Bacolod",
+      "lat": 10.65886,
+      "lng": 122.96643,
+      "verified": "Nominatim/OSM relation/11020833 (New Bacolod City Hall); reverse lands in Bacolod"
+    },
+    {
+      "label": "Dumaguete",
+      "lat": 9.30314,
+      "lng": 123.31087,
+      "verified": "Nominatim/OSM way/710506714 (Rizal Boulevard); reverse lands in Dumaguete"
+    },
+    {
+      "label": "Tacloban",
+      "lat": 11.24365,
+      "lng": 125.00795,
+      "verified": "Nominatim/OSM way/104374502 (Tacloban City Hall); reverse lands in Tacloban"
+    },
+    {
+      "label": "Puerto Princesa",
+      "lat": 9.78347,
+      "lng": 118.73202,
+      "verified": "Nominatim/OSM way/293426739 (Puerto Princesa City Hall); reverse lands in Puerto Princesa"
+    },
+    {
+      "label": "Davao City",
+      "lat": 7.06445,
+      "lng": 125.60772,
+      "verified": "Nominatim/OSM relation/3581578 (City Hall of Davao); reverse lands in Davao City"
+    },
+    {
+      "label": "Cagayan de Oro",
+      "lat": 8.4764,
+      "lng": 124.64119,
+      "verified": "Nominatim/OSM node/6255545471 (City Health Insurance Office); reverse lands in Cagayan de Oro"
+    },
+    {
+      "label": "General Santos",
+      "lat": 6.11307,
+      "lng": 125.17173,
+      "verified": "Nominatim/OSM way/267411093 (General Santos City Hall); reverse lands in General Santos"
+    },
+    {
+      "label": "Zamboanga City",
+      "lat": 6.90391,
+      "lng": 122.07648,
+      "verified": "Nominatim/OSM way/270522967 (Zamboanga City Hall); reverse lands in Zamboanga City"
+    }
+  ]
+}

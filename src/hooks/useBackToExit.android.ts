@@ -3,14 +3,16 @@ import { BackHandler, ToastAndroid } from 'react-native';
 import { router, useGlobalSearchParams, useSegments } from 'expo-router';
 import { createBackToExit } from '../lib/backToExit';
 import { backFallback, type RouteParams } from '../lib/backFallback';
+import { useSearchStore } from '../stores/searchStore';
 
 /**
  * Android hardware back:
  * - with history: normal back navigation;
  * - without history (app opened on a child page): one level up to the page's parent
  *   (same table as the header Back, src/lib/backFallback.ts), level by level to Search;
- * - on Search: the first press shows "Press back again to close the app"; a second
- *   press within 2s closes it.
+ * - on Search with the results sheet maximized and nowhere to go: minimize the sheet;
+ * - on Search otherwise: the first press shows "Press back again to close the app";
+ *   a second press within 2s closes it. That includes a sheet that is already minimized.
  */
 export function useBackToExit() {
   const press = useRef(createBackToExit());
@@ -25,9 +27,16 @@ export function useBackToExit() {
     // press when it can go back, and this one returns false in that case too.
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       const canGoBack = router.canGoBack();
-      const parent = canGoBack ? null : backFallback(current.current.name, current.current.params);
-      const result = press.current(canGoBack, Date.now(), parent);
+      const routeName = current.current.name;
+      const parent = canGoBack ? null : backFallback(routeName, current.current.params);
+      const sheetMaximized =
+        routeName === 'search' && useSearchStore.getState().sheetPosition === 'maximized';
+      const result = press.current(canGoBack, Date.now(), parent, sheetMaximized);
       if (result === 'navigate') return false; // let the navigator go back
+      if (result === 'minimize') {
+        useSearchStore.getState().setSheetPosition('minimized');
+        return true;
+      }
       if (result === 'up' && parent) {
         router.replace(parent as never);
         return true;

@@ -16,7 +16,6 @@ export type RateFormValues = {
   /** Days of week the rate applies on (0 = Sunday … 6 = Saturday); empty = every day */
   days: number[];
   /** Vehicle type the rate is for ('car', 'suv', …); null = all vehicles */
-  vehicleType: string | null;
 };
 
 export const NEW_RATE: RateFormValues = {
@@ -31,7 +30,6 @@ export const NEW_RATE: RateFormValues = {
   from: '',
   to: '',
   days: [],
-  vehicleType: null,
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -69,7 +67,6 @@ export function formFromRate(rate: any): RateFormValues {
     from: manilaDate(rate.effective_from),
     to: manilaDate(rate.effective_to),
     days: normalizeDays(rate.days_of_week),
-    vehicleType: rate.vehicle_type ?? null,
   };
 }
 
@@ -86,7 +83,9 @@ export function rateDatesError(v: Pick<RateFormValues, 'from' | 'to'>): string |
 export function rateUpsertPayload(
   locationId: string,
   v: RateFormValues,
-  existing?: any
+  existing?: any,
+  /** PAD-6: the area a new rate is added to (an existing rate keeps its own). */
+  areaId?: string | null
 ): Record<string, unknown> {
   const t = v.rateType;
   return {
@@ -102,14 +101,16 @@ export function rateUpsertPayload(
     p_first_amount: t === 'flat_then_hourly' ? Number(v.firstAmount) : null,
     p_succeeding_hourly_amount: t === 'flat_then_hourly' ? Number(v.succeeding) : null,
     p_max_per_day: existing?.max_per_day ?? null,
-    p_area_id: existing?.is_default ? null : (existing?.area_id ?? null),
+    // PAD-6: every rate except the default belongs to an area.
+    p_area_id: existing?.is_default ? null : (existing?.area_id ?? areaId ?? null),
     p_active: existing?.is_default ? true : (existing?.active ?? true),
     // The default rate applies every day with no dates (0042): never send them for it.
     p_effective_from: existing?.is_default ? null : fromDayStart(v.from),
     p_effective_to: existing?.is_default ? null : toDayEnd(v.to),
     p_days_of_week: existing?.is_default || !v.days.length ? null : normalizeDays(v.days),
     // The default applies to every vehicle (0047).
-    p_vehicle_type: existing?.is_default ? null : v.vehicleType || null,
+    // rj t239u: a rate takes its area's vehicle types (the default: every vehicle).
+    p_vehicle_type: null,
   };
 }
 

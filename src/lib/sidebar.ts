@@ -52,6 +52,7 @@ export type SidebarItemKey =
   | 'notifications'
   | 'listings'
   | 'list_space'
+  | 'reports'
   | 'sessions'
   | 'vehicles'
   | 'verify'
@@ -59,6 +60,7 @@ export type SidebarItemKey =
   | 'contact'
   | 'contact_admin'
   | 'push_admin'
+  | 'system_settings'
   | 'sign_out';
 
 export type SidebarItem = {
@@ -78,6 +80,8 @@ export type SidebarUser = {
   isAdmin: boolean;
   /** Operator account, staff/owner membership, or admin. */
   hasWorkspace: boolean;
+  /** Owner or manager. Staff-only accounts do not see Reports. */
+  canReport?: boolean;
 } | null;
 
 export function formatCount(n: number): string {
@@ -139,6 +143,9 @@ export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): Sid
   } else {
     items.push(item('list_space', 'List your parking space', undefined, counts));
   }
+  if (user.canReport) {
+    items.push(item('reports', 'Reports', '/operator/reports', counts));
+  }
   items.push(item('sessions', 'Sessions', '/sessions', counts));
   items.push(item('vehicles', 'Saved vehicles', '/vehicles', counts, 'vehicles'));
   items.push(item('contact', 'Contact Us', '/contact', counts));
@@ -171,7 +178,24 @@ export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): Sid
         undefined,
         'admin'
       ),
-      item('push_admin', 'Push notifications', '/admin/push', counts, undefined, undefined, 'admin')
+      item(
+        'push_admin',
+        'Push notifications',
+        '/admin/push',
+        counts,
+        undefined,
+        undefined,
+        'admin'
+      ),
+      item(
+        'system_settings',
+        'System settings',
+        '/admin/settings',
+        counts,
+        undefined,
+        undefined,
+        'admin'
+      )
     );
   }
   items.push(item('sign_out', 'Sign out', undefined, counts));

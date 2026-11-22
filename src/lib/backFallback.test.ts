@@ -28,6 +28,15 @@ test('New / Edit rate falls back to the Rates list', () => {
   assert.equal(backFallback('operator/rate-edit', {}), '/operator/listings');
 });
 
+test('Reports falls back to Find Parking, and Collections to Reports', () => {
+  assert.equal(backFallback('operator/reports/index'), '/search');
+  assert.equal(
+    backFallback('operator/reports/collections', { operatorId: 'op-1' }),
+    '/operator/reports?operatorId=op-1'
+  );
+  assert.equal(backFallback('operator/reports/collections', {}), '/operator/reports');
+});
+
 test('listing page and List Your Space fall back to My listings, My listings to search', () => {
   assert.equal(backFallback('operator/onboarding'), '/operator/listings');
   assert.equal(backFallback('operator/hub/[id]', { id: L }), '/operator/listings');

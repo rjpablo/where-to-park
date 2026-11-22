@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  mapHeightAboveSheet,
   maximizedHeight,
   nextSheetMode,
   normalHeight,
   peekHeight,
+  sheetCoverOnMap,
   sheetModeAt,
   sheetModeIndex,
 } from './sheetLayout.ts';
@@ -27,6 +29,13 @@ test('maximizedHeight: 10 px of map between the header and the sheet', () => {
   assert.equal(maximizedHeight(804, 10, 523), 794);
   assert.equal(maximizedHeight(512, 10, 333), 502);
   assert.equal(maximizedHeight(200, 10, 218), 219); // stays above Normal
+});
+
+test('map ends just under the minimized sheet, so its centre stays visible', () => {
+  assert.equal(mapHeightAboveSheet(800, 170, 8), 638);
+  assert.equal(mapHeightAboveSheet(170, 200, 8), 0);
+  assert.equal(sheetCoverOnMap(170, 170, 8), 8);
+  assert.equal(sheetCoverOnMap(520, 170, 8), 358);
 });
 
 test('sheet modes: index mapping and handle-tap cycle', () => {

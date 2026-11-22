@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+} from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
 import { DateTimeField } from '../../src/components/DateTimeField';
@@ -7,13 +15,9 @@ import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { formatLocalDate, formatPeso } from '../../src/utils/formatters';
 import { theme } from '../../src/lib/theme';
-import {
-  canBeDefault,
-  rateErrorMessage,
-  rateStatusErrorMessage,
-  rateSummary,
-} from '../../src/lib/rates';
+import { rateErrorMessage, rateStatusErrorMessage, rateSummary } from '../../src/lib/rates';
 import { daysLabel } from '../../src/lib/rateForm';
+import { plannedPriceDetail } from '../../src/lib/reservations';
 import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS, type VehicleType } from '../../src/lib/searchFilters';
 import {
   manilaTimeNow,
@@ -25,11 +29,25 @@ import {
   quoteParts,
 } from '../../src/lib/quotePreview';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import {
+  allowedVehicleTypes,
+  defaultAreaId,
+  sortAreas,
+  vehicleForArea,
+  vehicleTypesLabel,
+  type Area,
+} from '../../src/lib/areas';
+import { groupRatesByArea, showAreaHeadings } from '../../src/lib/areaRates';
+
+type RateArea = Pick<Area, 'id' | 'name' | 'is_main' | 'vehicle_types'> & {
+  sort_order?: number | null;
+};
 
 // Shared with the public listing page and result cards (src/lib/rates.ts).
 const summary = (rate: any): string => rateSummary(rate, formatPeso) ?? rate.rate_type;
 
 // A listing's rates and price preview (areas are on their own page, /operator/areas).
+// PAD-6: the default rate on top, then each area's rates; the preview is a bottom sheet.
 export default function RatesScreen() {
   // Edge-to-edge: the content ends just above the navigation bar (one inset).
   const bottomInset = useBottomInset(theme.spacing.lg);
@@ -38,6 +56,9 @@ export default function RatesScreen() {
   );
   const router = useRouter();
   const [rates, setRates] = React.useState<any[]>([]);
+  const [areas, setAreas] = React.useState<RateArea[]>([]);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [quoteAreaId, setQuoteAreaId] = React.useState<string | null>(null);
   const [hours, setHours] = React.useState('1');
   // Preview start: a Manila date (default today) and time (default now).
   const [quoteDate, setQuoteDate] = React.useState(() => manilaToday());
@@ -65,16 +86,27 @@ export default function RatesScreen() {
       return;
     }
     try {
-      const [{ data: rateRows, error: rateErr }, loc] = await Promise.all([
+      const [{ data: rateRows, error: rateErr }, loc, areaRes] = await Promise.all([
         supabase
           .from('rates')
           .select('*')
           .eq('location_id', locationId)
           // Archived rates are hidden (soft-deleted, kept for past sessions; 0048).
           .is('archived_at', null)
-          .order('is_default', { ascending: false }),
+          // PAD-6: rates of a deleted area are soft-deleted and never show.
+          .is('deleted_at', null)
+          .order('is_default', { ascending: false })
+          .order('created_at', { ascending: true }),
         supabase.from('locations').select('name').eq('id', locationId).single(),
+        supabase
+          .from('areas')
+          .select('id, name, is_main, sort_order, vehicle_types')
+          .eq('location_id', locationId),
       ]);
+      if (areaRes.error) throw areaRes.error;
+      const areaRows = (areaRes.data || []) as RateArea[];
+      setAreas(areaRows);
+      setQuoteAreaId((cur) => defaultAreaId(areaRows, cur));
       if (loc.data?.name) setLocationName(loc.data.name);
       if (rateErr) throw rateErr;
       setRates(rateRows || []);
@@ -93,6 +125,7 @@ export default function RatesScreen() {
       .select('*')
       .eq('location_id', locationId)
       .not('archived_at', 'is', null)
+      .is('deleted_at', null)
       .order('archived_at', { ascending: false });
     setArchived(data || []);
   }, [locationId]);
@@ -140,6 +173,8 @@ export default function RatesScreen() {
       p_vehicle_type: quoteVehicle,
       p_start_at: start.startAt,
       p_hours: h,
+      // PAD-6: the area's rates first, then the default (NULL = Main).
+      p_area_id: quoteAreaId,
     });
     // Errors stay in the preview (not the page error) and never leave a stale amount.
     if (qErr || data?.error) {
@@ -151,16 +186,28 @@ export default function RatesScreen() {
       return;
     }
     setQuoteError(null);
+    const areaName = showAreaHeadings(areas) ? areas.find((a) => a.id === quoteAreaId)?.name : null;
     setQuotedFor(
-      `${VEHICLE_TYPE_LABELS[quoteVehicle]}, starting ${previewDayLabel(quoteDate)} ${quoteTime.trim()}`
+      `${areaName ? `${areaName}, ` : ''}${VEHICLE_TYPE_LABELS[quoteVehicle]}, starting ${previewDayLabel(quoteDate)} ${quoteTime.trim()}`
     );
     setQuote(data);
   };
 
   React.useEffect(() => {
-    refreshQuote();
+    if (previewOpen) refreshQuote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rates]);
+  }, [rates, previewOpen, quoteAreaId, quoteVehicle]);
+
+  const quoteArea = areas.find((a) => a.id === quoteAreaId) ?? null;
+  const quoteVehicles = allowedVehicleTypes(quoteArea, VEHICLE_TYPES);
+  // A vehicle the picked area doesn't take switches to one it does.
+  React.useEffect(() => {
+    if (!quoteVehicles.includes(quoteVehicle)) {
+      const next = vehicleForArea(null, quoteVehicles) ?? quoteVehicles[0];
+      if (next) setQuoteVehicle(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteAreaId, areas]);
 
   // Deactivate / re-activate a non-default rate (0048). The server refuses while an
   // open session (started or upcoming) has the rate chosen, and says how many.
@@ -195,26 +242,120 @@ export default function RatesScreen() {
     await load();
   };
 
-  // Make this rate the listing's default; the server unsets the old one (set_default_rate).
-  const makeDefault = async (rate: any) => {
-    setError(null);
-    const { data, error: rpcError } = await supabase.rpc('set_default_rate', {
-      p_rate_id: rate.id,
-    });
-    if (rpcError || data?.error) {
-      setError(rpcError?.message || rateErrorMessage(data?.error));
-      return;
-    }
-    setNotice(`'${rate.name}' is now the default rate`);
-    await load();
-    await refreshQuote();
-  };
-
-  const openForm = (rate?: any) =>
+  // A new rate is always for an area (PAD-6); an existing one keeps its own.
+  const openForm = (rate?: any, areaId?: string) =>
     router.push({
       pathname: '/operator/rate-edit',
-      params: rate ? { locationId: locationId!, rateId: rate.id } : { locationId: locationId! },
+      params: rate
+        ? { locationId: locationId!, rateId: rate.id }
+        : { locationId: locationId!, areaId: areaId! },
     });
+
+  const multiArea = showAreaHeadings(areas);
+  const grouped = groupRatesByArea(rates, areas);
+  const areaName = (id: string | null | undefined) => areas.find((a) => a.id === id)?.name;
+
+  const renderRate = (rate: any) => (
+    <View key={rate.id} style={styles.card} testID={`rate-row-${rate.name}`}>
+      <View style={styles.titleRow}>
+        <Text style={styles.rowTitle}>
+          {rate.name} {rate.is_default ? '(default)' : ''}
+        </Text>
+        {rate.active === false ? (
+          <Text style={styles.inactiveBadge} testID={`rate-inactive-${rate.name}`}>
+            Inactive
+          </Text>
+        ) : null}
+      </View>
+      <Text style={styles.meta}>
+        {rate.rate_type} · {summary(rate)}
+      </Text>
+      <Text style={styles.meta} testID={`rate-days-${rate.name}`}>
+        {daysLabel(rate.days_of_week)}
+      </Text>
+      <Text style={styles.meta} testID={`rate-vehicle-${rate.name}`}>
+        {/* rj t239u: a rate takes its area's vehicle types; the default takes every vehicle. */}
+        {rate.is_default
+          ? 'All vehicles'
+          : vehicleTypesLabel(
+              areas.find((a) => a.id === rate.area_id)?.vehicle_types,
+              VEHICLE_TYPE_LABELS as Record<string, string>
+            )}
+      </Text>
+      {rate.effective_from || rate.effective_to ? (
+        <Text style={styles.meta}>
+          {rate.effective_from ? formatLocalDate(rate.effective_from) : '—'} →{' '}
+          {rate.effective_to ? formatLocalDate(rate.effective_to) : '—'}
+        </Text>
+      ) : null}
+      {rowError?.id === rate.id ? (
+        <Text style={styles.error} testID={`rate-error-${rate.name}`}>
+          {rowError?.message}
+        </Text>
+      ) : null}
+      {confirmArchive === rate.id ? (
+        <View style={styles.confirm} testID={`archive-confirm-${rate.name}`}>
+          <Text style={styles.meta}>
+            Archive '{rate.name}'? It disappears from this list and can't be used again. Past
+            sessions keep it.
+          </Text>
+          <View style={styles.row}>
+            <Button
+              title="Archive rate"
+              size="small"
+              variant="danger"
+              onPress={() => archive(rate)}
+              testID={`archive-yes-${rate.name}`}
+            />
+            <Button
+              title="Cancel"
+              size="small"
+              variant="outline"
+              onPress={() => setConfirmArchive(null)}
+              testID={`archive-no-${rate.name}`}
+            />
+          </View>
+        </View>
+      ) : null}
+      <View style={styles.row}>
+        <Button
+          title="Edit"
+          size="small"
+          variant="outline"
+          onPress={() => openForm(rate)}
+          testID={`edit-rate-${rate.name}`}
+        />
+        {/* The default can't be deactivated or archived (server-enforced too). Archive
+              replaces Delete so past sessions keep their rate (0048). */}
+        {rate.is_default ? null : rate.active === false ? (
+          <>
+            <Button
+              title="Activate"
+              size="small"
+              variant="outline"
+              onPress={() => setActive(rate, true)}
+              testID={`activate-rate-${rate.name}`}
+            />
+            <Button
+              title="Archive"
+              size="small"
+              variant="danger"
+              onPress={() => setConfirmArchive(rate.id)}
+              testID={`archive-rate-${rate.name}`}
+            />
+          </>
+        ) : (
+          <Button
+            title="Deactivate"
+            size="small"
+            variant="outline"
+            onPress={() => setActive(rate, false)}
+            testID={`deactivate-rate-${rate.name}`}
+          />
+        )}
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -228,203 +369,43 @@ export default function RatesScreen() {
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="rates-ready">
       <Text style={styles.subtitle}>{locationName}</Text>
 
-      <View style={styles.preview} testID="quote-preview">
-        <Text style={styles.heading}>Price preview</Text>
-        <Text style={styles.label}>Vehicle</Text>
-        <View style={styles.chips}>
-          {VEHICLE_TYPES.map((t) => (
-            <TouchableOpacity
-              key={t}
-              onPress={() => setQuoteVehicle(t)}
-              style={[styles.chip, quoteVehicle === t && styles.chipOn]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: quoteVehicle === t }}
-              testID={`quote-vehicle-${t}`}
-            >
-              <Text style={[styles.chipText, quoteVehicle === t && styles.chipTextOn]}>
-                {VEHICLE_TYPE_LABELS[t]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <Text style={styles.label}>Date</Text>
-        <DateTimeField
-          mode="date"
-          value={quoteDate}
-          onChange={setQuoteDate}
-          style={styles.picker}
-          testID="quote-date"
-        />
-        <Text style={styles.label}>Start time</Text>
-        <DateTimeField
-          mode="time"
-          value={quoteTime}
-          onChange={setQuoteTime}
-          style={styles.picker}
-          testID="quote-time"
-        />
-        <Text style={styles.meta}>Philippine time, 24-hour.</Text>
-        <Text style={styles.label}>Hours</Text>
-        <TextInput
-          style={styles.input}
-          value={hours}
-          onChangeText={setHours}
-          keyboardType="numeric"
-          testID="quote-hours"
-        />
-        <Button title="Refresh quote" onPress={refreshQuote} testID="quote-refresh" />
-        {quote?.amount != null ? (
-          <>
-            {quoteParts(quote).length > 1 ? (
-              <>
-                <Text style={styles.quoteAmount} testID="quote-amount">
-                  {formatPeso(quote.amount)} · {quote.billed_hours}h billed
-                </Text>
-                {quoteParts(quote).map((p) => (
-                  <Text key={p.key} style={styles.meta} testID={`quote-part-${p.rateName}`}>
-                    {p.rateName}: {p.hours}h from {p.from} · {formatPeso(p.amount)}
-                  </Text>
-                ))}
-              </>
-            ) : (
-              <Text style={styles.quoteAmount} testID="quote-amount">
-                {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} ·{' '}
-                {quote.billed_hours}h billed
-              </Text>
-            )}
-            <Text style={styles.meta} testID="quote-for">
-              {quotedFor}
-            </Text>
-          </>
-        ) : (
-          <Text style={styles.meta} testID="quote-message">
-            {quoteError || 'No quote yet'}
-          </Text>
-        )}
-        <Text style={styles.meta}>
-          Each hour is priced at the rate in effect when that hour starts, so a stay can be split
-          across rates. Only active rates price an hour. Sessions are priced the same way; a
-          session's picked rate prices the hours it applies to. Extra charges (e.g. overnight) are
-          added by staff as fees.
-        </Text>
-        <Text style={styles.meta}>
-          Monthly rates are listed for drivers and never price a session.
-        </Text>
-      </View>
-
-      <Text style={styles.heading}>Rates</Text>
       <Button
-        title="Add rate"
-        onPress={() => openForm()}
+        title="Price preview"
+        variant="outline"
+        onPress={() => setPreviewOpen(true)}
         disabled={!locationId}
         style={styles.addButton}
-        testID="rate-add"
+        testID="quote-preview-open"
       />
-      {rates.map((rate) => (
-        <View key={rate.id} style={styles.card} testID={`rate-row-${rate.name}`}>
-          <View style={styles.titleRow}>
-            <Text style={styles.rowTitle}>
-              {rate.name} {rate.is_default ? '(default)' : ''}
-            </Text>
-            {rate.active === false ? (
-              <Text style={styles.inactiveBadge} testID={`rate-inactive-${rate.name}`}>
-                Inactive
-              </Text>
-            ) : null}
-          </View>
+
+      <Text style={styles.heading}>Default rate</Text>
+      <Text style={styles.meta}>
+        Applies to every area, day and vehicle when no area rate applies.
+      </Text>
+      {grouped.defaults.map(renderRate)}
+
+      {grouped.sections.map(({ area, rates: areaRates }) => (
+        <View key={area.id} testID={`rates-area-${area.name}`}>
+          <Text style={styles.heading}>{multiArea ? area.name : 'Rates'}</Text>
           <Text style={styles.meta}>
-            {rate.rate_type} · {summary(rate)}
+            {vehicleTypesLabel(area.vehicle_types, VEHICLE_TYPE_LABELS as Record<string, string>)}
+            {multiArea ? ` · for sessions in ${area.name}` : ''}
           </Text>
-          <Text style={styles.meta} testID={`rate-days-${rate.name}`}>
-            {daysLabel(rate.days_of_week)}
-          </Text>
-          <Text style={styles.meta} testID={`rate-vehicle-${rate.name}`}>
-            {rate.vehicle_type
-              ? (VEHICLE_TYPE_LABELS as Record<string, string>)[rate.vehicle_type] ||
-                rate.vehicle_type
-              : 'All vehicles'}
-          </Text>
-          {rate.effective_from || rate.effective_to ? (
-            <Text style={styles.meta}>
-              {rate.effective_from ? formatLocalDate(rate.effective_from) : '—'} →{' '}
-              {rate.effective_to ? formatLocalDate(rate.effective_to) : '—'}
+          <Button
+            title={multiArea ? `Add rate to ${area.name}` : 'Add rate'}
+            size="small"
+            onPress={() => openForm(undefined, area.id)}
+            disabled={!locationId}
+            style={styles.addButton}
+            testID={multiArea ? `rate-add-${area.name}` : 'rate-add'}
+          />
+          {areaRates.length ? (
+            areaRates.map(renderRate)
+          ) : (
+            <Text style={styles.meta} testID={`rates-area-empty-${area.name}`}>
+              No rates here yet. The default rate applies.
             </Text>
-          ) : null}
-          {rowError?.id === rate.id ? (
-            <Text style={styles.error} testID={`rate-error-${rate.name}`}>
-              {rowError?.message}
-            </Text>
-          ) : null}
-          {confirmArchive === rate.id ? (
-            <View style={styles.confirm} testID={`archive-confirm-${rate.name}`}>
-              <Text style={styles.meta}>
-                Archive '{rate.name}'? It disappears from this list and can't be used again. Past
-                sessions keep it.
-              </Text>
-              <View style={styles.row}>
-                <Button
-                  title="Archive rate"
-                  size="small"
-                  variant="danger"
-                  onPress={() => archive(rate)}
-                  testID={`archive-yes-${rate.name}`}
-                />
-                <Button
-                  title="Cancel"
-                  size="small"
-                  variant="outline"
-                  onPress={() => setConfirmArchive(null)}
-                  testID={`archive-no-${rate.name}`}
-                />
-              </View>
-            </View>
-          ) : null}
-          <View style={styles.row}>
-            <Button
-              title="Edit"
-              size="small"
-              variant="outline"
-              onPress={() => openForm(rate)}
-              testID={`edit-rate-${rate.name}`}
-            />
-            {canBeDefault(rate) ? (
-              <Button
-                title="Set as default"
-                size="small"
-                variant="outline"
-                onPress={() => makeDefault(rate)}
-                testID={`default-rate-${rate.name}`}
-              />
-            ) : null}
-            {/* The default can't be deactivated or archived (server-enforced too). Archive
-                replaces Delete so past sessions keep their rate (0048). */}
-            {rate.is_default ? null : rate.active === false ? (
-              <>
-                <Button
-                  title="Activate"
-                  size="small"
-                  variant="outline"
-                  onPress={() => setActive(rate, true)}
-                  testID={`activate-rate-${rate.name}`}
-                />
-                <Button
-                  title="Archive"
-                  size="small"
-                  variant="danger"
-                  onPress={() => setConfirmArchive(rate.id)}
-                  testID={`archive-rate-${rate.name}`}
-                />
-              </>
-            ) : (
-              <Button
-                title="Deactivate"
-                size="small"
-                variant="outline"
-                onPress={() => setActive(rate, false)}
-                testID={`deactivate-rate-${rate.name}`}
-              />
-            )}
-          </View>
+          )}
         </View>
       ))}
 
@@ -442,6 +423,7 @@ export default function RatesScreen() {
             <View key={rate.id} style={styles.card} testID={`archived-row-${rate.name}`}>
               <Text style={styles.rowTitle}>{rate.name}</Text>
               <Text style={styles.meta}>
+                {multiArea && areaName(rate.area_id) ? `${areaName(rate.area_id)} · ` : ''}
                 {rate.rate_type} · {summary(rate)} · archived {formatLocalDate(rate.archived_at)}
               </Text>
               {rowError?.id === rate.id ? (
@@ -473,6 +455,148 @@ export default function RatesScreen() {
           {notice}
         </Text>
       ) : null}
+
+      <Modal
+        visible={previewOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPreviewOpen(false)}
+      >
+        <View style={styles.backdrop}>
+          <TouchableOpacity
+            style={styles.backdropTap}
+            onPress={() => setPreviewOpen(false)}
+            accessibilityLabel="Close price preview"
+          />
+          <View style={styles.sheet} testID="quote-preview">
+            <View style={styles.titleRow}>
+              <Text style={styles.heading}>Price preview</Text>
+              <TouchableOpacity
+                onPress={() => setPreviewOpen(false)}
+                accessibilityRole="button"
+                testID="quote-preview-close"
+              >
+                <Text style={styles.close}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {multiArea ? (
+                <>
+                  <Text style={styles.label}>Area</Text>
+                  <View style={styles.chips}>
+                    {sortAreas(areas).map((a) => (
+                      <TouchableOpacity
+                        key={a.id}
+                        onPress={() => setQuoteAreaId(a.id)}
+                        style={[styles.chip, quoteAreaId === a.id && styles.chipOn]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: quoteAreaId === a.id }}
+                        testID={`quote-area-${a.name}`}
+                      >
+                        <Text style={[styles.chipText, quoteAreaId === a.id && styles.chipTextOn]}>
+                          {a.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              ) : null}
+              <Text style={styles.label}>Vehicle</Text>
+              <View style={styles.chips}>
+                {quoteVehicles.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => setQuoteVehicle(t)}
+                    style={[styles.chip, quoteVehicle === t && styles.chipOn]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: quoteVehicle === t }}
+                    testID={`quote-vehicle-${t}`}
+                  >
+                    <Text style={[styles.chipText, quoteVehicle === t && styles.chipTextOn]}>
+                      {VEHICLE_TYPE_LABELS[t]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.label}>Date</Text>
+              <DateTimeField
+                mode="date"
+                value={quoteDate}
+                onChange={setQuoteDate}
+                style={styles.picker}
+                testID="quote-date"
+              />
+              <Text style={styles.label}>Start time</Text>
+              <DateTimeField
+                mode="time"
+                value={quoteTime}
+                onChange={setQuoteTime}
+                style={styles.picker}
+                testID="quote-time"
+              />
+              <Text style={styles.meta}>Philippine time, 24-hour.</Text>
+              <Text style={styles.label}>Hours</Text>
+              <TextInput
+                style={styles.input}
+                value={hours}
+                onChangeText={setHours}
+                keyboardType="numeric"
+                testID="quote-hours"
+              />
+              <Button title="Refresh quote" onPress={refreshQuote} testID="quote-refresh" />
+              {quote?.amount != null ? (
+                <>
+                  {quoteParts(quote).length > 1 ? (
+                    <>
+                      <Text style={styles.quoteAmount} testID="quote-amount">
+                        {formatPeso(quote.amount)} · {quote.billed_hours}h billed
+                      </Text>
+                      {quoteParts(quote).map((p) => (
+                        <Text key={p.key} style={styles.meta} testID={`quote-part-${p.rateName}`}>
+                          {p.rateName}: {p.hours}h from {p.from} · {formatPeso(p.amount)}
+                        </Text>
+                      ))}
+                    </>
+                  ) : (
+                    <Text style={styles.quoteAmount} testID="quote-amount">
+                      {formatPeso(quote.amount)} · {quote.rate_name} · {quote.rate_type} ·{' '}
+                      {quote.billed_hours}h billed
+                    </Text>
+                  )}
+                  {(plannedPriceDetail(quote)?.lines ?? [])
+                    .filter(
+                      (line) =>
+                        line.label.includes('Flat for first') ||
+                        line.label.includes('succeeding hour') ||
+                        line.label.startsWith('Overnight')
+                    )
+                    .map((line) => (
+                      <Text key={line.label} style={styles.meta} testID="quote-flat-part">
+                        {line.label} · {formatPeso(line.amount)}
+                      </Text>
+                    ))}
+                  <Text style={styles.meta} testID="quote-for">
+                    {quotedFor}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.meta} testID="quote-message">
+                  {quoteError || 'No quote yet'}
+                </Text>
+              )}
+              <Text style={styles.meta}>
+                Each hour is priced at the rate in effect when that hour starts, so a stay can be
+                split across rates. Only active rates price an hour. Sessions are priced the same
+                way; a session's picked rate prices the hours it applies to. Extra charges (e.g.
+                overnight) are added by staff as fees.
+              </Text>
+              <Text style={styles.meta}>
+                Monthly rates are listed for drivers and never price a session.
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -488,7 +612,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   heading: { ...theme.typography.h3, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
   label: { ...theme.typography.bodySmall, fontWeight: '600', marginTop: theme.spacing.sm },
@@ -555,14 +679,17 @@ const styles = StyleSheet.create({
   chipText: { ...theme.typography.caption, color: theme.colors.text.primary },
   chipTextOn: { color: '#fff' },
   addButton: { marginBottom: theme.spacing.md },
-  preview: {
-    marginTop: theme.spacing.lg,
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  backdropTap: { flex: 1 },
+  sheet: {
+    maxHeight: '85%',
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.surfaceDark,
-    borderRadius: theme.borderRadius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.background,
+    borderTopLeftRadius: theme.borderRadius.lg,
+    borderTopRightRadius: theme.borderRadius.lg,
   },
+  close: { ...theme.typography.body, color: theme.colors.primary, fontWeight: '600' },
   quoteAmount: { ...theme.typography.h3, color: theme.colors.primary, marginTop: theme.spacing.md },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
   notice: { ...theme.typography.body, color: theme.colors.success, marginTop: theme.spacing.md },

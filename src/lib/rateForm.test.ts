@@ -48,6 +48,10 @@ test('edit keeps hidden fields (area, max per day, active, default)', () => {
   // the default is never area-limited (0047); a normal rate keeps its area
   assert.equal(p.p_area_id, null);
   assert.equal(rateUpsertPayload('L', v, { ...rate, is_default: false }).p_area_id, 'a1');
+  // PAD-6: a new rate gets the area it was added to; an edit keeps the rate's own area.
+  assert.equal(rateUpsertPayload('L', v, undefined, 'a2').p_area_id, 'a2');
+  assert.equal(rateUpsertPayload('L', v, { ...rate, is_default: false }, 'a2').p_area_id, 'a1');
+  assert.equal(rateUpsertPayload('L', v, rate, 'a2').p_area_id, null);
   assert.equal(p.p_max_per_day, '500.00');
   assert.equal(p.p_is_default, true);
   assert.equal(p.p_hourly_amount, 60);
@@ -92,19 +96,14 @@ test('days of week: label, toggle, payload', () => {
   assert.deepEqual(formFromRate({ rate_type: 'hourly', days_of_week: [6, 0] }).days, [0, 6]);
 });
 
-test('vehicle type: optional, empty = all vehicles, kept on edit', () => {
-  assert.equal(NEW_RATE.vehicleType, null);
-  assert.equal(rateUpsertPayload('L', { ...NEW_RATE }).p_vehicle_type, null);
-  assert.equal(rateUpsertPayload('L', { ...NEW_RATE, vehicleType: 'suv' }).p_vehicle_type, 'suv');
-  const v = formFromRate({
-    id: 'r',
-    name: 'SUV',
-    rate_type: 'hourly',
-    hourly_amount: 90,
-    vehicle_type: 'suv',
-  });
-  assert.equal(v.vehicleType, 'suv');
-  assert.equal(formFromRate({ id: 'r', name: 'X', rate_type: 'hourly' }).vehicleType, null);
+test('rj t239u: a rate never sends its own vehicle type (it takes its area types)', () => {
+  assert.equal(rateUpsertPayload('L', { ...NEW_RATE }, undefined, 'a1').p_vehicle_type, null);
+  const v = formFromRate({ id: 'r', name: 'SUV', rate_type: 'hourly', vehicle_type: 'suv' });
+  assert.equal('vehicleType' in v, false);
+  assert.equal(
+    rateUpsertPayload('L', v, { id: 'r', area_id: 'a1', vehicle_type: 'suv' }).p_vehicle_type,
+    null
+  );
 });
 
 test('editing the default never sends a vehicle, an area or inactive', () => {
@@ -117,7 +116,7 @@ test('editing the default never sends a vehicle, an area or inactive', () => {
     area_id: 'a',
     active: false,
   };
-  const p = rateUpsertPayload('L', { ...formFromRate(dflt), vehicleType: 'car' }, dflt);
+  const p = rateUpsertPayload('L', formFromRate(dflt), dflt);
   assert.equal(p.p_vehicle_type, null);
   assert.equal(p.p_area_id, null);
   assert.equal(p.p_active, true);

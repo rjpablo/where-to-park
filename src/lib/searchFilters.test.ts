@@ -6,12 +6,18 @@ const base: SearchFilters = {
   vehicleType: null,
   rateType: null,
   showFull: false,
+  freeOnly: false,
   distanceKm: 3,
 };
 
 test('full listings are hidden unless Show Full is on', () => {
   assert.equal(searchFilterParams(base).p_hide_full, true);
   assert.equal(searchFilterParams({ ...base, showFull: true }).p_hide_full, false);
+});
+
+test('free parking filter is off until it is turned on', () => {
+  assert.equal(searchFilterParams(base).p_free_only, false);
+  assert.equal(searchFilterParams({ ...base, freeOnly: true }).p_free_only, true);
 });
 
 test("vehicle dropdown: 'All vehicles' plus every vehicle type; All = no filter", async () => {

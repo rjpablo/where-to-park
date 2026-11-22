@@ -255,6 +255,7 @@ Expo Go is not needed; this is a standalone APK.
 | Version | versionCode | EAS build | Notes |
 |---|---|---|---|
 | 1.0.3 | 4 | [0f4441a0-abd3-43c4-b380-1f694510c367](https://expo.dev/accounts/the-bad-company/projects/where-to-park/builds/0f4441a0-abd3-43c4-b380-1f694510c367) | First EAS build, from commit `0748102`. Signed with `wheretopark-preview`. The universal APK is about 119 MB because it includes all ABIs. |
+| 🟧 1.0.19 | 20 | [ac4bf688-1eb5-442b-89f7-33489efec4b4](https://expo.dev/accounts/the-bad-company/projects/where-to-park/builds/ac4bf688-1eb5-442b-89f7-33489efec4b4) | Production AAB (points at staging), Nov 22, 2026, from `develop` merge `fd46f2b` (cut `3508a6b`). Share search links, App Links with the Play signing fingerprint, map fix, ads 16.3.4 (built without the Kotlin pin). [AAB](https://expo.dev/artifacts/eas/PcXBfA7jka7-H38PqAP4Jytx1akLFSz934iTrKgDlHc.aab). |
 
 ## Web deploy
 
@@ -286,6 +287,30 @@ Notes:
 - 🟧 The old web-only issue (the results sheet couldn't be collapsed after expanding,
   a reanimated `setAttribute` error) is fixed since the SDK 54 upgrade: on web the sheet
   moves between Minimized, Normal and Maximized by tapping or dragging the handle.
+
+## Replacing the web address
+
+The public host is the first name in `web-host.json`. Names after it are older addresses that should still open the app. `app.config.js` copies that list into the iOS associated domains and the Android link claim. Do not put the host in `app.json`. `public/.well-known/assetlinks.json` has no hostname.
+
+1. Edit `web-host.json`. To move to `parking.example` and keep the current links working:
+
+   ```json
+   { "hosts": ["parking.example", "where-to-park.expo.app"] }
+   ```
+
+   Each entry is a hostname only: no `https://` and no path.
+
+2. In EAS Hosting for this project, add that domain and create the DNS records Expo shows. `https://<host>/.well-known/assetlinks.json` must return 200 with `Content-Type: application/json`. A redirect to `where-to-park.expo.app` does not count.
+
+3. On Supabase Auth, add `https://<host>/**` to the redirect allow-list, next to `https://where-to-park.expo.app/**`. Do this on staging now, and on production when the app uses it. Google's redirect URI stays the Supabase callback. `wheretopark://` does not change. See [google-sign-in.md](google-sign-in.md).
+
+4. Install a new Android build. The claim is inside the app, so a phone that already has the app keeps the previous hosts until that install.
+
+5. Redeploy the website (Web deploy, above) after the file change when the new export should be what the domain serves. A custom domain pointed at the current deployment already serves the current site and the association file.
+
+6. 🟧 Update the `Sitemap:` line in `public/robots.txt` and the site URLs in `public/index.html`, and add the host in Search Console. See [seo.md](seo.md#changing-the-web-address).
+
+iOS takes the new associated domain on the next iOS build. The Apple association file stays unpublished until `APPLE_TEAM_ID` is set in `src/lib/appLinks.ts`.
 
 ## 🟧 App icon and splash (Art's icon)
 

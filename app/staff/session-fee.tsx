@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -31,6 +32,8 @@ export default function SessionFeeScreen() {
   const [s, setS] = React.useState<any>(null);
   const [presets, setPresets] = React.useState<any[]>([]);
   const [picked, setPicked] = React.useState<string | null>(null);
+  const [customName, setCustomName] = React.useState('');
+  const [customAmount, setCustomAmount] = React.useState('');
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
@@ -54,6 +57,68 @@ export default function SessionFeeScreen() {
       setS(data.session);
     })();
   }, [id]);
+
+  const addCustom = async () => {
+    const name = customName.trim();
+    const amount = Number(customAmount);
+    if (!name) return setError('Enter a name for this fee.');
+    if (!customAmount.trim() || !Number.isFinite(amount) || amount <= 0) {
+      return setError('Enter an amount more than ₱0');
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      const { data, error: e } = await supabase.rpc('add_session_fee', {
+        p_session_id: id,
+        p_description: name,
+        p_amount: amount,
+      });
+      if (e || data?.error) {
+        setError(e?.message || walkInErrorMessage(data?.error));
+        return;
+      }
+      router.dismissTo({
+        pathname: '/staff/session',
+        params: {
+          id: id!,
+          locationId: s.location_id,
+          ...(from ? { from } : {}),
+          notice: `Added ${name} ${formatPeso(data.amount)}`,
+        },
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const customFields = (
+    <View testID="fee-custom">
+      <Text style={styles.label}>Custom fee</Text>
+      <TextInput
+        style={styles.input}
+        value={customName}
+        onChangeText={setCustomName}
+        placeholder="Name, e.g. Overnight"
+        testID="fee-custom-name"
+      />
+      <TextInput
+        style={styles.input}
+        value={customAmount}
+        onChangeText={setCustomAmount}
+        placeholder="Amount"
+        keyboardType="decimal-pad"
+        testID="fee-custom-amount"
+      />
+      <Button
+        title="Add custom fee"
+        variant="outline"
+        onPress={addCustom}
+        loading={saving}
+        testID="fee-custom-submit"
+        style={{ marginTop: theme.spacing.md }}
+      />
+    </View>
+  );
 
   const add = async () => {
     const preset = presets.find((p) => p.id === picked);
@@ -110,44 +175,52 @@ export default function SessionFeeScreen() {
         <Text style={styles.meta} testID="session-fee-closed">
           This session has ended, so fees can no longer be added.
         </Text>
-      ) : presets.length === 0 ? (
-        <Text style={styles.meta} testID="session-fee-none">
-          No extra fees are set up for this listing yet. Owners and managers can add them under Fees
-          on the listing page.
+      ) : s.reservation && s.approval_status === 'pending' ? (
+        <Text style={styles.meta} testID="session-fee-closed">
+          Approve the reservation before adding a fee.
         </Text>
       ) : (
         <>
-          <Text style={styles.label}>Fee</Text>
-          {presets.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              onPress={() => setPicked(p.id)}
-              style={[styles.option, picked === p.id && styles.optionOn]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: picked === p.id }}
-              testID={`fee-option-${p.name}`}
-            >
-              <Text style={[styles.optionText, picked === p.id && styles.optionTextOn]}>
-                {p.name}
-              </Text>
-              <Text style={[styles.optionText, picked === p.id && styles.optionTextOn]}>
-                {formatPeso(p.amount)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {presets.length === 0 ? (
+            <Text style={styles.meta} testID="session-fee-none">
+              No saved fees for this listing. Add a custom fee below, or set some up under Fees.
+            </Text>
+          ) : (
+            <>
+              <Text style={styles.label}>Saved fee</Text>
+              {presets.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  onPress={() => setPicked(p.id)}
+                  style={[styles.option, picked === p.id && styles.optionOn]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: picked === p.id }}
+                  testID={`fee-option-${p.name}`}
+                >
+                  <Text style={[styles.optionText, picked === p.id && styles.optionTextOn]}>
+                    {p.name}
+                  </Text>
+                  <Text style={[styles.optionText, picked === p.id && styles.optionTextOn]}>
+                    {formatPeso(p.amount)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <Button
+                title="Add fee"
+                onPress={add}
+                loading={saving}
+                disabled={!picked}
+                testID="fee-submit"
+                style={{ marginTop: theme.spacing.md }}
+              />
+            </>
+          )}
           {error ? (
             <Text style={styles.error} testID="fee-error">
               {error}
             </Text>
           ) : null}
-          <Button
-            title="Add fee"
-            onPress={add}
-            loading={saving}
-            disabled={!picked}
-            testID="fee-submit"
-            style={{ marginTop: theme.spacing.md }}
-          />
+          {customFields}
         </>
       )}
     </ScrollView>
@@ -159,6 +232,16 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.lg },
   centered: { alignItems: 'center', justifyContent: 'center', padding: theme.spacing.lg },
   title: { ...theme.typography.h3 },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.background,
+    ...theme.typography.body,
+  },
   label: {
     ...theme.typography.body,
     fontWeight: '600',

@@ -40,6 +40,11 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   },
   // Operator workspace
   'operator/listings': () => SEARCH,
+  'operator/reports/index': () => SEARCH,
+  'operator/reports/collections': (p) => {
+    const id = one(p, 'operatorId');
+    return id ? `/operator/reports?operatorId=${encodeURIComponent(id)}` : '/operator/reports';
+  },
   'operator/onboarding': () => LISTINGS,
   'operator/hub/[id]': () => LISTINGS,
   'operator/edit/[id]': (p) => listingParent(p, 'id'),
@@ -90,6 +95,7 @@ const PARENTS: Record<string, (p: RouteParams) => string> = {
   'admin/contact': () => SEARCH,
   'admin/contact-item': () => '/admin/contact',
   'admin/push': () => SEARCH,
+  'admin/settings': () => SEARCH,
 };
 
 function sessionParent(p: RouteParams | undefined): string {

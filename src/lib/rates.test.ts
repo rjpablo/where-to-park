@@ -126,6 +126,7 @@ test('rateSummary: Rates screen wording for every type; null only when amounts a
 
 test('cardRateText: hourly first, then the other rate, else See rates', () => {
   const c = (i: any) => cardRateText(i, formatPeso);
+  assert.equal(c({ is_free: true, starting_rate: '0' }), 'Free');
   assert.equal(
     c({ starting_rate: '20.00', starting_rate_info: { rate_type: 'daily', daily_amount: 1 } }),
     '₱20.00/h'
