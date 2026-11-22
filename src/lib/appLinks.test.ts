@@ -60,7 +60,7 @@ test('the host list is web-host.json, and a second host is claimed with it', () 
   assert.throws(() => assertWebHosts(['https://parking.example']), /names only/);
 });
 
-test('the site file and the Android claim use the preview certificate', () => {
+test('the site file and the Android claim list the EAS and Play signing certificates', () => {
   const statement = androidAssetLinks()[0];
   assert.deepEqual(statement.relation, ['delegate_permission/common.handle_all_urls']);
   assert.equal(statement.target.namespace, 'android_app');
@@ -68,6 +68,12 @@ test('the site file and the Android claim use the preview certificate', () => {
   for (const fingerprint of ANDROID_SHA256_CERT_FINGERPRINTS) {
     assert.match(fingerprint, /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/);
   }
+  assert.deepEqual(statement.target.sha256_cert_fingerprints, [
+    // EAS keystore (upload key)
+    '49:3E:FE:0F:CD:7C:72:3A:F4:D8:B9:B2:00:DC:48:1B:E0:CB:87:3A:63:85:EE:28:C4:77:E8:EC:42:45:B2:25',
+    // Google Play App Signing key (Classical)
+    '66:71:4A:EB:D0:C4:59:5F:F8:05:80:E2:0D:A8:20:37:50:BC:AD:19:56:7C:33:B6:4E:C9:75:33:C1:62:16:A7',
+  ]);
   const hosted = JSON.parse(readFileSync(join(root, 'public/.well-known/assetlinks.json'), 'utf8'));
   assert.deepEqual(hosted, androidAssetLinks());
 });

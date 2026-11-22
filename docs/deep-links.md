@@ -53,23 +53,14 @@ Already in place before this feature (rj, `aa27c85`, `3b732db`):
   `Content-Type: application/json` (checked with curl on Nov 22, 2026). `src/lib/appLinks.test.ts`
   checks it matches `src/lib/appLinks.ts`.
 
-The file lists one certificate, SHA-256
-`49:3E:FE:0F:…:B2:25`. That is the EAS keystore (upload key): it is the
-signature on the 1.0.17 AAB (checked from the AAB's META-INF on Nov 22, 2026).
-It verifies links for builds installed straight from EAS (APK / internal
-distribution).
+The file lists two certificates (both public fingerprints, not secrets):
 
-**Still needed for Play installs (rj):** apps installed from Google Play are
-re-signed with the Play App Signing key, so the file must also list that key:
+| Certificate | SHA-256 | Verifies |
+|---|---|---|
+| EAS keystore (upload key) | `49:3E:FE:0F:CD:7C:72:3A:F4:D8:B9:B2:00:DC:48:1B:E0:CB:87:3A:63:85:EE:28:C4:77:E8:EC:42:45:B2:25` | APKs built and installed straight from EAS (preview / internal). Matches the 1.0.17 AAB's signature. |
+| Google Play App Signing key (Classical) | `66:71:4A:EB:D0:C4:59:5F:F8:05:80:E2:0D:A8:20:37:50:BC:AD:19:56:7C:33:B6:4E:C9:75:33:C1:62:16:A7` | Apps installed from Google Play (Play re-signs with this key). From Play Console > Setup > App signing, "App signing key certificate". |
 
-1. Play Console → Where To Park → Test and release → Setup → **App signing**
-   (older consoles: Setup → App integrity → App signing).
-2. Copy **App signing key certificate → SHA-256 certificate fingerprint**
-   (not the upload key one, which is the EAS key above). It is public; it is not
-   a secret.
-3. Add it to `ANDROID_SHA256_CERT_FINGERPRINTS` in `src/lib/appLinks.ts` and to
-   `public/.well-known/assetlinks.json` (the test checks they match).
-4. Redeploy the website. No new build is needed for this step.
+🟧 The Play key was added on Nov 22, 2026 (rj t220u). The post-quantum key on that page is not used for App Links. If either key ever changes, update `ANDROID_SHA256_CERT_FINGERPRINTS` in `src/lib/appLinks.ts` and `public/.well-known/assetlinks.json` together (the test checks they match), then redeploy the website; no app build is needed for that.
 
 A phone opens https links in the app only with a build made after `aa27c85`
 (the intent filters are native config), i.e. **the next Android build**.
