@@ -22,6 +22,7 @@ import {
 import type { Coordinate } from '../../src/components/map/types';
 import type { ProcessedImage } from '../../src/utils/processImage';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
+import { listingMenuRoute } from '../../src/lib/listingRoutes';
 
 type ListingType = 'commercial' | 'residential';
 
@@ -117,8 +118,9 @@ export default function OnboardingScreen() {
   };
 
   const openListing = (locationId: string) => {
-    // Replace the form in history so Back cannot return to a submitted form.
-    router.replace(`/location/${locationId}`);
+    // Open the listing menu (rj PAD-5), replacing the form in history so Back
+    // cannot return to a submitted form.
+    router.replace(listingMenuRoute(locationId));
   };
 
   const handleFinish = async () => {

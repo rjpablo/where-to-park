@@ -112,6 +112,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 
 | Status | Feature                                                                                                                    |
 | ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 🟢     | 🟧 After submitting List Your Space, the app opens the new listing's menu (not Location details); Back does not return to the form |
 | 🟢     | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking. Track capacity starts off. Off hides the field and keeps the number |
 | 🟢     | A new listing stays hidden until an admin publishes it                                                                     |
 | 🟢     | Edit listing, including restore saved pin and the free-parking switch. Track capacity is set on Rates and Edit rate |

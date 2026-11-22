@@ -229,6 +229,9 @@ Unit: `src/lib/areas.test.ts`
 **MANAGE-02.** Complete List Your Space with a name, a pin, rules, a photo, areas, and the reservation-requests switch. Leave the address blank. **Expect:** the address field is on the pin step. The blank address is filled from the pinned place. The listing is submitted hidden, and it stays out of search until an admin publishes it.
 Unit: `src/lib/geocoding/address.test.ts`, `src/lib/pinRestore.test.ts`
 
+**MANAGE-02b.** 🟧 Submit List Your Space for a paid listing, then for a free listing; then make the photo upload fail and tap **Continue without photo**, and make a later step fail and tap **Open listing**. **Expect:** each time the new listing's menu opens (its name, Edit, Areas, Rates, Staff, Availability, View location details), not Location details. Back from the menu does not reopen the form.
+Unit: `src/lib/listingRoutes.test.ts`
+
 **MANAGE-03.** On the capacity step, leave both switches off, then turn Track capacity on, enter a number, and turn it off. Try 0 while it is on. Turn Free parking on, then turn it off. **Expect:** Track capacity starts off and the capacity field is hidden. The review still shows the capacity and says it is not counted. Turning tracking on shows the field. 0 is refused. A whole number of at least 1 is kept when tracking is turned off again. Free parking hides the rate fields and the cash-payment note, and a rate is not required. Turning free parking off turns tracking off again. Place search and ◎ work on the pin map. Dragging the map pans the map rather than the form. There is no restore-pin button, because a new listing has no saved pin.
 Unit: `src/lib/listingCapacity.test.ts`, `src/lib/pinRestore.test.ts`
 
