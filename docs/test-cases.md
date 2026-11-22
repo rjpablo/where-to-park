@@ -10,7 +10,7 @@ Money is Philippine pesos. Listing times and rate days use Asia/Manila.
 
 ## Sidebar and navigation
 
-**NAV-01.** Open Find Parking as a guest and open the sidebar. **Expect:** Sign in and Contact Us. No My listings, Sessions, or admin items.
+**NAV-01.** Open Find Parking as a guest and open the sidebar. **Expect:** Sign in, List your parking space, and Contact Us. No My listings, Sessions, or admin items.
 Unit: `src/lib/sidebar.test.ts`
 
 **NAV-02.** Open the sidebar while signed in, with no listing and no staff membership. **Expect:** My profile, Messages, Notifications, Sessions, and Saved vehicles, plus List your parking space. My listings is absent.
@@ -34,6 +34,9 @@ Unit: `src/lib/backToExit.test.ts`
 **NAV-09.** From a listing opened on top of Find Parking, press hardware back. **Expect:** the app returns to Find Parking. The exit prompt does not appear.
 
 **NAV-10.** On a phone with a build that includes the host list, open the public site (the first host in `web-host.json`), a search link, or a listing link from another app. **Expect:** the app opens on that page. Typing the address in Chrome can offer Open in the app. With no app installed, the page stays in the browser. Google sign-in that returns to the website's `/oauth-callback` stays in the browser. A second host in `web-host.json` opens the app the same way.
+
+**NAV-11.** As a guest, choose List your parking space. **Expect:** sign-in opens and says to sign in or create an account to list a parking space. The screen still offers creating an account. After sign-in, listing setup opens. A signed-in driver still goes straight to listing setup.
+Unit: `src/lib/sidebar.test.ts`
 Unit: `src/lib/appLinks.test.ts`
 
 ## Finding parking

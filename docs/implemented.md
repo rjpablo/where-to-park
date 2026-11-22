@@ -33,7 +33,7 @@ A feature that depends on a database function only works after that migration ha
 
 Operator membership roles are `owner`, `manager`, and `staff`. Admin is a profile flag, not a membership.
 
-The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. An owner or a manager also sees Reports. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
+The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in, List your parking space, and Contact Us. Choosing List your parking space as a guest opens sign-in, which also offers creating an account, and continues to listing setup after sign-in. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. An owner or a manager also sees Reports. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
 
 ## Screen index
 

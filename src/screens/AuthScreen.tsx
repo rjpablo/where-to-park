@@ -15,6 +15,7 @@ import {
 } from '../lib/emailAuth';
 import { authDestination, rememberAuthNext, safeNext } from '../lib/authReturn';
 import { firstParam } from '../lib/params';
+import { listSpaceSignInPrompt } from '../lib/sidebar';
 import { theme } from '../lib/theme';
 import { useBottomInset } from '../hooks/useBottomInset';
 
@@ -187,7 +188,7 @@ export function AuthScreen() {
           ? 'Almost done: confirm your name'
           : params.add
             ? 'Add an account: sign in with its email or Google'
-            : 'Sign in with your email or Google'}
+            : listSpaceSignInPrompt(next) || 'Sign in with your email or Google'}
       </Text>
       {params.add ? (
         <Text style={styles.subtitle} testID="auth-add-note">

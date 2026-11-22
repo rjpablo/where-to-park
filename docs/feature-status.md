@@ -109,6 +109,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | Status | Feature                                                                                                                    |
 | ------ | -------------------------------------------------------------------------------------------------------------------------- |
 | 🟢     | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking. Track capacity starts off. Off hides the field and keeps the number |
+| 🟢     | Guests see List your parking space. Choosing it asks them to sign in or create an account, then opens listing setup |
 | 🟢     | A new listing stays hidden until an admin publishes it                                                                     |
 | 🟢     | Edit listing, including restore saved pin and the free-parking switch. Track capacity is set on Rates and Edit rate |
 | 🟢     | Hub for owners and managers: Availability, edit, areas, rates, fee presets, staff. A free listing hides fee presets       |

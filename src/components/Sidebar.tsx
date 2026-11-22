@@ -15,7 +15,12 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
-import { buildSidebarItems, needsAttention, type SidebarItem } from '../lib/sidebar';
+import {
+  buildSidebarItems,
+  listSpaceSignInRoute,
+  needsAttention,
+  type SidebarItem,
+} from '../lib/sidebar';
 import { theme } from '../lib/theme';
 import { useAuthStore } from '../stores/authStore';
 import { useSidebarStore } from '../stores/sidebarStore';
@@ -122,6 +127,10 @@ export function Sidebar({ hasWorkspace, canReport }: Props) {
       } finally {
         setBusy(null);
       }
+      return;
+    }
+    if (it.key === 'list_space' && !user) {
+      go(listSpaceSignInRoute());
       return;
     }
     if (it.key === 'list_space' && user) {

@@ -105,11 +105,34 @@ function item(
   return { key, label, route, count, countLabel, alert, section };
 }
 
-/** Items in display order for the signed-in role (guests get Sign in only). */
+/** Listing setup, opened after a guest signs in from List your parking space. */
+export const LIST_SPACE_PATH = '/operator/onboarding';
+
+/** Sign-in (which also offers creating an account), then listing setup. */
+export function listSpaceSignInRoute(): string {
+  return `/auth?next=${encodeURIComponent(LIST_SPACE_PATH)}`;
+}
+
+/** The sign-in screen's prompt when a guest chose List your parking space. */
+export function listSpaceSignInPrompt(next: string | null | undefined): string | null {
+  if (!next) return null;
+  let path = next;
+  try {
+    path = decodeURIComponent(next);
+  } catch {
+    return null;
+  }
+  return path === LIST_SPACE_PATH
+    ? 'Sign in or create an account to list your parking space'
+    : null;
+}
+
+/** Items in display order. Guests get Sign in, List your parking space, and Contact Us. */
 export function buildSidebarItems(user: SidebarUser, counts: SidebarCounts): SidebarItem[] {
   if (!user) {
     return [
       item('sign_in', 'Sign in', '/auth', counts),
+      item('list_space', 'List your parking space', undefined, counts),
       item('contact', 'Contact Us', '/contact', counts),
     ];
   }

@@ -5,6 +5,8 @@ import {
   buildSidebarItems,
   EMPTY_COUNTS,
   formatCount,
+  listSpaceSignInPrompt,
+  listSpaceSignInRoute,
   needsAttention,
   parseSidebarCounts,
   type SidebarCounts,
@@ -42,11 +44,20 @@ test('badge: a trigger disabled in the database no longer lights it', () => {
   ]);
 });
 
-test('items: guest sees Sign in and Contact Us', () => {
+test('items: guest sees Sign in, List your parking space, and Contact Us', () => {
+  const items = buildSidebarItems(null, EMPTY_COUNTS);
   assert.deepEqual(
-    buildSidebarItems(null, EMPTY_COUNTS).map((i) => i.key),
-    ['sign_in', 'contact']
+    items.map((i) => i.key),
+    ['sign_in', 'list_space', 'contact']
   );
+  assert.equal(items.find((i) => i.key === 'list_space')?.label, 'List your parking space');
+  assert.equal(items.find((i) => i.key === 'list_space')?.route, undefined);
+  assert.equal(listSpaceSignInRoute(), '/auth?next=%2Foperator%2Fonboarding');
+  assert.equal(
+    listSpaceSignInPrompt('%2Foperator%2Fonboarding'),
+    'Sign in or create an account to list your parking space'
+  );
+  assert.equal(listSpaceSignInPrompt('/sessions'), null);
 });
 
 test('items: driver vs operator vs admin are role-appropriate', () => {
