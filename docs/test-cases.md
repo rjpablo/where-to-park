@@ -259,7 +259,7 @@ Unit: `src/lib/areas.test.ts`
 **MANAGE-08.** Edit an area's monitoring, total, and vehicle types, leaving every type unchecked. **Expect:** no types selected means every type. A monitored area stores a total.
 Unit: `src/lib/areas.test.ts`
 
-**MANAGE-09.** On Rates, turn Track capacity on and off, open Edit rate, and use a rate row. **Expect:** Free parking is not on this screen. Track capacity is on Rates; 🟧 New/Edit rate has no Track capacity. Off hides the field and stops counting spots. The capacity number stays. On requires a whole number of at least 1. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived or restored (🟧 no Set as default).
+**MANAGE-09.** On Rates, open Edit rate, and use a rate row. **Expect:** Free parking is not on this screen. 🟧 Neither Rates nor New/Edit rate has Track capacity (it is on Areas). The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived or restored (🟧 no Set as default).
 Unit: `src/lib/listingCapacity.test.ts`, `src/lib/quotePreview.test.ts`, `src/lib/rates.test.ts`
 
 **MANAGE-10.** Create a rate and edit one. **Expect:** the form has type, amounts, an optional vehicle, days of the week, and effective dates. Dates are Manila days, and the end date covers that whole day. Saving returns to the list. The default rate's edit does not send a vehicle, an area, or an inactive flag.

@@ -119,7 +119,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | 🟧 After submitting List Your Space, the app opens the new listing's menu (not Location details); Back does not return to the form |
 | 🟢     | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking. Track capacity starts off. Off hides the field and keeps the number |
 | 🟢     | A new listing stays hidden until an admin publishes it                                                                     |
-| 🟢     | Edit listing, including restore saved pin and the free-parking switch. Track capacity is set on Rates and per area on Areas (🟧 not on New/Edit rate) |
+| 🟢     | Edit listing, including restore saved pin and the free-parking switch. Track capacity is set per area on Areas (🟧 not on Rates or New/Edit rate) |
 | 🟢     | Hub for owners and managers: Availability, edit, areas, rates, fee presets, staff. A free listing hides fee presets       |
 | 🟢     | Staff hub: Availability and Messages                                                                                       |
 | 🟢     | Delete listing by sliding to confirm. Refused while a session is still open                                               |

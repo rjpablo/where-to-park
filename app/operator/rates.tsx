@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { TrackCapacityField } from '../../src/components/TrackCapacityField';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
@@ -369,8 +368,6 @@ export default function RatesScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="rates-ready">
       <Text style={styles.subtitle}>{locationName}</Text>
-
-      {locationId ? <TrackCapacityField locationId={locationId} /> : null}
 
       <Button
         title="Price preview"
