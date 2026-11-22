@@ -172,8 +172,18 @@ Unit: `src/lib/quotePreview.test.ts`
 **PRICE-03.** Limit a rate to weekdays, a date range, one vehicle type, and one area. Start a stay on a Manila day outside that limit. **Expect:** that rate is not used. The default rate still applies: every day, no dates, no vehicle, no area.
 Unit: `src/lib/rateForm.test.ts`, `src/lib/rates.test.ts`
 
-**PRICE-04.** Try to delete the default rate, then make another rate the default and delete the old one. **Expect:** the first delete is refused. The second succeeds. Deactivating a rate that is in use moves those hours onto the rates still in effect.
+**PRICE-04.** Try to delete the default rate. **Expect:** it is refused, and 🟧 no rate offers Set as default (PAD-6). Deactivating a rate that is in use moves those hours onto the rates still in effect.
 Unit: `src/lib/rates.test.ts`
+
+**PRICE-07.** 🟧 On a listing with Main (all vehicles) and a motorcycle-only area, open Rates. **Expect:** the default rate is on top, then a Main section and a motorcycle-area section, each with Add rate to <area>. Add a rate from the motorcycle section: the form says the area and only offers Motorcycle (or Any vehicle in this area). Open **Price preview**: a bottom sheet with Area chips; picking the motorcycle area limits the vehicle chips to Motorcycle and the quote uses that area's rate; Main quotes with the default. On a single-area listing the sections have no area name and the sheet has no Area choice.
+Unit: `src/lib/areaRates.test.ts`, `src/lib/rateForm.test.ts`
+
+**PRICE-08.** 🟧 Check in a walk-in in the motorcycle area, then one in Main. **Expect:** the rate list and Automatic use that area's rates plus the default; Main doesn't show the motorcycle area's rates. Move a reservation to the other area: an automatic rate is picked again for it.
+
+**PRICE-09.** 🟧 Open that listing's Location details, then a single-area listing. **Expect:** with 2+ areas the default comes first, then each area's rates under its name (areas with no rates are left out); a single-area listing looks as before. In search, a monthly rate only in the motorcycle area makes the listing match Monthly for Motorcycle or no vehicle, not for Car.
+Unit: `src/lib/areaRates.test.ts`
+
+**PRICE-10.** 🟧 Delete an area that has a reservation, then one with an open session, then one with neither but with rates. **Expect:** the first is refused ('This area has reservations…'), the second too ('This area has open sessions…'). The third is deleted, and its rates disappear from Rates (including Show archived) and are no longer used for pricing.
 
 **PRICE-05.** Turn overnight on and quote a stay that crosses the window, including one that crosses midnight, and one that sits entirely inside the window. **Expect:** overnight hours are left out of the hourly total. One overnight fee is added per night the stay covers. The line reads "Overnight: 1 night". A stay entirely inside the window is the overnight fee only. A monthly stay is unchanged.
 Unit: `src/lib/overnight.test.ts`

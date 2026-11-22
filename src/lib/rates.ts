@@ -111,6 +111,12 @@ export function canBeDefault(rate: DefaultCandidate): boolean {
 }
 
 const RATE_ERRORS: Record<string, string> = {
+  // PAD-6 (0096): rates belong to areas.
+  area_required: 'Pick the area this rate is for.',
+  area_not_found: 'That area no longer exists. Refresh the list.',
+  vehicle_not_in_area: "This rate's area doesn't take that vehicle type.",
+  rate_deleted: "This rate's area was deleted, so the rate can't be used again.",
+  default_exists: 'This listing already has a default rate. Edit it instead.',
   cannot_delete_default:
     "The default rate can't be deleted. Make another rate the default first, then delete this one.",
   not_found: 'That rate no longer exists. Refresh the list.',

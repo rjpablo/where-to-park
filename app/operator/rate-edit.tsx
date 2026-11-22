@@ -10,6 +10,7 @@ import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { rateErrorMessage } from '../../src/lib/rates';
 import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS } from '../../src/lib/searchFilters';
+import { allowedVehicleTypes, vehicleTypesLabel, type Area } from '../../src/lib/areas';
 import {
   NEW_RATE,
   formFromRate,
@@ -30,9 +31,17 @@ export default function RateEditScreen() {
   const params = useLocalSearchParams<{
     locationId?: string | string[];
     rateId?: string | string[];
+    areaId?: string | string[];
   }>();
   const locationId = firstParam(params.locationId);
   const rateId = firstParam(params.rateId);
+  // PAD-6: a new rate is for the area it was added to; an existing one keeps its own.
+  const areaParam = firstParam(params.areaId);
+  const [area, setArea] = React.useState<Pick<
+    Area,
+    'id' | 'name' | 'is_main' | 'vehicle_types'
+  > | null>(null);
+  const [areaCount, setAreaCount] = React.useState(0);
   const [v, setV] = React.useState<RateFormValues>(NEW_RATE);
   const [existing, setExisting] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(!!rateId);
@@ -75,12 +84,22 @@ export default function RateEditScreen() {
           setV(formFromRate(rate.data));
         }
       }
+      const areaId = rate.data ? rate.data.area_id : areaParam;
+      const { data: areaRows } = await supabase
+        .from('areas')
+        .select('id, name, is_main, vehicle_types')
+        .eq('location_id', locationId);
+      if (cancelled) return;
+      setAreaCount(areaRows?.length ?? 0);
+      const found = (areaRows || []).find((a: any) => a.id === areaId) ?? null;
+      setArea(found);
+      if (!rate.data?.is_default && !found) setError('Pick an area on the Rates page first.');
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [locationId, rateId]);
+  }, [locationId, rateId, areaParam]);
 
   const backToRates = () => {
     if (router.canGoBack()) router.back();
@@ -95,7 +114,7 @@ export default function RateEditScreen() {
     setSaving(true);
     const { data, error: rpcError } = await supabase.rpc(
       'upsert_rate',
-      rateUpsertPayload(locationId, v, existing ?? undefined)
+      rateUpsertPayload(locationId, v, existing ?? undefined, area?.id)
     );
     setSaving(false);
     if (rpcError || data?.error) {
@@ -123,6 +142,11 @@ export default function RateEditScreen() {
       {locationId ? <TrackCapacityField locationId={locationId} /> : null}
       {existing?.is_default ? (
         <Text style={styles.meta}>This is the listing's default rate.</Text>
+      ) : area ? (
+        <Text style={styles.meta} testID="rate-edit-area">
+          {areaCount >= 2 ? `Area: ${area.name}. ` : ''}Applies to sessions in this area (
+          {vehicleTypesLabel(area.vehicle_types, VEHICLE_TYPE_LABELS as Record<string, string>)}).
+        </Text>
       ) : null}
       <Text style={styles.label}>Name</Text>
       <TextInput
@@ -211,7 +235,7 @@ export default function RateEditScreen() {
         <>
           <Text style={styles.label}>Vehicle (optional)</Text>
           <View style={styles.types}>
-            {[null, ...VEHICLE_TYPES].map((t) => {
+            {[null, ...allowedVehicleTypes(area, VEHICLE_TYPES)].map((t) => {
               const on = v.vehicleType === t;
               return (
                 <TouchableOpacity
@@ -223,7 +247,11 @@ export default function RateEditScreen() {
                   testID={`rate-vehicle-${t ?? 'all'}`}
                 >
                   <Text style={[styles.typeChipText, on && styles.typeChipTextOn]}>
-                    {t ? VEHICLE_TYPE_LABELS[t] : 'All vehicles'}
+                    {t
+                      ? VEHICLE_TYPE_LABELS[t]
+                      : area?.vehicle_types?.length
+                        ? 'Any vehicle in this area'
+                        : 'All vehicles'}
                   </Text>
                 </TouchableOpacity>
               );

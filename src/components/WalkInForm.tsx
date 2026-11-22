@@ -167,6 +167,8 @@ export function WalkInForm({
         p_location_id: locationId,
         p_vehicle_type: vehicle,
         p_start_at: startAt,
+        // PAD-6: rates belong to areas (NULL = Main).
+        p_area_id: area?.id ?? null,
       })
       .then(({ data, error: e }) => {
         if (!live) return;
@@ -183,7 +185,7 @@ export function WalkInForm({
     return () => {
       live = false;
     };
-  }, [locationId, vehicle, startAt, refreshKey]);
+  }, [locationId, vehicle, startAt, refreshKey, area?.id]);
 
   // Without an end the amount runs to now: refresh it every minute.
   React.useEffect(() => {
@@ -211,6 +213,7 @@ export function WalkInForm({
         p_start_at: times.startAt,
         p_end_at: times.endAt,
         p_rate_id: rateId,
+        p_area_id: area?.id ?? null,
       });
       if (!live) return;
       if (e || data?.error) {
@@ -226,7 +229,7 @@ export function WalkInForm({
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationId, vehicle, startAt, endAt, rateId, tick, refreshKey]);
+  }, [locationId, vehicle, startAt, endAt, rateId, tick, refreshKey, area?.id]);
 
   const setNow = () => {
     const now = manilaDateTime(new Date().toISOString());

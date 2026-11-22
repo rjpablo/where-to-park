@@ -20,6 +20,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { formatPeso } from '../../src/utils/formatters';
 import { rateSummary } from '../../src/lib/rates';
+import { groupRatesByArea, showAreaHeadings } from '../../src/lib/areaRates';
 import { reservationsAllowed } from '../../src/lib/reservations';
 import { OvernightSetting } from '../../src/components/OvernightSetting';
 import {
@@ -420,6 +421,15 @@ export default function LocationDetailScreen() {
     await openNavigation(navApp, { lat, lng, name: location?.name });
   };
 
+  const renderRateItem = (rate: any) => (
+    <View key={rate.id} style={styles.rateItem}>
+      <Text style={styles.rateType}>
+        {rate.name || rate.rate_type} {rate.vehicle_type && `(${rate.vehicle_type})`}
+      </Text>
+      <Text style={styles.ratePrice}>{rateSummary(rate, formatPeso) ?? 'Contact for rates'}</Text>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.loading} testID="location-loading">
@@ -678,20 +688,31 @@ export default function LocationDetailScreen() {
                   <Text style={styles.placeholderText} testID="rates-free">
                     Free parking
                   </Text>
-                ) : location.rates?.filter((r: any) => r.active).length > 0 ? (
-                  location.rates
-                    .filter((r: any) => r.active)
-                    .map((rate: any) => (
-                      <View key={rate.id} style={styles.rateItem}>
-                        <Text style={styles.rateType}>
-                          {rate.name || rate.rate_type}{' '}
-                          {rate.vehicle_type && `(${rate.vehicle_type})`}
-                        </Text>
-                        <Text style={styles.ratePrice}>
-                          {rateSummary(rate, formatPeso) ?? 'Contact for rates'}
-                        </Text>
-                      </View>
-                    ))
+                ) : location.rates?.filter((r: any) => r.active && !r.deleted_at).length > 0 ? (
+                  showAreaHeadings(location.areas || []) ? (
+                    // PAD-6: 2+ areas: the default first, then each area's rates.
+                    (() => {
+                      const g = groupRatesByArea(
+                        location.rates.filter((r: any) => r.active),
+                        location.areas || []
+                      );
+                      return (
+                        <>
+                          {g.defaults.map(renderRateItem)}
+                          {g.sections
+                            .filter((sec) => sec.rates.length > 0)
+                            .map((sec) => (
+                              <View key={sec.area.id} testID={`rates-area-${sec.area.name}`}>
+                                <Text style={styles.rateAreaTitle}>{sec.area.name}</Text>
+                                {sec.rates.map(renderRateItem)}
+                              </View>
+                            ))}
+                        </>
+                      );
+                    })()
+                  ) : (
+                    location.rates.filter((r: any) => r.active && !r.deleted_at).map(renderRateItem)
+                  )
                 ) : (
                   <Text style={styles.placeholderText}>Contact the listing for rates</Text>
                 )}
@@ -1157,6 +1178,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...theme.typography.h3,
     marginBottom: theme.spacing.md,
+  },
+  rateAreaTitle: {
+    ...theme.typography.bodySmall,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
   },
   rateItem: {
     flexDirection: 'row',

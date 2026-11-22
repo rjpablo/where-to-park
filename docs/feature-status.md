@@ -71,8 +71,12 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | ------ | -------------------------------------------------------------------------------------------------------------------------- |
 | 🟢     | One price function, `price_stay`, for session quotes, reservation quotes, walk-in quotes, and the Rates preview            |
 | 🟢     | Hourly, daily, flat then hourly, and monthly. Monthly prices a stay only when that rate is chosen                          |
-| 🟢     | A rate can be limited to days, dates, one vehicle type, and one area. Each billed hour uses the rate in effect then        |
-| 🟢     | One default rate, always applicable, not deletable until another rate is made the default                                  |
+| 🟢     | 🟧 Every rate except the default belongs to one area and inherits its vehicle types. Pricing uses the session's area rates, then the default |
+| 🟢     | 🟧 Rates screen: default on top, a section per area with Add rate; Price preview in a bottom sheet with an area choice |
+| 🟢     | 🟧 Location details group rates by area when a listing has 2+ areas; search counts any area's rates that take the vehicle |
+| 🟢     | 🟧 Deleting an area soft-deletes its rates; blocked while the area has open sessions or reservations |
+| 🟢     | A rate can be limited to days, dates, and one vehicle type (within its area). Each billed hour uses the rate in effect then |
+| 🟢     | One default rate, always applicable, never deletable. 🟧 Set as default is gone (PAD-6); edit the default itself          |
 | 🟢     | Deactivate, activate, archive, and restore. Deactivating a rate that is in use moves those hours onto the rates in effect  |
 | 🟢     | Overnight is a listing setting: one fee per night, including a window that crosses midnight. A monthly stay is unchanged   |
 | 🟢     | Free parking prices a stay at ₱0. The rate list stays available                                                            |
