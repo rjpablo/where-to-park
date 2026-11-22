@@ -255,6 +255,7 @@ Expo Go is not needed; this is a standalone APK.
 | Version | versionCode | EAS build | Notes |
 |---|---|---|---|
 | 1.0.3 | 4 | [0f4441a0-abd3-43c4-b380-1f694510c367](https://expo.dev/accounts/the-bad-company/projects/where-to-park/builds/0f4441a0-abd3-43c4-b380-1f694510c367) | First EAS build, from commit `0748102`. Signed with `wheretopark-preview`. The universal APK is about 119 MB because it includes all ABIs. |
+| 🟧 1.0.19 | 20 | [ac4bf688-1eb5-442b-89f7-33489efec4b4](https://expo.dev/accounts/the-bad-company/projects/where-to-park/builds/ac4bf688-1eb5-442b-89f7-33489efec4b4) | Production AAB (points at staging), Nov 22, 2026, from `develop` merge `fd46f2b` (cut `3508a6b`). Share search links, App Links with the Play signing fingerprint, map fix, ads 16.3.4 (built without the Kotlin pin). [AAB](https://expo.dev/artifacts/eas/PcXBfA7jka7-H38PqAP4Jytx1akLFSz934iTrKgDlHc.aab). |
 
 ## Web deploy
 
