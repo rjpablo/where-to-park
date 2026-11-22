@@ -1,6 +1,6 @@
 # Implemented features and screens
 
-**As of 15 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
+**As of 22 Nov 2026.** This is an inventory of what the app contains today. The plan, and what is still open, is in [feature-status.md](feature-status.md). Checks for that behavior are in [test-cases.md](test-cases.md). The design history, including changes that were later revised, lives in [spec.md](spec.md). API shapes are in [api.md](api.md). Push setup is in [push-notifications.md](push-notifications.md). Google sign-in setup is in [google-sign-in.md](google-sign-in.md). Cloud builds are in [eas-build.md](eas-build.md).
 
 Where To Park is an Expo SDK 54 app (Android first, web for preview). Routes live in `app/`. The backend is Supabase: Postgres, Auth, Realtime, Storage, and RPCs. Money is Philippine pesos. Listing times and rate days use Asia/Manila. The product language is English.
 
@@ -14,10 +14,12 @@ A feature that depends on a database function only works after that migration ha
 - **Pricing:** hourly, daily, flat then hourly, monthly, default rate, days and dates, overnight, free parking, price breakdown
 - **Sessions:** walk-in check-in, payments, fees, custom fees, refunds, waive balance, end session
 - **Availability:** areas, spot count, Full switch, reserved and unavailable, sessions tab, reservations tab
-- **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking
+- **Listing management:** create, edit, delete, verification, areas, rates, fee presets, staff invites, free parking, Collections report
 - **Messages:** inbox, chat, photos in chat, notifications, push
 - **Account:** email sign-in, Google sign-in, accounts on this device, profile, saved vehicles, shortcuts, privacy policy, contact us
+- **Links:** an https link to the public site opens that page in the installed Android app. The host list is `web-host.json`
 - **Admin:** verification queue, moderation, contact messages, push switches, search radius limit
+- **Ads:** AdMob banners on Android (not on web, not for admins)
 
 ## Who uses it
 
@@ -31,7 +33,7 @@ A feature that depends on a database function only works after that migration ha
 
 Operator membership roles are `owner`, `manager`, and `staff`. Admin is a profile flag, not a membership.
 
-The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
+The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in and Contact Us. Signed-in people also see My profile, Messages, Notifications, Sessions, and Saved vehicles. People with a listing or a staff membership see My listings; everyone else sees List your parking space. An owner or a manager also sees Reports. Admins also see Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. Counts and the red attention dot come from `get_sidebar_counts`.
 
 ## Screen index
 
@@ -62,6 +64,8 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 | New rate / Edit rate   | `/operator/rate-edit`    | Rate                   |
 | Fee Presets            | `/operator/fees`         | Fee Presets            |
 | Staff                  | `/operator/staff`        | Staff                  |
+| Reports                | `/operator/reports`      | Reports                |
+| Collections            | `/operator/reports/collections` | Collections     |
 | Messages (inbox)       | `/operator/inbox`        | Messages               |
 | Availability           | `/operator/availability` | Availability           |
 | Available slots editor | `/operator/slots-editor` | Available slots editor |
@@ -79,15 +83,25 @@ The sidebar (☰ on Find Parking) changes with the account. Guests see Sign in a
 
 Opening a screen from a link with no back history still shows Back. It goes to that screen's parent (`src/lib/backFallback.ts`) instead of leaving the app.
 
+## Links from the web
+
+The public site is the first host in `web-host.json` (today `where-to-park.expo.app`). Its pages (home, search, a listing, and the other screens) are Android App Links. Tapping one with an app build that includes that host opens that page in the app. Typing the address in Chrome can offer Open in the app. With no app installed, the page stays in the browser. The site serves `/.well-known/assetlinks.json` for `com.thebadcompany.wheretopark`, listing the EAS keystore certificate and 🟧 Google Play's app-signing certificate, so EAS APKs and Play installs both verify. Google sign-in that returns to `/oauth-callback` on the website stays in the browser. iOS claims the same hosts. The Apple association file is not published: it needs the Apple Team ID, and iOS is not released. `wheretopark://` links still open the app. Replacing the address is in [eas-build.md](eas-build.md). The current website already serves the association file. An already-installed app opens https links only after a build that includes the host list.
+
 ## Finding parking
 
 **Find Parking** (`/search`) is the home screen. The first search uses the device's current location. If that location is not available, no search runs and no other place is used. A shared link with coordinates still opens that place. A map shows listing pins. The map ends just under the minimized results sheet, so the centre cursor sits in the map that stays visible. A bottom sheet lists the same results in three heights: Minimized, Normal, and Maximized. A new search opens Normal. Place search uses Photon. The ◎ button uses the device location and does not search by itself. Tapping a result opens Listing details.
+
+🟧 **Bug fix: map missing.** Before the device location arrives, or when it is denied or off, Find Parking shows a map of the Philippines instead of an empty area. Nothing is searched until there is a location, a place, or Search this area.
+
+🟧 **Share a search.** The results sheet has a Share button. It shares `https://where-to-park.expo.app/search?lat=…&lng=…&place=…&r=…&v=…&rate=…&free=…&full=…&sort=…`: the system share sheet on Android, the browser share sheet or a copied link on the web. Opening it runs the same search with the same distance, filters and sort, on the website or in the installed Android app. Bad values are ignored and bad coordinates open Find Parking as usual. The web page title and description name the place ('Parking near Makati City | Where To Park'), with canonical, Open Graph and Twitter tags set in the browser and site-wide defaults in the served HTML. See [deep-links.md](deep-links.md).
+
+🟧 **Crawling and link previews (web).** `/robots.txt` keeps private screens out and points to `/sitemap.xml`. Each web deploy writes the sitemap: the home page, 44 reviewed popular places across the Philippines, and the cities with published listings (Binalonan today), each as the search page's canonical link. Shared links preview with one branded 1200×630 image that promotes the app: Google Play badge and a QR code to the Play listing. The Google Search Console verification tag (from `web-host.json`, set Nov 22) is in the served HTML. See [seo.md](seo.md).
 
 After a new area search, the map zooms out around the search centre when a result pin is off the map. If every pin is already on screen, the camera stays where it is. Changing filters, sort, or a live availability refresh does not move the map.
 
 On Android, with no screen to go back to, the hardware back button minimizes a maximized sheet. When the sheet is already minimized, the first press shows "Press back again to close the app" and a second press within 2 seconds closes the app. A sheet at Normal uses that same prompt. If there is a screen to go back to, back navigates as usual.
 
-Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. The slider follows the visible map, from 0.5 km up to the search limit. That limit is 50 km until an admin changes it. When the map covers a wider area, an alert says the search only includes listings within the limit. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
+Filters: vehicle (All, or the signed-in user's default vehicle to start), rate type, **Free parking**, and Show Full last, plus a distance slider. The slider follows the visible map, from 0.5 km up to the search limit. That limit is 50 km until an admin changes it. When the map covers a wider area, a short toast on the map says the search was limited, and can be closed. The map zooms in so its farthest corner is that limit. Full listings are hidden until that filter is turned on. Free parking, when on, shows only listings marked free. Sort: distance, price, rating, eta, open spots. Drive-time ETAs use OpenRouteService, with a straight-line fallback. Pins and the list show how many spots are free. A free listing's price reads Free. A listing is full when every relevant area is full.
 
 ## Listing details
 
@@ -174,6 +188,10 @@ Every listing has a **Main** area. It cannot be renamed or deleted. An area can 
 
 **Staff** (`/operator/staff`) invites by email or phone. The screen never says whether that account already exists. An existing account is not added immediately. They get a notification with Accept and Decline, and appear in Members only after Accept. Resend waits three minutes. An invite can assign the person to specific listings.
 
+**Reports** (`/operator/reports`) is for an owner or a manager. Staff do not see it. When the account runs more than one operator, the screen asks which one. The only report is Collections.
+
+**Collections** (`/operator/reports/collections`) shows what that operator collected. A listing dropdown starts on All listings. Under it, a date-range dropdown starts on Today, in Philippine time, and can be Yesterday, Last 7 days, This month, or Custom. Custom opens the system date picker for the start and the end. Payments is one total for the range, not split by method. Collected is payments minus refunds. Extra fees are not shown. Waivers and refunds in the range are listed separately. Still to collect is the unpaid balance of sessions that are still open, as of now, and it does not follow the dates. Each payment and refund in the range is listed underneath, newest first, up to 200 lines, and a payment line names its method.
+
 ## Chat and notifications
 
 **Messages** (`/operator/inbox`) is the thread list: conversations as a driver, and, for staff, driver threads on their listings. A row shows the latest message and an unread mark. Opening a row goes to **Messages** (`/chat/[locationId]`). A `driverId` query opens that driver's thread. The thread is text plus a photo. Photos use a signed URL.
@@ -194,7 +212,7 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 
 **Shortcuts** (`/shortcuts`) are the signed-in user's saved listings. On Listing details, **Add shortcut** saves the listing. The shortcuts screen reorders them by holding a row and dragging, and delete asks first. Signing in can merge shortcuts that were saved on the device before the account existed.
 
-**Privacy Policy** (`/privacy`) is public.
+**Privacy Policy** (`/privacy`) is public. Its Advertising section discloses the Google AdMob banner ads in the Android app and the advertising ID (last updated November 15, 2026).
 
 **Contact Us** (`/contact`) is public. Category is Issue, Feedback, or Suggestion, with a message and up to five images. A reply email or phone is optional. Guests are remembered on the device so the same person is not treated as a new sender every time.
 
@@ -209,3 +227,9 @@ Push is Android, through Expo and FCM. The app registers this device's token aft
 **Push notifications** (`/admin/push`) is one switch per notification type. Turning a switch off skips the phone push. The in-app notification is still created.
 
 **System Settings** (`/admin/settings`) is for admins. It sets the search radius limit, a whole number of kilometres from 1 to 500. The default is 50. Everyone's searches use the saved limit. A person who is not an admin does not see this screen in the sidebar.
+
+## Ads
+
+Android builds show one AdMob anchored adaptive banner pinned to the bottom of these screens, above the navigation bar: **Find Parking** (below the map and results sheet), **Location Details** (below the scrolling page, which ends in Open Chat with a gap above the ad), **Notifications**, **Sessions** (driver), and **Availability** (Sessions and Reservations tabs; the + button stays in the list header above the ad). No other screen shows ads: sign-in, chat threads, forms, payment and fee screens, profile and settings stay ad-free.
+
+Guests, drivers, operators, managers, and staff see ads. Admins (`profiles.is_admin`) never do. The web app never shows ads. The banner takes no space until an ad loads, and a failed load leaves no gap. Development builds always use Google's test banner; release builds use the real Where To Park unit. Setup and IDs: [admob.md](admob.md).

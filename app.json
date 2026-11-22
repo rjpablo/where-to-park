@@ -3,7 +3,7 @@
     "name": "Where To Park",
     "slug": "where-to-park",
     "owner": "the-bad-company",
-    "version": "1.0.15",
+    "version": "1.0.19",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,6 +14,7 @@
       "expo-location",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
+      "./plugins/withOptionalPortraitFeature.js",
       [
         "expo-image-picker",
         {
@@ -33,6 +34,13 @@
           "imageWidth": 160,
           "resizeMode": "contain",
           "backgroundColor": "#0047A0"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3932328959688671~3884874189",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]
     ],
@@ -54,9 +62,10 @@
         "ACCESS_COARSE_LOCATION",
         "POST_NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "VIBRATE",
+        "com.google.android.gms.permission.AD_ID"
       ],
-      "versionCode": 16
+      "versionCode": 20
     },
     "web": {
       "favicon": "./assets/favicon.png"

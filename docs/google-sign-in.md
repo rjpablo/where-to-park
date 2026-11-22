@@ -26,7 +26,7 @@ Staging (`ckspplijrygjlencrduw`), set through the Management API `config/auth`:
 - `external_google_enabled = true`
 - `external_google_client_id` = the web client, then the Android client
 - `external_google_secret` = the web client secret (never committed; kept on the dev box only)
-- `uri_allow_list` += `wheretopark://**`, `https://where-to-park.expo.app/**`, `https://where-to-park--*.expo.app/**`, `http://localhost:19006/**`
+- `uri_allow_list` += `wheretopark://**`, `https://where-to-park.expo.app/**`, `https://where-to-park--*.expo.app/**`, `http://localhost:19006/**`. A replacement for the public site also needs `https://<host>/**` here. The host list and the other steps are in [eas-build.md](eas-build.md) under Replacing the web address.
 - `security_manual_linking_enabled = true` (Link Google)
 - Email + password (rj): `external_email_enabled = true`, `mailer_autoconfirm = true` (no confirmation mail), `password_min_length = 8`, `external_phone_enabled = false` (phone sign-in off; existing sessions keep refreshing)
 

@@ -287,6 +287,30 @@ Notes:
   a reanimated `setAttribute` error) is fixed since the SDK 54 upgrade: on web the sheet
   moves between Minimized, Normal and Maximized by tapping or dragging the handle.
 
+## Replacing the web address
+
+The public host is the first name in `web-host.json`. Names after it are older addresses that should still open the app. `app.config.js` copies that list into the iOS associated domains and the Android link claim. Do not put the host in `app.json`. `public/.well-known/assetlinks.json` has no hostname.
+
+1. Edit `web-host.json`. To move to `parking.example` and keep the current links working:
+
+   ```json
+   { "hosts": ["parking.example", "where-to-park.expo.app"] }
+   ```
+
+   Each entry is a hostname only: no `https://` and no path.
+
+2. In EAS Hosting for this project, add that domain and create the DNS records Expo shows. `https://<host>/.well-known/assetlinks.json` must return 200 with `Content-Type: application/json`. A redirect to `where-to-park.expo.app` does not count.
+
+3. On Supabase Auth, add `https://<host>/**` to the redirect allow-list, next to `https://where-to-park.expo.app/**`. Do this on staging now, and on production when the app uses it. Google's redirect URI stays the Supabase callback. `wheretopark://` does not change. See [google-sign-in.md](google-sign-in.md).
+
+4. Install a new Android build. The claim is inside the app, so a phone that already has the app keeps the previous hosts until that install.
+
+5. Redeploy the website (Web deploy, above) after the file change when the new export should be what the domain serves. A custom domain pointed at the current deployment already serves the current site and the association file.
+
+6. 🟧 Update the `Sitemap:` line in `public/robots.txt` and the site URLs in `public/index.html`, and add the host in Search Console. See [seo.md](seo.md#changing-the-web-address).
+
+iOS takes the new associated domain on the next iOS build. The Apple association file stays unpublished until `APPLE_TEAM_ID` is set in `src/lib/appLinks.ts`.
+
 ## 🟧 App icon and splash (Art's icon)
 
 The launcher icon, adaptive icon (foreground, background, monochrome) and splash come from `app.json` and `assets/`, with Art's sources in `assets/brand/`. They are native resources, so they change only in the next EAS build. The splash uses `expo-splash-screen`, which was added as a dependency for this. The web favicon and PWA icons ship with each web deploy (`public/`, `assets/favicon.png`).

@@ -4,6 +4,7 @@ import { Stack, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../src/stores/authStore';
 import { registerPushToken } from '../src/lib/push';
+import { initAds } from '../src/lib/adsInit';
 import { useBackToExit } from '../src/hooks/useBackToExit';
 import { SidebarToggle } from '../src/components/Sidebar';
 import { Toast } from '../src/components/Toast';
@@ -27,6 +28,11 @@ export default function RootLayout() {
   React.useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // AdMob (native only; a no-op on web): start the SDK once per launch.
+  React.useEffect(() => {
+    initAds();
+  }, []);
 
   // Push permission is asked once someone is signed in; the token follows the account.
   const userId = user?.id;
@@ -93,6 +99,8 @@ export default function RootLayout() {
           <Stack.Screen name="sessions/index" options={{ title: 'Sessions' }} />
           <Stack.Screen name="sessions/[id]" options={{ title: 'Session' }} />
           <Stack.Screen name="operator/listings" options={{ title: 'My listings' }} />
+          <Stack.Screen name="operator/reports/index" options={{ title: 'Reports' }} />
+          <Stack.Screen name="operator/reports/collections" options={{ title: 'Collections' }} />
           <Stack.Screen name="operator/hub/[id]" options={{ title: 'Listing' }} />
           <Stack.Screen name="operator/onboarding" options={{ title: 'List Your Space' }} />
           <Stack.Screen name="operator/edit/[id]" options={{ title: 'Edit listing' }} />

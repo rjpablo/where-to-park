@@ -1,6 +1,6 @@
 # Test cases
 
-**As of 13 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
+**As of 22 Nov 2026.** Checks for the behavior in [implemented.md](implemented.md). Each case is something a person can try. Where the rule is pure logic, the named unit test must agree with the case. Run it with:
 
 ```bash
 node --experimental-strip-types --test path/to/file.test.ts
@@ -15,7 +15,8 @@ Unit: `src/lib/sidebar.test.ts`
 
 **NAV-02.** Open the sidebar while signed in, with no listing and no staff membership. **Expect:** My profile, Messages, Notifications, Sessions, and Saved vehicles, plus List your parking space. My listings is absent.
 
-**NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space.
+**NAV-03.** Open the sidebar as an owner, manager, or staff member. **Expect:** My listings is shown instead of List your parking space. An owner or a manager also sees Reports under My listings. Staff do not.
+Unit: `src/lib/sidebar.test.ts`
 
 **NAV-04.** Open the sidebar as an admin. **Expect:** Verify listings, Moderation queue, Contact messages, Push notifications, and System settings. A pending count shows on the row that has one, and the red attention dot follows `get_sidebar_counts`. A trigger turned off in the database does not light the dot.
 Unit: `src/lib/sidebar.test.ts`
@@ -31,6 +32,9 @@ Unit: `src/lib/backToExit.test.ts`
 **NAV-08.** Repeat NAV-07 with the sheet at Normal. **Expect:** the same press-again-to-close prompt. The sheet is not minimized first.
 
 **NAV-09.** From a listing opened on top of Find Parking, press hardware back. **Expect:** the app returns to Find Parking. The exit prompt does not appear.
+
+**NAV-10.** On a phone with a build that includes the host list, open the public site (the first host in `web-host.json`), a search link, or a listing link from another app. **Expect:** the app opens on that page. Typing the address in Chrome can offer Open in the app. With no app installed, the page stays in the browser. Google sign-in that returns to the website's `/oauth-callback` stays in the browser. A second host in `web-host.json` opens the app the same way.
+Unit: `src/lib/appLinks.test.ts`
 
 ## Finding parking
 
@@ -74,8 +78,36 @@ Unit: `src/lib/userLocation.test.ts`
 **SEARCH-14.** Look at the map with the results sheet minimized. **Expect:** the sheet covers only a sliver of the map's bottom edge. The centre cursor sits in the middle of the map that stays visible.
 Unit: `src/lib/sheetLayout.test.ts`
 
-**SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** an alert says the search only includes listings within that limit. The slider and the search stop at the limit. A map that already fits does not show the alert.
+**SEARCH-15.** Search an area whose farthest corner is beyond the search limit. **Expect:** a short toast on the map says the search was limited to that distance, and its close button dismisses it. The map zooms in so its farthest corner is the limit. The slider and the search stop at the limit. A map that already fits does not show the toast or zoom in.
 Unit: `src/lib/distance.test.ts`
+
+**SEARCH-20.** Open Find Parking with location denied, with location off, and with location allowed but before the first fix (web and Android). **Expect:** the map is always drawn: a view of the Philippines while there is no location, with no search there. Denied shows the short location message. When the fix arrives the map opens on it at the usual zoom and searches (distance about 3 km on a phone screen). Panning the Philippines view offers Search this area.
+
+**SEARCH-16.** Run a search, set Car, Hourly, Free parking and sort by price, then tap Share on the results sheet. **Expect:** Android opens the share sheet; the web opens the browser share sheet or shows 'Link copied'. The link is `https://where-to-park.expo.app/search?lat=…&lng=…&place=…&r=…&v=car&rate=hourly&free=1&full=0&sort=price`.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-17.** Open that link in a browser, and on an Android phone with a build that includes the host list. **Expect:** the same place, distance, filters and sort, and the same results. A signed-in driver with a different default vehicle still gets the link's vehicle. On the web the address bar shows the same full link, and changing a filter (for example Free parking) updates it.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-18.** Open `/search?lat=abc&lng=1`, `/search?v=spaceship&lat=14.55&lng=121.02`, and `wheretopark://search?lat=14.55&lng=121.02`. **Expect:** the first opens Find Parking as usual (device location); the second searches that point with the screen's own vehicle filter; the third opens the app on that search.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-19.** On the web, open a search link with a place and view the page source and the live tags. **Expect:** the served HTML has the site-wide title, description, Open Graph and Twitter tags. Once loaded, the title is 'Parking near <place> | Where To Park', the description names the place, and canonical, og:* and twitter:* tags match, with no duplicate description tag.
+Unit: `src/lib/searchLink.test.ts`
+
+**SEARCH-21.** 🟧 Open `https://where-to-park.expo.app/robots.txt` and `/sitemap.xml`. **Expect:** both 200; robots.txt is `text/plain`, allows `/`, disallows the private screens (`/operator`, `/admin`, `/profile`, …) and ends with the `Sitemap:` line; sitemap.xml is valid XML with the home page, every place in `seo/popular-places.json`, and each city with published listings not already covered, each with a `<lastmod>` and `&amp;` between parameters.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-22.** 🟧 Open a sitemap link (for example Makati CBD) in a browser and inspect `<link rel="canonical">`. **Expect:** exactly the sitemap URL (same coordinates, place, no filters); the title is 'Parking near Makati CBD | Where To Park'.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-23.** 🟧 Paste a search link into the Facebook Sharing Debugger (or a Messenger chat). **Expect:** a large preview with the Where To Park image (1200×630: 'Find parking near you', the Google Play badge and a QR code), the site title and description. `/og-image.png` returns `image/png`. After an image change, press Scrape Again in the debugger to drop Facebook's cached preview.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-24.** 🟧 Set `googleSiteVerification` in `web-host.json` and redeploy. **Expect:** the served HTML has one `<meta name="google-site-verification" content="…">`; with it empty there is none. Search Console verifies the URL-prefix property.
+Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-25.** 🟧 Scan the QR code on `/og-image.png` with a phone camera, from the full image and from a Facebook preview. **Expect:** it opens the Where To Park Play listing (`com.thebadcompany.wheretopark`); testers see the app, others see 'not found' until the app is public. `npm run og:image` reports OK at 1200, 600, 500, 400 and 360 px wide.
 
 ## Listing details
 
@@ -225,6 +257,9 @@ Unit: `src/lib/rateForm.test.ts`
 **MANAGE-12.** Invite staff by an email that has an account, and by one that does not. **Expect:** the screen does not say whether the account exists. The person is not added immediately. They get a notification with Accept and Decline and appear in Members only after Accept. Resend waits three minutes. An invite can be limited to specific listings.
 Unit: `src/lib/staffInvite.test.ts`
 
+**MANAGE-13.** As an owner or manager, open Reports and then Collections. **Expect:** the listing dropdown starts on All listings. The date-range dropdown under it starts on Today, in Philippine time. Custom opens the system date picker for the start and the end, not a text field. Payments is one total, not split by method. Collected is payments minus refunds. Extra fees are not shown. Waivers and refunds follow the dates. Still to collect is the open balance now, and the note says it does not follow the dates. A payment line shows the time, listing, plate, method, amount, and who recorded it. Staff who are not an owner or manager do not see Reports.
+Unit: `src/lib/collections.test.ts`, `src/lib/sidebar.test.ts`
+
 ## Chat and notifications
 
 **CHAT-01.** Open Messages as a driver, then as staff. **Expect:** the driver sees their own conversations. Staff also see driver threads on their listings. A row shows the latest message and an unread mark. Opening a row opens that thread. A `driverId` on the chat route opens that driver's thread.
@@ -268,6 +303,9 @@ Unit: `src/lib/privacyPolicy.test.ts`
 **ACCOUNT-09.** Send Contact Us as a guest, twice, with a category, a message, and up to five images. Leave the reply contact empty, then send one with an email or a phone. **Expect:** Issue, Feedback, and Suggestion are the categories. A message is required. More than five images is refused. A reply contact is optional and, when present, must be an email or a phone. The second guest submission is treated as the same sender.
 Unit: `src/lib/contact.test.ts`
 
+**ACCOUNT-10.** Open Privacy Policy and read the Advertising section. **Expect:** it says the Android app shows banner ads from Google AdMob and the web app shows none, lists the advertising ID, IP address, device and usage information and approximate location, explains how to reset the advertising ID or opt out in Android settings, and links to Google's partner-sites and ads policies. 'Last updated' reads November 15, 2026.
+Unit: `src/lib/privacyPolicy.test.ts`
+
 ## Admin
 
 **ADMIN-01.** Open the Verification Queue. **Expect:** listings waiting for verification are listed, each as Hidden or Published, and Unverified. Open shows the public page. An unpublished listing can still be opened by the admin.
@@ -286,3 +324,19 @@ Unit: `supabase/functions/send-push/lib.test.ts`
 
 **ADMIN-07.** As an admin, open System Settings and save a search radius limit. **Expect:** a whole number of kilometres from 1 to 500 is saved. The field starts at the current limit, 50 by default. Someone who is not an admin does not see System settings in the sidebar.
 Unit: `src/lib/distance.test.ts`, `src/lib/sidebar.test.ts`
+
+## Ads
+
+**ADS-01.** On an Android build, open Find Parking, a Location Details page, Notifications, Sessions, and Availability (switch between the Sessions and Reservations tabs) as a driver, then as staff. **Expect:** a banner sits at the bottom of each screen, above the navigation bar. It covers no button: the results sheet, the ◎ button, Open Chat, and the + button stay above it. Lists scroll to their end above the banner.
+
+**ADS-02.** Open the same screens signed in as an admin. **Expect:** no banner and no blank strip at the bottom.
+Unit: `src/lib/ads.test.ts`
+
+**ADS-03.** Open sign-in, a chat thread, Check In, Edit details, Apply payment, Add fee, Reserve a spot, List Your Space, and Profile. **Expect:** no ads.
+
+**ADS-04.** Open the screens from ADS-01 with no internet (or when no ad fills). **Expect:** the banner does not appear and leaves no gap; the screen looks as it did before ads.
+
+**ADS-05.** Open the web app. **Expect:** no ads anywhere.
+
+**ADS-06.** In a development build, check the banner. **Expect:** it is labeled "Test Ad". A release build requests the real Where To Park unit.
+Unit: `src/lib/ads.test.ts`

@@ -1,0 +1,18 @@
+# Where To Park. Public pages: Find Parking (/search), listings (/location/...), Privacy, Contact.
+User-agent: *
+Allow: /
+Disallow: /operator
+Disallow: /staff
+Disallow: /admin
+Disallow: /notifications
+Disallow: /sessions
+Disallow: /chat
+Disallow: /reserve
+Disallow: /profile
+Disallow: /accounts
+Disallow: /vehicles
+Disallow: /shortcuts
+Disallow: /auth
+Disallow: /oauth-callback
+
+Sitemap: https://where-to-park.expo.app/sitemap.xml

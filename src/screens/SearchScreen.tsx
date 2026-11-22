@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
-  Alert,
   View,
   Text,
   StyleSheet,
@@ -51,18 +50,25 @@ import {
   SEARCH_START_ZOOM,
   centerToCornerMeters,
   distanceAfterSearch,
+  fitDistanceToMax,
   searchCapKm,
   searchLimitMessage,
   sliderMaxKm,
+  zoomForCornerMeters,
 } from '../lib/distance';
+import { showToast } from '../stores/toastStore';
 import { getGeocoder, type PlaceSuggestion } from '../lib/geocoding';
 import { firstParam } from '../lib/params';
 import {
+  buildSearchShareUrl,
   parseSearchLink,
+  parseSearchLinkFilters,
   sameSearchCenter,
+  searchLinkFiltersKey,
+  shareSearchParams,
+  searchSeo,
+  type SearchLinkQuery,
   searchCenterKey,
-  searchDocumentDescription,
-  searchDocumentTitle,
   searchLinkParams,
   type SearchCenter,
 } from '../lib/searchLink';
@@ -82,10 +88,16 @@ import { formatListingRating } from '../lib/rating';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
 import { loadMyMemberships } from '../lib/operatorAccess';
-import { useBottomInset } from '../hooks/useBottomInset';
+import { useBannerSlot } from '../hooks/useBannerSlot';
+import { AdBanner } from '../components/AdBanner';
 import { listingAvailability, listingPinLabel, visibleResults } from '../lib/areas';
 import { useAvailabilityChanges } from '../hooks/useAvailabilityChanges';
 import { changeAffectsSearch, LIVE_REFRESH_DEBOUNCE_MS } from '../lib/liveAvailability';
+import { shareLink } from '../utils/shareLink';
+import webHost from '../../web-host.json';
+
+/** The public site: shared links and the canonical address use it. */
+const SITE_ORIGIN = `https://${webHost.hosts[0]}`;
 
 // Results sheet, three modes (snap points, drag the handle between them):
 // - Minimized: fits its top part (title, summary, one row of filters, distance slider);
@@ -110,19 +122,36 @@ const RECENTER_GAP = 16;
 const CENTRE_CURSOR = 28;
 /** How far the minimized sheet overlaps the map, so the edge does not show a gap. */
 const MAP_UNDER_SHEET = 8;
+/**
+ * Bug fix (map missing): the map shows the Philippines while there is no search
+ * centre yet (no link, device location pending, denied, or unavailable). It is
+ * only a view: no search runs there. The first real centre flies the map to it.
+ */
+const PLACEHOLDER_REGION: MapRegion = {
+  latitude: 12.8797,
+  longitude: 121.774,
+  latitudeDelta: 15,
+  longitudeDelta: 15,
+};
+const PLACEHOLDER_ZOOM = 4.5;
 export function SearchScreen() {
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{
-    lat?: string | string[];
-    lng?: string | string[];
-    place?: string | string[];
-  }>();
+  const routeParams = useLocalSearchParams<SearchLinkQuery>();
   // First paint only: a link already in the URL, so the map and the first search
   // start there. With no link, the first search waits for the device location.
   const openingLink = useRef(parseSearchLink(routeParams)).current;
   const openingCenter: SearchCenter | null = openingLink
     ? { lat: openingLink.lat, lng: openingLink.lng }
     : null;
+  // A shared link's radius: new searches use it (not the visible-map max) until the
+  // driver runs a search of their own. Only with the link's coordinates.
+  const linkRadiusKm = useRef<number | null>(
+    openingLink ? (parseSearchLinkFilters(routeParams).distanceKm ?? null) : null
+  );
+  // A shared link set the vehicle filter, so the account's default vehicle does not replace it.
+  const linkSetVehicle = useRef(false);
+  const appliedLinkFilters = useRef<string | null>(null);
+  const publishedFilters = useRef<string | null>(null);
   const {
     results,
     loading,
@@ -162,6 +191,8 @@ export function SearchScreen() {
   // Identifies the current search (centre + 'Search this area' nonce) so the
   // effect can tell a new search from a filter/sort re-run.
   const lastSearchKey = useRef<string | null>(null);
+  // A new search wider than the cap: zoom the map in to that cap once results show.
+  const limitToCap = useRef(false);
   const latestViewport = useRef<MapViewport | null>(null);
   // After jumping to a searched place, offer "Search this area" there too.
   const offerSearchAfterMove = useRef(false);
@@ -182,16 +213,26 @@ export function SearchScreen() {
   const navApp = preferredNavApp(authUser?.preferred_nav_app);
   const [etas, setEtas] = useState<Record<string, { duration_s: number; source: string }>>({});
   const [hasWorkspace, setHasWorkspace] = useState(false);
+  const [canReport, setCanReport] = useState(false);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   // Expanded, the sheet reaches the screen bottom (behind the nav bar): end the list above it.
-  const listBottom = useBottomInset(theme.spacing.lg);
+  // With the bottom banner ad showing, the map and sheet end above the ad, which already
+  // pads for the nav bar, so neither the list nor the collapsed sheet adds that inset.
+  // screenH (measured below) is then the height above the ad, so the map and sheet math
+  // (mapHeightAboveSheet, sheetCoverOnMap, normal/maximized) follows automatically.
+  const {
+    contentInset: listBottom,
+    bannerShown,
+    onBannerShownChange,
+  } = useBannerSlot(theme.spacing.lg);
+  const sheetBottomInset = bannerShown ? 0 : insets.bottom;
   // Collapsed height = measured top part of the sheet (see onLayout below).
   const [peekContentHeight, setPeekContentHeight] = useState<number | null>(null);
   const peekPx = peekContentHeight
     ? peekHeight(
         peekContentHeight,
-        insets.bottom,
+        sheetBottomInset,
         SHEET_PEEK_MIN,
         SHEET_PEEK_MAX_FRACTION,
         windowHeight
@@ -230,15 +271,23 @@ export function SearchScreen() {
         }
       : null
   );
-  if (mapCenter && !regionRef.current) {
+  // From the first search centre only. A pan or a place pick on the placeholder
+  // map must not snap the camera to it.
+  if (location && !regionRef.current) {
+    // The placeholder map is replaced by one opening here (see `key` on <Map>), so
+    // its viewport must not size this search. The new map's first viewport then
+    // searches again with the real one, as when the screen opens from a link.
+    latestViewport.current = null;
     regionRef.current = {
-      latitude: mapCenter.latitude,
-      longitude: mapCenter.longitude,
+      latitude: location.lat,
+      longitude: location.lng,
       latitudeDelta: 0.05,
       longitudeDelta: 0.05,
     };
   }
   const region = regionRef.current;
+  const mapRegion = region ?? PLACEHOLDER_REGION;
+  const mapZoom = region ? SEARCH_START_ZOOM : PLACEHOLDER_ZOOM;
 
   const handleViewportChange = useCallback((viewport: MapViewport) => {
     const user = viewport.isUserInteraction;
@@ -330,6 +379,12 @@ export function SearchScreen() {
   const latParam = firstParam(routeParams.lat);
   const lngParam = firstParam(routeParams.lng);
   const placeParam = firstParam(routeParams.place);
+  const radiusParam = firstParam(routeParams.r);
+  const vehicleParam = firstParam(routeParams.v);
+  const rateParam = firstParam(routeParams.rate);
+  const freeParam = firstParam(routeParams.free);
+  const fullParam = firstParam(routeParams.full);
+  const sortParam = firstParam(routeParams.sort);
   // A URL with coordinates (including one that arrives while this screen is open)
   // becomes the search. Our own address update is ignored.
   useEffect(() => {
@@ -346,6 +401,7 @@ export function SearchScreen() {
       return;
     }
     if (!same) {
+      linkRadiusKm.current = parseSearchLinkFilters({ r: radiusParam }).distanceKm ?? null;
       localPublish.current = null;
       pickedName.current = null;
       locationRef.current = center;
@@ -368,7 +424,70 @@ export function SearchScreen() {
     if (!linked.place && reversedFor.current !== key) {
       void publishSearchLink(center, null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latParam, lngParam, placeParam, publishSearchLink]);
+
+  // Filters and sort from a shared link (only with valid coordinates). Bad values are
+  // ignored. On the web they then leave the address bar, which keeps lat/lng/place.
+  useEffect(() => {
+    if (!parseSearchLink({ lat: latParam, lng: lngParam })) return;
+    const linked = parseSearchLinkFilters({
+      v: vehicleParam,
+      rate: rateParam,
+      free: freeParam,
+      full: fullParam,
+      sort: sortParam,
+    });
+    const key = searchLinkFiltersKey(linked);
+    if (key === searchLinkFiltersKey({}) || appliedLinkFilters.current === key) return;
+    // Our own address-bar update (web), not a link.
+    if (publishedFilters.current === key) return;
+    appliedLinkFilters.current = key;
+    const store = useSearchStore.getState();
+    const next: Partial<typeof store.filters> = {};
+    if (linked.vehicleType !== undefined) {
+      linkSetVehicle.current = true;
+      if (linked.vehicleType !== store.filters.vehicleType) next.vehicleType = linked.vehicleType;
+    }
+    if (linked.rateType !== undefined && linked.rateType !== store.filters.rateType) {
+      next.rateType = linked.rateType;
+    }
+    if (linked.freeOnly !== undefined && linked.freeOnly !== store.filters.freeOnly) {
+      next.freeOnly = linked.freeOnly;
+    }
+    if (linked.showFull !== undefined && linked.showFull !== store.filters.showFull) {
+      next.showFull = linked.showFull;
+    }
+    if (Object.keys(next).length) setFilters(next);
+    if (linked.sortBy && linked.sortBy !== store.sortBy) setSortBy(linked.sortBy);
+  }, [
+    latParam,
+    lngParam,
+    vehicleParam,
+    rateParam,
+    freeParam,
+    fullParam,
+    sortParam,
+    setFilters,
+    setSortBy,
+  ]);
+
+  // Web: the address bar carries the distance, filters and sort too, so it is
+  // the same link Share sends, and a reload keeps the search.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !location) return;
+    const params = shareSearchParams({ ...location, ...filters, sortBy });
+    const own = parseSearchLinkFilters(params);
+    publishedFilters.current = searchLinkFiltersKey(own);
+    router.setParams({
+      r: params.r,
+      v: params.v,
+      rate: params.rate,
+      free: params.free,
+      full: params.full,
+      sort: params.sort,
+    });
+  }, [location, filters, sortBy, router]);
 
   const searchThisArea = () => {
     if (!movedViewport) return;
@@ -380,6 +499,8 @@ export function SearchScreen() {
     latestViewport.current = view;
     // The cursor sits on the map centre, so that centre is the search point.
     const next: SearchCenter = { lat: view.center.latitude, lng: view.center.longitude };
+    // The driver's own search: back to the visible-map distance.
+    linkRadiusKm.current = null;
     locationRef.current = next;
     // The search effect recomputes the slider max for this centre and viewport.
     setLocation(next);
@@ -428,18 +549,22 @@ export function SearchScreen() {
   useEffect(() => {
     if (!authUser) {
       setHasWorkspace(false);
+      setCanReport(false);
       return;
     }
     // Account switch: don't keep the previous account's workspace while loading.
     setHasWorkspace(!!authUser.is_admin || authUser.account_type === 'operator');
+    setCanReport(false);
     loadMyMemberships(authUser.id)
       .then((rows) => {
         setHasWorkspace(
           !!authUser.is_admin || authUser.account_type === 'operator' || rows.length > 0
         );
+        setCanReport(rows.some((row) => row.role === 'owner' || row.role === 'manager'));
       })
       .catch(() => {
         setHasWorkspace(!!authUser.is_admin || authUser.account_type === 'operator');
+        setCanReport(false);
       });
   }, [authUser]);
 
@@ -473,7 +598,8 @@ export function SearchScreen() {
           .maybeSingle();
         type = vehicle?.vehicle_type ?? null;
       }
-      if (!cancelled) setFilters({ vehicleType: defaultVehicleFilter(!!authUserId, type) });
+      if (cancelled || linkSetVehicle.current) return;
+      setFilters({ vehicleType: defaultVehicleFilter(!!authUserId, type) });
     })();
     return () => {
       cancelled = true;
@@ -537,9 +663,13 @@ export function SearchScreen() {
     setDistanceMaxKm(maxKm);
     if (isNewSearch) {
       const limited = searchLimitMessage(farthest, searchCap);
-      if (limited) Alert.alert('Search limited', limited);
+      limitToCap.current = limited != null;
+      if (limited) showToast(limited, 'info', 'map');
     }
-    const next = distanceAfterSearch(isNewSearch, filters.distanceKm, maxKm);
+    const next =
+      isNewSearch && linkRadiusKm.current != null
+        ? fitDistanceToMax(linkRadiusKm.current, maxKm)
+        : distanceAfterSearch(isNewSearch, filters.distanceKm, maxKm);
     if (next !== filters.distanceKm) {
       setFilters({ distanceKm: next }); // re-runs this effect (same search) with the new value
       return;
@@ -554,12 +684,32 @@ export function SearchScreen() {
   }, [filters, sortBy, location?.lat, location?.lng, searchNonce, search]);
 
   // After a new area search, zoom out when the map is too tight to show every pin.
-  // A map that already shows them stays where it is.
+  // A map that already shows them stays where it is. A search that was wider than
+  // the cap zooms in so the farthest corner is that cap.
   useEffect(() => {
     if (loading || fitToken.current === fittedToken.current) return;
     const view = mapRef.current?.readViewport() ?? latestViewport.current;
     if (!view) return;
     fittedToken.current = fitToken.current;
+    if (limitToCap.current) {
+      limitToCap.current = false;
+      const zoom = zoomForCornerMeters(
+        windowWidth,
+        mapHeight,
+        searchCapKm(searchCap) * 1000,
+        view.center.latitude
+      );
+      if (zoom != null) {
+        mapRef.current?.focus(
+          {
+            coordinate: { latitude: view.center.latitude, longitude: view.center.longitude },
+            zoom,
+          },
+          { atCenter: true }
+        );
+      }
+      return;
+    }
     if (shown.length === 0) return;
     const points = shown
       .map((row) => listingPoint(row))
@@ -577,7 +727,7 @@ export function SearchScreen() {
       { coordinate: { latitude: view.center.latitude, longitude: view.center.longitude }, zoom },
       { atCenter: true }
     );
-  }, [loading, shown, windowWidth, mapHeight, normalPx, peekPx, mapCenter]);
+  }, [loading, shown, windowWidth, mapHeight, normalPx, peekPx, mapCenter, searchCap]);
 
   // Live availability (rj t143u): a change to a listing in the results, or one inside the
   // searched circle that could now enter them, quietly re-runs the same search
@@ -709,20 +859,56 @@ export function SearchScreen() {
     [etas, navApp, router]
   );
 
+  const seo = searchSeo(SITE_ORIGIN, location ? { ...location, place: placeLabel } : null);
+  const shareSearch = () => {
+    if (!location) return;
+    const url = buildSearchShareUrl(SITE_ORIGIN, {
+      ...location,
+      place: placeLabel,
+      distanceKm: filters.distanceKm,
+      vehicleType: filters.vehicleType,
+      rateType: filters.rateType,
+      freeOnly: filters.freeOnly,
+      showFull: filters.showFull,
+      sortBy,
+    });
+    void shareLink(url, seo.title);
+  };
+
   return (
-    <View style={styles.container} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
-      {Platform.OS === 'web' ? (
-        <Head>
-          <title>{searchDocumentTitle(placeLabel)}</title>
-          <meta name="description" content={searchDocumentDescription(placeLabel)} />
-        </Head>
-      ) : null}
-      {/* Map with location pins */}
-      {region ? (
+    <View style={styles.screen}>
+      <View style={styles.container} onLayout={(e) => setScreenH(e.nativeEvent.layout.height)}>
+        {Platform.OS === 'web' ? (
+          <Head>
+            <title>{seo.title}</title>
+            <meta name="description" content={seo.description} />
+            <link rel="canonical" href={seo.canonical} />
+            <meta property="og:type" content="website" />
+            <meta property="og:site_name" content="Where To Park" />
+            <meta property="og:title" content={seo.title} />
+            <meta property="og:description" content={seo.description} />
+            <meta property="og:url" content={seo.canonical} />
+            <meta property="og:image" content={seo.image} />
+            <meta property="og:image:secure_url" content={seo.image} />
+            <meta property="og:image:type" content="image/png" />
+            <meta property="og:image:width" content={String(seo.imageWidth)} />
+            <meta property="og:image:height" content={String(seo.imageHeight)} />
+            <meta property="og:image:alt" content={seo.imageAlt} />
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content={seo.title} />
+            <meta name="twitter:description" content={seo.description} />
+            <meta name="twitter:image" content={seo.image} />
+            <meta name="twitter:image:alt" content={seo.imageAlt} />
+          </Head>
+        ) : null}
+        {/* Map with location pins */}
         <Map
+          // A new map at the first search centre, not a flight from the placeholder:
+          // a flight can be cut short by the sheet's camera nudge.
+          key={region ? 'search' : 'placeholder'}
           ref={mapRef}
-          region={region}
-          initialZoom={SEARCH_START_ZOOM}
+          region={mapRegion}
+          initialZoom={mapZoom}
           pins={pins}
           onPinPress={handlePinPress}
           style={StyleSheet.flatten([
@@ -735,238 +921,261 @@ export function SearchScreen() {
           overlayInsets={overlayInsets}
           onViewportChange={handleViewportChange}
         />
-      ) : null}
 
-      <View
-        pointerEvents="none"
-        style={[styles.centreCursor, { top: mapHeight / 2 }]}
-        testID="map-centre-cursor"
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-      >
-        <View style={styles.centreCursorRing} />
-        <View style={styles.centreCursorDot} />
-      </View>
+        <View
+          pointerEvents="none"
+          style={[styles.centreCursor, { top: mapHeight / 2 }]}
+          testID="map-centre-cursor"
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+        >
+          <View style={styles.centreCursorRing} />
+          <View style={styles.centreCursorDot} />
+        </View>
 
-      <View
-        style={[styles.topOverlay, suggestionsOpen && styles.topOverlayRaised]}
-        pointerEvents="box-none"
-      >
-        <PlaceSearchBox
-          near={mapCenter ?? undefined}
-          label={placeLabel}
-          onSuggestionsVisibleChange={setSuggestionsOpen}
-          onSelect={handlePlaceSelect}
-          onClear={() => {
-            pickedName.current = null;
-          }}
-        />
-        {movedViewport ? (
-          <TouchableOpacity
-            style={styles.searchAreaButton}
-            onPress={searchThisArea}
-            accessibilityRole="button"
-            testID="search-this-area"
-          >
-            <Text style={styles.searchAreaText}>Search this area</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
+        <View
+          style={[styles.topOverlay, suggestionsOpen && styles.topOverlayRaised]}
+          pointerEvents="box-none"
+        >
+          <PlaceSearchBox
+            near={mapCenter ?? undefined}
+            label={placeLabel}
+            onSuggestionsVisibleChange={setSuggestionsOpen}
+            onSelect={handlePlaceSelect}
+            onClear={() => {
+              pickedName.current = null;
+            }}
+          />
+          {movedViewport ? (
+            <TouchableOpacity
+              style={styles.searchAreaButton}
+              onPress={searchThisArea}
+              accessibilityRole="button"
+              testID="search-this-area"
+            >
+              <Text style={styles.searchAreaText}>Search this area</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
-      {/* ◎ button: fixed on the map overlay layer (under the sheet), at the right, RECENTER_GAP
+        {/* ◎ button: fixed on the map overlay layer (under the sheet), at the right, RECENTER_GAP
           above the Minimized sheet. It follows the measured Minimized height, not the live
           sheet position, so Normal and Maximized simply cover it. Hidden while place
           suggestions are open (that layer is then lifted above the sheet). */}
-      {!suggestionsOpen ? (
-        <View
-          style={[styles.recenterWrap, { bottom: peekPx + RECENTER_GAP }]}
-          pointerEvents="box-none"
-          testID="recenter-layer"
-        >
-          <LocationNotice text={locationNotice} />
-          <LocateButton
-            active={permission === 'granted' && !!userLocation}
-            onPress={handleRecenter}
-          />
-        </View>
-      ) : null}
-
-      {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
-      <BottomSheet
-        ref={sheetRef}
-        index={sheetModeIndex(sheetPosition)}
-        snapPoints={snapPoints}
-        onChange={(index) => {
-          if (index >= 0) setSheetPosition(sheetModeAt(index));
-        }}
-        handleComponent={null}
-        // bottom-sheet v5 adds a content-sized snap point by default; ours are measured px.
-        enableDynamicSizing={false}
-        enablePanDownToClose={false}
-        // Horizontal drags (distance slider, chips) must not move the sheet.
-        activeOffsetY={[-8, 8]}
-        failOffsetX={[-8, 8]}
-        backgroundStyle={styles.sheetBackground}
-        style={styles.sheet}
-        // Draw the sheet above all map overlays; on Android sibling order follows
-        // elevation, so it needs a higher elevation than the search box (12).
-        containerStyle={styles.sheetLayer}
-      >
-        <View
-          style={styles.sheetBody}
-          testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
-        >
-          {/* Top part: always shown; its measured height is the collapsed height. */}
+        {!suggestionsOpen ? (
           <View
-            testID="sheet-top"
-            onLayout={(e) => setPeekContentHeight(e.nativeEvent.layout.height)}
+            style={[styles.recenterWrap, { bottom: peekPx + RECENTER_GAP }]}
+            pointerEvents="box-none"
+            testID="recenter-layer"
           >
-            <TouchableOpacity
-              testID="sheet-expand-toggle"
-              accessibilityLabel="Toggle search sheet"
-              onPress={() =>
-                sheetRef.current?.snapToIndex(sheetModeIndex(nextSheetMode(sheetPosition)))
-              }
-              style={styles.sheetHandleHit}
+            <LocationNotice text={locationNotice} />
+            <LocateButton
+              active={permission === 'granted' && !!userLocation}
+              onPress={handleRecenter}
+            />
+          </View>
+        ) : null}
+
+        {/* Bottom sheet: swipe up/down anywhere on it (header or list) to expand/restore. */}
+        <BottomSheet
+          ref={sheetRef}
+          index={sheetModeIndex(sheetPosition)}
+          snapPoints={snapPoints}
+          onChange={(index) => {
+            if (index >= 0) setSheetPosition(sheetModeAt(index));
+          }}
+          handleComponent={null}
+          // bottom-sheet v5 adds a content-sized snap point by default; ours are measured px.
+          enableDynamicSizing={false}
+          enablePanDownToClose={false}
+          // Horizontal drags (distance slider, chips) must not move the sheet.
+          activeOffsetY={[-8, 8]}
+          failOffsetX={[-8, 8]}
+          backgroundStyle={styles.sheetBackground}
+          style={styles.sheet}
+          // Draw the sheet above all map overlays; on Android sibling order follows
+          // elevation, so it needs a higher elevation than the search box (12).
+          containerStyle={styles.sheetLayer}
+        >
+          <View
+            style={styles.sheetBody}
+            testID={loading ? 'search-loading' : error ? 'search-error' : 'search-ready'}
+          >
+            {/* Top part: always shown; its measured height is the collapsed height. */}
+            <View
+              testID="sheet-top"
+              onLayout={(e) => setPeekContentHeight(e.nativeEvent.layout.height)}
             >
-              <View style={styles.sheetHandle} />
-            </TouchableOpacity>
+              <TouchableOpacity
+                testID="sheet-expand-toggle"
+                accessibilityLabel="Toggle search sheet"
+                onPress={() =>
+                  sheetRef.current?.snapToIndex(sheetModeIndex(nextSheetMode(sheetPosition)))
+                }
+                style={styles.sheetHandleHit}
+              >
+                <View style={styles.sheetHandle} />
+              </TouchableOpacity>
 
-            <View style={styles.sheetHeader}>
-              <View style={styles.sheetTitleRow}>
-                <View style={styles.sheetTitleBlock}>
-                  <Text style={styles.sheetTitle} testID="sheet-title">
-                    Search Result
-                  </Text>
-                  <Text
-                    style={styles.sheetSummary}
-                    numberOfLines={1}
-                    testID="search-summary"
-                    accessibilityLiveRegion="polite"
-                  >
-                    {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(shown)}
-                  </Text>
+              <View style={styles.sheetHeader}>
+                <View style={styles.sheetTitleRow}>
+                  <View style={styles.sheetTitleBlock}>
+                    <Text style={styles.sheetTitle} testID="sheet-title">
+                      Search Result
+                    </Text>
+                    <Text
+                      style={styles.sheetSummary}
+                      numberOfLines={1}
+                      testID="search-summary"
+                      accessibilityLiveRegion="polite"
+                    >
+                      {loading ? 'Searching…' : error ? 'Search failed' : searchSummary(shown)}
+                    </Text>
+                  </View>
+                  {location ? (
+                    <TouchableOpacity
+                      style={styles.shareButton}
+                      onPress={shareSearch}
+                      accessibilityRole="button"
+                      accessibilityLabel="Share this search"
+                      hitSlop={8}
+                      testID="search-share"
+                    >
+                      <Ionicons
+                        name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'}
+                        size={20}
+                        color={theme.colors.primary}
+                      />
+                      <Text style={styles.shareText}>Share</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
-              </View>
 
-              {/* Vehicle, Rate, Free parking, then Show Full. The row scrolls sideways on
+                {/* Vehicle, Rate, Free parking, then Show Full. The row scrolls sideways on
                   narrow screens. Gesture-handler ScrollView so it cooperates with the
                   sheet's pan gesture (the sheet only takes vertical drags: activeOffsetY / failOffsetX). */}
-              <GestureScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.filterScroll}
-                contentContainerStyle={styles.filterRow}
-                keyboardShouldPersistTaps="handled"
-                testID="filter-row"
-              >
-                <FilterDropdown
-                  label="Vehicle"
-                  showLabel={false}
-                  value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
-                  options={VEHICLE_FILTER_OPTIONS}
-                  onChange={(vehicleType) => setFilters({ vehicleType })}
-                  testID="search-vehicle-filter"
-                />
-                <FilterDropdown
-                  label="Rate type"
-                  showLabel={false}
-                  value={isRateType(filters.rateType) ? filters.rateType : null}
-                  options={RATE_FILTER_OPTIONS}
-                  onChange={(rateType) => setFilters({ rateType })}
-                  testID="filter-rate-type"
-                />
-                <TouchableOpacity
-                  style={[styles.filterChip, filters.freeOnly && styles.filterChipActive]}
-                  onPress={() => setFilters({ freeOnly: !filters.freeOnly })}
-                  accessibilityState={{ selected: filters.freeOnly }}
-                  accessibilityLabel="Free parking"
-                  testID="filter-free"
+                <GestureScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.filterScroll}
+                  contentContainerStyle={styles.filterRow}
+                  keyboardShouldPersistTaps="handled"
+                  testID="filter-row"
                 >
-                  <Text style={styles.filterChipText}>Free parking</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
-                  onPress={() => setFilters({ showFull: !filters.showFull })}
-                  accessibilityState={{ selected: filters.showFull }}
-                  testID="filter-show-full"
-                >
-                  <Text style={styles.filterChipText}>Show Full</Text>
-                </TouchableOpacity>
-              </GestureScrollView>
+                  <FilterDropdown
+                    label="Vehicle"
+                    showLabel={false}
+                    value={isVehicleType(filters.vehicleType) ? filters.vehicleType : null}
+                    options={VEHICLE_FILTER_OPTIONS}
+                    onChange={(vehicleType) => setFilters({ vehicleType })}
+                    testID="search-vehicle-filter"
+                  />
+                  <FilterDropdown
+                    label="Rate type"
+                    showLabel={false}
+                    value={isRateType(filters.rateType) ? filters.rateType : null}
+                    options={RATE_FILTER_OPTIONS}
+                    onChange={(rateType) => setFilters({ rateType })}
+                    testID="filter-rate-type"
+                  />
+                  <TouchableOpacity
+                    style={[styles.filterChip, filters.freeOnly && styles.filterChipActive]}
+                    onPress={() => setFilters({ freeOnly: !filters.freeOnly })}
+                    accessibilityState={{ selected: filters.freeOnly }}
+                    accessibilityLabel="Free parking"
+                    testID="filter-free"
+                  >
+                    <Text style={styles.filterChipText}>Free parking</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filterChip, filters.showFull && styles.filterChipActive]}
+                    onPress={() => setFilters({ showFull: !filters.showFull })}
+                    accessibilityState={{ selected: filters.showFull }}
+                    testID="filter-show-full"
+                  >
+                    <Text style={styles.filterChipText}>Show Full</Text>
+                  </TouchableOpacity>
+                </GestureScrollView>
 
-              <DistanceSlider
-                valueKm={filters.distanceKm}
-                maxKm={distanceMaxKm}
-                onChangeKm={(km) => {
-                  setFilters({ distanceKm: km });
-                }}
-                testID="filter-distance"
-              />
-            </View>
-          </View>
-
-          {/* Always mounted: collapsed, this sits below the visible part of the sheet. */}
-          <View style={styles.sortRow}>
-            <Text style={styles.sortLabel}>Sort by:</Text>
-            {SORT_OPTIONS.map((sort) => (
-              <TouchableOpacity
-                key={sort}
-                style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
-                onPress={() => setSortBy(sort)}
-                testID={`sort-${sort}`}
-              >
-                <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
-                  {SORT_LABELS[sort]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.distanceNote} testID="distance-note">
-            <Ionicons
-              name="information-circle-outline"
-              size={14}
-              color={theme.colors.text.secondary}
-              accessibilityElementsHidden
-              importantForAccessibility="no"
-            />
-            <Text style={styles.distanceNoteText}>
-              Distance and estimated travel time are from the search location, not your current
-              location.
-            </Text>
-          </View>
-
-          <BottomSheetFlatList
-            data={listData}
-            renderItem={renderListItem}
-            keyExtractor={(item) => item.id}
-            style={styles.list}
-            contentContainerStyle={[styles.listContent, listBottom]}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>
-                  {loading
-                    ? 'Searching...'
-                    : error
-                      ? `Error: ${error}`
-                      : !location
-                        ? deviceLocationPending(permission, !!userLocation)
-                          ? 'Finding your location…'
-                          : 'Location is not available. Search for a place.'
-                        : 'No listings found'}
-                </Text>
+                <DistanceSlider
+                  valueKm={filters.distanceKm}
+                  maxKm={distanceMaxKm}
+                  onChangeKm={(km) => {
+                    setFilters({ distanceKm: km });
+                  }}
+                  testID="filter-distance"
+                />
               </View>
-            }
-          />
-        </View>
-      </BottomSheet>
+            </View>
 
-      <Sidebar hasWorkspace={hasWorkspace} />
+            {/* Always mounted: collapsed, this sits below the visible part of the sheet. */}
+            <View style={styles.sortRow}>
+              <Text style={styles.sortLabel}>Sort by:</Text>
+              {SORT_OPTIONS.map((sort) => (
+                <TouchableOpacity
+                  key={sort}
+                  style={[styles.sortChip, sortBy === sort && styles.sortChipActive]}
+                  onPress={() => setSortBy(sort)}
+                  testID={`sort-${sort}`}
+                >
+                  <Text style={[styles.sortChipText, sortBy === sort && styles.sortChipTextActive]}>
+                    {SORT_LABELS[sort]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.distanceNote} testID="distance-note">
+              <Ionicons
+                name="information-circle-outline"
+                size={14}
+                color={theme.colors.text.secondary}
+                accessibilityElementsHidden
+                importantForAccessibility="no"
+              />
+              <Text style={styles.distanceNoteText}>
+                Distance and estimated travel time are from the search location, not your current
+                location.
+              </Text>
+            </View>
+
+            <BottomSheetFlatList
+              data={listData}
+              renderItem={renderListItem}
+              keyExtractor={(item) => item.id}
+              style={styles.list}
+              contentContainerStyle={[styles.listContent, listBottom]}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>
+                    {loading
+                      ? 'Searching...'
+                      : error
+                        ? `Error: ${error}`
+                        : !location
+                          ? deviceLocationPending(permission, !!userLocation)
+                            ? 'Finding your location…'
+                            : 'Location is not available. Search for a place.'
+                          : 'No listings found'}
+                  </Text>
+                </View>
+              }
+            />
+          </View>
+        </BottomSheet>
+
+        <Sidebar hasWorkspace={hasWorkspace} canReport={canReport} />
+      </View>
+      {/* Bottom of the screen, below the map and the results sheet (rj t196u). */}
+      <AdBanner onShownChange={onBannerShownChange} testID="search-ad" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -1094,6 +1303,21 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 1,
     marginRight: theme.spacing.sm,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  shareText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   sheetSummary: {
     ...theme.typography.bodySmall,

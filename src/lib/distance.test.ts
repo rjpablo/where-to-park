@@ -4,6 +4,7 @@ import {
   DEFAULT_DISTANCE_KM,
   SEARCH_START_ZOOM,
   centerToCornerMeters,
+  zoomForCornerMeters,
   distanceAfterSearch,
   fitDistanceToMax,
   formatDistanceKm,
@@ -58,18 +59,23 @@ test('slider max follows the farthest visible edge, rounded up, min 0.5 km', () 
   assert.equal(searchCapKm(0), 50);
 });
 
-test('a wider map asks for an alert naming the cap; a fitting map does not', () => {
+test('a wider map names the cap; a fitting map does not', () => {
   assert.equal(searchLimitMessage(12_300), null);
   assert.equal(searchLimitMessage(50_000), null);
-  assert.equal(
-    searchLimitMessage(80_000),
-    'The area on the map is larger than 50 km. This search only includes listings within 50 km.'
-  );
-  assert.equal(
-    searchLimitMessage(80_000, 30),
-    'The area on the map is larger than 30 km. This search only includes listings within 30 km.'
-  );
+  assert.equal(searchLimitMessage(80_000), 'Search limited to 50 km.');
+  assert.equal(searchLimitMessage(80_000, 30), 'Search limited to 30 km.');
   assert.equal(searchLimitMessage(80_000, 80), null);
+});
+
+test('zooming to the search cap puts that distance at the farthest corner', () => {
+  const lat = 16.4023;
+  const zoom = zoomForCornerMeters(412, 638, 50_000, lat);
+  assert.ok(zoom != null);
+  const back = centerToCornerMeters(412, 638, zoom, lat);
+  assert.ok(Math.abs(back - 50_000) < 1, `corner ${back}`);
+  const wider = zoomForCornerMeters(412, 638, 80_000, lat);
+  assert.ok(wider != null && zoom > wider);
+  assert.equal(zoomForCornerMeters(0, 638, 50_000, lat), null);
 });
 
 test('an admin search cap is a whole number of kilometres from 1 to 500', () => {

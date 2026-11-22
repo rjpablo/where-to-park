@@ -34,6 +34,24 @@ export function centerToCornerMeters(
   return Math.hypot(width / 2, height / 2) * metersPerPoint(zoom, latitude);
 }
 
+/**
+ * Zoom at which the farthest map corner is `cornerMeters` from the centre.
+ * A smaller distance is a closer zoom.
+ */
+export function zoomForCornerMeters(
+  width: number,
+  height: number,
+  cornerMeters: number,
+  latitude: number
+): number | null {
+  if (width <= 0 || height <= 0 || !(cornerMeters > 0)) return null;
+  const half = Math.hypot(width / 2, height / 2);
+  const cos = Math.cos((latitude * Math.PI) / 180);
+  if (cos <= 0) return null;
+  const zoom = Math.log2((half * EARTH_CIRCUMFERENCE_M * cos) / (512 * cornerMeters));
+  return Number.isFinite(zoom) ? Math.max(0, zoom) : null;
+}
+
 /** Whole-kilometre range an admin may store as the search cap. */
 export const SEARCH_CAP_MIN_KM = 1;
 export const SEARCH_CAP_MAX_KM = 500;
@@ -91,7 +109,7 @@ export function sliderMaxKm(farthestVisibleMeters: number, capKm = MAX_DISTANCE_
 }
 
 /**
- * Alert body when the visible area is wider than the cap, so the search used the
+ * Toast when the visible area is wider than the cap, so the search used the
  * cap instead. Null when the area already fits.
  */
 export function searchLimitMessage(
@@ -101,7 +119,7 @@ export function searchLimitMessage(
   const cap = searchCapKm(capKm);
   if (roundedUpKm(farthestVisibleMeters) <= cap) return null;
   const label = formatDistanceKm(cap);
-  return `The area on the map is larger than ${label}. This search only includes listings within ${label}.`;
+  return `Search limited to ${label}.`;
 }
 
 /** Clamp a distance under a new max (rounded to a slider step). */
