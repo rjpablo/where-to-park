@@ -189,7 +189,10 @@ export default function AreasScreen() {
         <View style={styles.backdrop}>
           <View style={styles.dialog} testID="area-delete-dialog">
             <Text style={styles.dialogTitle}>Delete '{pendingDelete?.name}'?</Text>
-            <Text style={styles.dialogBody}>This removes the area from {locationName}.</Text>
+            <Text style={styles.dialogBody}>
+              This removes the area and its rates from {locationName}. Past sessions keep their
+              history. You can reuse the name for a new area.
+            </Text>
             <Button
               title="Delete"
               variant="danger"
