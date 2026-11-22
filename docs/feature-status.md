@@ -75,7 +75,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | 🟧 Rates screen: default on top, a section per area with Add rate; Price preview in a bottom sheet with an area choice |
 | 🟢     | 🟧 Location details group rates by area when a listing has 2+ areas; search counts any area's rates that take the vehicle |
 | 🟢     | 🟧 Deleting an area is a soft delete (area and its rates); blocked while the area has open sessions or reservations. Deleted areas are hidden everywhere, history keeps them, names can be reused |
-| 🟢     | A rate can be limited to days, dates, and one vehicle type (within its area). Each billed hour uses the rate in effect then |
+| 🟢     | A rate can be limited to days and dates. 🟧 Its vehicle types are its area's (no Vehicle field on the rate form). Each billed hour uses the rate in effect then |
 | 🟢     | One default rate, always applicable, never deletable. 🟧 Set as default is gone (PAD-6); edit the default itself          |
 | 🟢     | Deactivate, activate, archive, and restore. Deactivating a rate that is in use moves those hours onto the rates in effect  |
 | 🟢     | Overnight is a listing setting: one fee per night, including a window that crosses midnight. A monthly stay is unchanged   |

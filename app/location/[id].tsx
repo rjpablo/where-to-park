@@ -423,9 +423,7 @@ export default function LocationDetailScreen() {
 
   const renderRateItem = (rate: any) => (
     <View key={rate.id} style={styles.rateItem}>
-      <Text style={styles.rateType}>
-        {rate.name || rate.rate_type} {rate.vehicle_type && `(${rate.vehicle_type})`}
-      </Text>
+      <Text style={styles.rateType}>{rate.name || rate.rate_type}</Text>
       <Text style={styles.ratePrice}>{rateSummary(rate, formatPeso) ?? 'Contact for rates'}</Text>
     </View>
   );

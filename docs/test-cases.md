@@ -169,13 +169,13 @@ Unit: `src/lib/rates.test.ts`
 **PRICE-02.** Quote an ordinary stay while a monthly rate exists, and quote a stay with the monthly rate chosen. **Expect:** the ordinary stay is not priced as monthly. The chosen monthly rate is used only when it is selected. The Rates preview stays hourly and does not switch onto monthly.
 Unit: `src/lib/quotePreview.test.ts`
 
-**PRICE-03.** Limit a rate to weekdays, a date range, one vehicle type, and one area. Start a stay on a Manila day outside that limit. **Expect:** that rate is not used. The default rate still applies: every day, no dates, no vehicle, no area.
+**PRICE-03.** Limit a rate to weekdays and a date range in an area that takes only some vehicles (🟧 no per-rate vehicle). Start a stay on a Manila day outside that limit. **Expect:** that rate is not used. The default rate still applies: every day, no dates, no vehicle, no area.
 Unit: `src/lib/rateForm.test.ts`, `src/lib/rates.test.ts`
 
 **PRICE-04.** Try to delete the default rate. **Expect:** it is refused, and 🟧 no rate offers Set as default (PAD-6). Deactivating a rate that is in use moves those hours onto the rates still in effect.
 Unit: `src/lib/rates.test.ts`
 
-**PRICE-07.** 🟧 On a listing with Main (all vehicles) and a motorcycle-only area, open Rates. **Expect:** the default rate is on top, then a Main section and a motorcycle-area section, each with Add rate to <area>. Add a rate from the motorcycle section: the form says the area and only offers Motorcycle (or Any vehicle in this area). Open **Price preview**: a bottom sheet with Area chips; picking the motorcycle area limits the vehicle chips to Motorcycle and the quote uses that area's rate; Main quotes with the default. On a single-area listing the sections have no area name and the sheet has no Area choice.
+**PRICE-07.** 🟧 On a listing with Main (all vehicles) and a motorcycle-only area, open Rates. **Expect:** the default rate is on top, then a Main section and a motorcycle-area section, each with Add rate to <area>. Add a rate from the motorcycle section: the form says the area and its vehicle types and has no Vehicle field; the row shows Motorcycle. Open **Price preview**: a bottom sheet with Area chips; picking the motorcycle area limits the vehicle chips to Motorcycle and the quote uses that area's rate; Main quotes with the default. On a single-area listing the sections have no area name and the sheet has no Area choice.
 Unit: `src/lib/areaRates.test.ts`, `src/lib/rateForm.test.ts`
 
 **PRICE-08.** 🟧 Check in a walk-in in the motorcycle area, then one in Main. **Expect:** the rate list and Automatic use that area's rates plus the default; Main doesn't show the motorcycle area's rates. Move a reservation to the other area: an automatic rate is picked again for it.

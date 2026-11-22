@@ -47,12 +47,10 @@ test('PAD-6: rates inherit their area vehicle types; the default takes any vehic
   assert.equal(rateFitsVehicle(motoRate, moto, 'motorcycle'), true);
   assert.equal(rateFitsVehicle(motoRate, moto, 'car'), false);
   assert.equal(rateFitsVehicle(motoRate, main, 'car'), true);
-  // No vehicle picked: any rate without its own vehicle limit counts.
+  // No vehicle picked: every rate counts.
   assert.equal(rateFitsVehicle(motoRate, moto, null), true);
-  // A rate's own vehicle limit still applies.
-  const carOnly = { id: 'c', is_default: false, area_id: 'm', vehicle_type: 'car' };
-  assert.equal(rateFitsVehicle(carOnly, main, 'car'), true);
-  assert.equal(rateFitsVehicle(carOnly, main, 'suv'), false);
-  assert.equal(rateFitsVehicle(carOnly, main, null), false);
+  // rj t239u: a leftover rate-level vehicle value is ignored; the area decides.
+  const oldCar = { id: 'c', is_default: false, area_id: 'm', vehicle_type: 'car' };
+  assert.equal(rateFitsVehicle(oldCar, main, 'suv'), true);
   assert.equal(rateFitsVehicle({ ...motoRate, deleted_at: 'x' }, moto, 'motorcycle'), false);
 });

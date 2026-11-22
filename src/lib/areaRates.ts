@@ -65,9 +65,9 @@ export function showAreaHeadings(areas: unknown[]): boolean {
 }
 
 /**
- * Whether a rate applies to a vehicle (same rule as rate_fits_vehicle in 0096): its own
- * vehicle limit, if any, and its area's vehicle types (the default: any vehicle). With no
- * vehicle chosen, only rates without a vehicle limit count.
+ * Whether a rate applies to a vehicle (rate_fits_vehicle, 0098): an area rate takes
+ * exactly its area's vehicle types (rj t239u); the default takes every vehicle. No
+ * vehicle chosen: every rate counts.
  */
 export function rateFitsVehicle(
   rate: RateLike,
@@ -75,7 +75,6 @@ export function rateFitsVehicle(
   vehicle: string | null | undefined
 ): boolean {
   if (rate.deleted_at) return false;
-  if (rate.vehicle_type && rate.vehicle_type !== vehicle) return false;
   if (rate.is_default || !rate.area_id || !vehicle) return true;
   return !!area && areaAllowsVehicle(area, vehicle);
 }
