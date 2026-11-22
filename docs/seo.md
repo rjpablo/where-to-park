@@ -83,9 +83,17 @@ Today (2026-11-22) staging has listings in Baguio (covered by the popular Baguio
 
 ### Link previews (Open Graph)
 
-`public/og-image.png` is one branded image for the whole site: the white brand pin on the brand blue, 'Where To Park', 'Find parking near you' and the web address. It is made by code: `npm run og:image` (`scripts/og/make-og-image.py`, Pillow and the Poppins font) from `assets/brand/pin-transparent-cropped.png`. Re-run it after a brand or host change.
+🟧 `public/og-image.png` is one branded image for the whole site (design approved by rj, t231u): the app icon and 'Where To Park', the headline 'Find parking near you', the subline 'Find available spots, rates and reservations', the white brand pin on the brand blue, and a Play Store call to action: 'Get the app on Google Play', Google's official 'Get it on Google Play' badge, and a QR code to `https://play.google.com/store/apps/details?id=com.thebadcompany.wheretopark`. There is no place name on it, because every link gets the same image until there is server rendering.
 
-The served HTML (`public/index.html`) has `og:image`, `og:image:secure_url`, `og:image:type` (`image/png`), `og:image:width` (1200), `og:image:height` (630), `og:image:alt`, `twitter:card` (`summary_large_image`), `twitter:image` and `twitter:image:alt`. The search page sets the same tags in the browser with a place-specific alt. Facebook and chat apps read only the served HTML, so their preview shows the site-wide title, description and image for every link. Place-specific previews would need server rendering (not built).
+It is made by code: `npm run og:image` runs `scripts/og/generate_og_image.py --default --verify-qr` (Python with Pillow, numpy and qrcode; the QR check also needs `zxing-cpp` or `opencv-python`). It checks that the QR decodes to the Play listing at full size and at preview widths 600, 500, 400 and 360 px. The 2026-11-22 image is about 126 KB and decodes at all five sizes. Re-run it after a brand change and commit the PNG. `--place "Pasay" --out /tmp/og-pasay.png` renders the per-place variant ('Parking near Pasay') that server rendering would use; it is not on the site.
+
+Assets: `assets/icon.png` and `assets/brand/pin-transparent-cropped.png` (the app's own); `scripts/og/assets/en_badge_web_generic.png`, Google's official badge from https://play.google.com/intl/en_us/badges/, used unmodified and with its clear space, as Google's badge guidelines require (Google Play and the Google Play logo are trademarks of Google LLC); `scripts/og/fonts/Inter-VariableFont_opsz,wght.ttf`, Inter under the SIL Open Font License 1.1 (`scripts/og/fonts/OFL.txt`).
+
+While the app is in closed testing, people who are not testers get 'not found' when they scan the code. It works for everyone once the listing is public.
+
+Facebook caches a link's preview. After the image changes, paste the link into the Sharing Debugger (https://developers.facebook.com/tools/debug/) and press **Scrape Again** to refresh it.
+
+The served HTML (`public/index.html`) has `og:image`, `og:image:secure_url`, `og:image:type` (`image/png`), `og:image:width` (1200), `og:image:height` (630), `og:image:alt`, `twitter:card` (`summary_large_image`), `twitter:image` and `twitter:image:alt`. The search page sets the same tags in the browser. Facebook and chat apps read only the served HTML, so their preview shows the site-wide title, description and image for every link. Place-specific previews would need server rendering (not built).
 
 ## Google Search Console (rj)
 
@@ -106,4 +114,4 @@ The verification tag is added to the served HTML at deploy time from `web-host.j
 
 ## Changing the web address
 
-After a host change (see [eas-build.md](eas-build.md#replacing-the-web-address)), also update the `Sitemap:` line in `public/robots.txt` and the `https://where-to-park.expo.app` URLs in `public/index.html` (a unit test fails until they match `web-host.json`), re-run `npm run og:image`, and add the new host as a URL-prefix property in Search Console.
+After a host change (see [eas-build.md](eas-build.md#replacing-the-web-address)), also update the `Sitemap:` line in `public/robots.txt` and the `https://where-to-park.expo.app` URLs in `public/index.html` (a unit test fails until they match `web-host.json`), and add the new host as a URL-prefix property in Search Console.

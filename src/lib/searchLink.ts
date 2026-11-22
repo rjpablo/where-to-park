@@ -215,7 +215,12 @@ export type SearchSeo = {
   imageAlt: string;
 };
 
-export const OG_IMAGE = { path: '/og-image.png', width: 1200, height: 630 } as const;
+export const OG_IMAGE = {
+  path: '/og-image.png',
+  width: 1200,
+  height: 630,
+  alt: 'Where To Park: Find parking near you. Get the app on Google Play (QR code to the app listing).',
+} as const;
 
 /** Title, description, canonical link and share image for the Find Parking page. */
 export function searchSeo(
@@ -230,8 +235,7 @@ export function searchSeo(
     image: `${origin.replace(/\/+$/, '')}${OG_IMAGE.path}`,
     imageWidth: OG_IMAGE.width,
     imageHeight: OG_IMAGE.height,
-    imageAlt: place
-      ? `Where To Park: find parking near ${place}`
-      : 'Where To Park: find parking near you on a live map',
+    // One site-wide image (no place on it), so the alt describes that image.
+    imageAlt: OG_IMAGE.alt,
   };
 }

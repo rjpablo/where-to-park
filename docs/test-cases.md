@@ -101,11 +101,13 @@ Unit: `src/lib/sitemap.test.ts`
 **SEARCH-22.** 🟧 Open a sitemap link (for example Makati CBD) in a browser and inspect `<link rel="canonical">`. **Expect:** exactly the sitemap URL (same coordinates, place, no filters); the title is 'Parking near Makati CBD | Where To Park'.
 Unit: `src/lib/sitemap.test.ts`
 
-**SEARCH-23.** 🟧 Paste a search link into the Facebook Sharing Debugger (or a Messenger chat). **Expect:** a large preview with the Where To Park image (1200×630), the site title and description. `/og-image.png` returns `image/png`.
+**SEARCH-23.** 🟧 Paste a search link into the Facebook Sharing Debugger (or a Messenger chat). **Expect:** a large preview with the Where To Park image (1200×630: 'Find parking near you', the Google Play badge and a QR code), the site title and description. `/og-image.png` returns `image/png`. After an image change, press Scrape Again in the debugger to drop Facebook's cached preview.
 Unit: `src/lib/sitemap.test.ts`
 
 **SEARCH-24.** 🟧 Set `googleSiteVerification` in `web-host.json` and redeploy. **Expect:** the served HTML has one `<meta name="google-site-verification" content="…">`; with it empty there is none. Search Console verifies the URL-prefix property.
 Unit: `src/lib/sitemap.test.ts`
+
+**SEARCH-25.** 🟧 Scan the QR code on `/og-image.png` with a phone camera, from the full image and from a Facebook preview. **Expect:** it opens the Where To Park Play listing (`com.thebadcompany.wheretopark`); testers see the app, others see 'not found' until the app is public. `npm run og:image` reports OK at 1200, 600, 500, 400 and 360 px wide.
 
 ## Listing details
 

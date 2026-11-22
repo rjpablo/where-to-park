@@ -111,7 +111,10 @@ test('builds canonical, Open Graph image and title for a search', () => {
   assert.equal(seo.image, 'https://where-to-park.expo.app/og-image.png');
   assert.equal(seo.imageWidth, 1200);
   assert.equal(seo.imageHeight, 630);
-  assert.equal(seo.imageAlt, 'Where To Park: find parking near Makati City');
+  assert.equal(
+    seo.imageAlt,
+    'Where To Park: Find parking near you. Get the app on Google Play (QR code to the app listing).'
+  );
   assert.equal(searchCanonicalUrl(`${ORIGIN}/`, null), `${ORIGIN}/search`);
   assert.equal(searchSeo(ORIGIN, null).title, 'Find Parking Near You | Where To Park');
 });

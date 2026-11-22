@@ -307,7 +307,7 @@ The public host is the first name in `web-host.json`. Names after it are older a
 
 5. Redeploy the website (Web deploy, above) after the file change when the new export should be what the domain serves. A custom domain pointed at the current deployment already serves the current site and the association file.
 
-6. 🟧 Update the `Sitemap:` line in `public/robots.txt` and the site URLs in `public/index.html`, re-run `npm run og:image`, and add the host in Search Console. See [seo.md](seo.md#changing-the-web-address).
+6. 🟧 Update the `Sitemap:` line in `public/robots.txt` and the site URLs in `public/index.html`, and add the host in Search Console. See [seo.md](seo.md#changing-the-web-address).
 
 iOS takes the new associated domain on the next iOS build. The Apple association file stays unpublished until `APPLE_TEAM_ID` is set in `src/lib/appLinks.ts`.
 

@@ -47,3 +47,8 @@ storepass.txt
 # Firebase Admin SDK / FCM service account keys (private; never commit)
 *firebase-adminsdk*.json
 .fcm-service-account.json
+
+# OG image generator scratch
+scripts/og/out/
+scripts/og/.venv/
+scripts/og/__pycache__/
