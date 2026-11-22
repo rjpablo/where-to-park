@@ -89,10 +89,12 @@ The served HTML (`public/index.html`) has `og:image`, `og:image:secure_url`, `og
 
 ## Google Search Console (rj)
 
+🟧 Verification code added Nov 22, 2026 (rj t230u): the served HTML now carries `<meta name="google-site-verification" content="KUqQ5q9N1mrY8-o_JSgbcD7InY0UwZpdNvLPZVwnmDM" />`. Remaining for rj: press **Verify** in Search Console, then submit `sitemap.xml` (steps 5 and 6).
+
 The verification tag is added to the served HTML at deploy time from `web-host.json`:
 
 ```json
-{ "hosts": ["where-to-park.expo.app"], "googleSiteVerification": "" }
+{ "hosts": ["where-to-park.expo.app"], "googleSiteVerification": "KUqQ5q9N1mrY8-o_JSgbcD7InY0UwZpdNvLPZVwnmDM" }
 ```
 
 1. Open https://search.google.com/search-console and **Add property**.
