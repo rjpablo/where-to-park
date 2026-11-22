@@ -172,13 +172,13 @@ Unit: `src/lib/rates.test.ts`
 **PRICE-02.** Quote an ordinary stay while a monthly rate exists, and quote a stay with the monthly rate chosen. **Expect:** the ordinary stay is not priced as monthly. The chosen monthly rate is used only when it is selected. The Rates preview stays hourly and does not switch onto monthly.
 Unit: `src/lib/quotePreview.test.ts`
 
-**PRICE-03.** Limit a rate to weekdays, a date range, one vehicle type, and one area. Start a stay on a Manila day outside that limit. **Expect:** that rate is not used. The default rate still applies: every day, no dates, no vehicle, no area.
+**PRICE-03.** Limit a rate to weekdays and a date range in an area that takes only some vehicles (🟧 no per-rate vehicle). Start a stay on a Manila day outside that limit. **Expect:** that rate is not used. The default rate still applies: every day, no dates, no vehicle, no area.
 Unit: `src/lib/rateForm.test.ts`, `src/lib/rates.test.ts`
 
 **PRICE-04.** Try to delete the default rate. **Expect:** it is refused, and 🟧 no rate offers Set as default (PAD-6). Deactivating a rate that is in use moves those hours onto the rates still in effect.
 Unit: `src/lib/rates.test.ts`
 
-**PRICE-07.** 🟧 On a listing with Main (all vehicles) and a motorcycle-only area, open Rates. **Expect:** the default rate is on top, then a Main section and a motorcycle-area section, each with Add rate to <area>. Add a rate from the motorcycle section: the form says the area and only offers Motorcycle (or Any vehicle in this area). Open **Price preview**: a bottom sheet with Area chips; picking the motorcycle area limits the vehicle chips to Motorcycle and the quote uses that area's rate; Main quotes with the default. On a single-area listing the sections have no area name and the sheet has no Area choice.
+**PRICE-07.** 🟧 On a listing with Main (all vehicles) and a motorcycle-only area, open Rates. **Expect:** the default rate is on top, then a Main section and a motorcycle-area section, each with Add rate to <area>. Add a rate from the motorcycle section: the form says the area and its vehicle types and has no Vehicle field; the row shows Motorcycle. Open **Price preview**: a bottom sheet with Area chips; picking the motorcycle area limits the vehicle chips to Motorcycle and the quote uses that area's rate; Main quotes with the default. On a single-area listing the sections have no area name and the sheet has no Area choice.
 Unit: `src/lib/areaRates.test.ts`, `src/lib/rateForm.test.ts`
 
 **PRICE-08.** 🟧 Check in a walk-in in the motorcycle area, then one in Main. **Expect:** the rate list and Automatic use that area's rates plus the default; Main doesn't show the motorcycle area's rates. Move a reservation to the other area: an automatic rate is picked again for it.
@@ -186,7 +186,7 @@ Unit: `src/lib/areaRates.test.ts`, `src/lib/rateForm.test.ts`
 **PRICE-09.** 🟧 Open that listing's Location details, then a single-area listing. **Expect:** with 2+ areas the default comes first, then each area's rates under its name (areas with no rates are left out); a single-area listing looks as before. In search, a monthly rate only in the motorcycle area makes the listing match Monthly for Motorcycle or no vehicle, not for Car.
 Unit: `src/lib/areaRates.test.ts`
 
-**PRICE-10.** 🟧 Delete an area that has a reservation, then one with an open session, then one with neither but with rates. **Expect:** the first is refused ('This area has reservations…'), the second too ('This area has open sessions…'). The third is deleted, and its rates disappear from Rates (including Show archived) and are no longer used for pricing.
+**PRICE-10.** 🟧 Delete an area that has a reservation, then one with an open session, then one with neither but with rates. **Expect:** the first is refused ('This area has reservations…'), the second too ('This area has open sessions…'). The third is deleted, and its rates disappear from Rates (including Show archived) and are no longer used for pricing. 🟧 The area is gone from Areas, Availability tabs, check-in and reservation area choices, Location details and search vehicle matching; its spots leave the listing's totals; an ended session from it still shows its name; a new area can use the same name; Main has no Delete and the server refuses it.
 
 **PRICE-05.** Turn overnight on and quote a stay that crosses the window, including one that crosses midnight, and one that sits entirely inside the window. **Expect:** overnight hours are left out of the hourly total. One overnight fee is added per night the stay covers. The line reads "Overnight: 1 night". A stay entirely inside the window is the overnight fee only. A monthly stay is unchanged.
 Unit: `src/lib/overnight.test.ts`
@@ -262,7 +262,7 @@ Unit: `src/lib/areas.test.ts`
 **MANAGE-08.** Edit an area's monitoring, total, and vehicle types, leaving every type unchecked. **Expect:** no types selected means every type. A monitored area stores a total.
 Unit: `src/lib/areas.test.ts`
 
-**MANAGE-09.** On Rates, turn Track capacity on and off, open Edit rate, and use a rate row. **Expect:** Free parking is not on this screen. Track capacity is on Rates and on Edit rate. Off hides the field and stops counting spots. The capacity number stays. On requires a whole number of at least 1. The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived, restored, or set as the default.
+**MANAGE-09.** On Rates, open Edit rate, and use a rate row. **Expect:** Free parking is not on this screen. 🟧 Neither Rates nor New/Edit rate has Track capacity (it is on Areas). The preview uses the same price function as a real stay, including a flat-rate split and an overnight line when the sample hours fall in the window. A row can be edited, activated, deactivated, archived or restored (🟧 no Set as default).
 Unit: `src/lib/listingCapacity.test.ts`, `src/lib/quotePreview.test.ts`, `src/lib/rates.test.ts`
 
 **MANAGE-10.** Create a rate and edit one. **Expect:** the form has type, amounts, an optional vehicle, days of the week, and effective dates. Dates are Manila days, and the end date covers that whole day. Saving returns to the list. The default rate's edit does not send a vehicle, an area, or an inactive flag.

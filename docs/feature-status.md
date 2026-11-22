@@ -74,8 +74,8 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | 🟧 Every rate except the default belongs to one area and inherits its vehicle types. Pricing uses the session's area rates, then the default |
 | 🟢     | 🟧 Rates screen: default on top, a section per area with Add rate; Price preview in a bottom sheet with an area choice |
 | 🟢     | 🟧 Location details group rates by area when a listing has 2+ areas; search counts any area's rates that take the vehicle |
-| 🟢     | 🟧 Deleting an area soft-deletes its rates; blocked while the area has open sessions or reservations |
-| 🟢     | A rate can be limited to days, dates, and one vehicle type (within its area). Each billed hour uses the rate in effect then |
+| 🟢     | 🟧 Deleting an area is a soft delete (area and its rates); blocked while the area has open sessions or reservations. Deleted areas are hidden everywhere, history keeps them, names can be reused |
+| 🟢     | A rate can be limited to days and dates. 🟧 Its vehicle types are its area's (no Vehicle field on the rate form). Each billed hour uses the rate in effect then |
 | 🟢     | One default rate, always applicable, never deletable. 🟧 Set as default is gone (PAD-6); edit the default itself          |
 | 🟢     | Deactivate, activate, archive, and restore. Deactivating a rate that is in use moves those hours onto the rates in effect  |
 | 🟢     | Overnight is a listing setting: one fee per night, including a window that crosses midnight. A monthly stay is unchanged   |
@@ -120,7 +120,7 @@ Do not delete a row when it ships. Change its status. [spec.md](spec.md) is the 
 | 🟢     | List Your Space: name, pin, optional address filled from the pin, rules, photo, areas, reservation requests, free parking. Track capacity starts off. Off hides the field and keeps the number |
 | 🟢     | Guests see List your parking space. Choosing it asks them to sign in or create an account, then opens listing setup |
 | 🟢     | A new listing stays hidden until an admin publishes it                                                                     |
-| 🟢     | Edit listing, including restore saved pin and the free-parking switch. Track capacity is set on Rates and Edit rate |
+| 🟢     | Edit listing, including restore saved pin and the free-parking switch. Track capacity is set per area on Areas (🟧 not on Rates or New/Edit rate) |
 | 🟢     | Hub for owners and managers: Availability, edit, areas, rates, fee presets, staff. A free listing hides fee presets       |
 | 🟢     | Staff hub: Availability and Messages                                                                                       |
 | 🟢     | Delete listing by sliding to confirm. Refused while a session is still open                                               |

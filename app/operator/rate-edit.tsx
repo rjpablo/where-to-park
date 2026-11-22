@@ -2,15 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { TrackCapacityField } from '../../src/components/TrackCapacityField';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
 import { theme } from '../../src/lib/theme';
 import { useBottomInset } from '../../src/hooks/useBottomInset';
 import { rateErrorMessage } from '../../src/lib/rates';
-import { VEHICLE_TYPES, VEHICLE_TYPE_LABELS } from '../../src/lib/searchFilters';
-import { allowedVehicleTypes, vehicleTypesLabel, type Area } from '../../src/lib/areas';
+import { VEHICLE_TYPE_LABELS } from '../../src/lib/searchFilters';
+import { vehicleTypesLabel, type Area } from '../../src/lib/areas';
 import {
   NEW_RATE,
   formFromRate,
@@ -139,7 +138,6 @@ export default function RateEditScreen() {
       testID="rate-edit-ready"
     >
       {locationName ? <Text style={styles.subtitle}>{locationName}</Text> : null}
-      {locationId ? <TrackCapacityField locationId={locationId} /> : null}
       {existing?.is_default ? (
         <Text style={styles.meta}>This is the listing's default rate.</Text>
       ) : area ? (
@@ -231,39 +229,11 @@ export default function RateEditScreen() {
         </>
       )}
 
-      {existing?.is_default ? null : (
-        <>
-          <Text style={styles.label}>Vehicle (optional)</Text>
-          <View style={styles.types}>
-            {[null, ...allowedVehicleTypes(area, VEHICLE_TYPES)].map((t) => {
-              const on = v.vehicleType === t;
-              return (
-                <TouchableOpacity
-                  key={t ?? 'all'}
-                  onPress={() => set('vehicleType', t)}
-                  style={[styles.typeChip, on && styles.typeChipOn]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  testID={`rate-vehicle-${t ?? 'all'}`}
-                >
-                  <Text style={[styles.typeChipText, on && styles.typeChipTextOn]}>
-                    {t
-                      ? VEHICLE_TYPE_LABELS[t]
-                      : area?.vehicle_types?.length
-                        ? 'Any vehicle in this area'
-                        : 'All vehicles'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </>
-      )}
-
       {existing?.is_default ? (
         <Text style={styles.meta} testID="rate-default-note">
           The default rate applies to every vehicle, every day, with no dates, so it can always
-          price a session. To limit vehicles, days or dates, use another rate.
+          price a session. To limit days or dates, add a rate to an area. An area's rates take the
+          vehicles that area takes.
         </Text>
       ) : (
         <>

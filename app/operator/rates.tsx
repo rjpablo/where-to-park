@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '../../src/components/Button';
-import { TrackCapacityField } from '../../src/components/TrackCapacityField';
 import { DateTimeField } from '../../src/components/DateTimeField';
 import { supabase } from '../../src/lib/supabase';
 import { firstParam } from '../../src/lib/params';
@@ -275,9 +274,13 @@ export default function RatesScreen() {
         {daysLabel(rate.days_of_week)}
       </Text>
       <Text style={styles.meta} testID={`rate-vehicle-${rate.name}`}>
-        {rate.vehicle_type
-          ? (VEHICLE_TYPE_LABELS as Record<string, string>)[rate.vehicle_type] || rate.vehicle_type
-          : 'All vehicles'}
+        {/* rj t239u: a rate takes its area's vehicle types; the default takes every vehicle. */}
+        {rate.is_default
+          ? 'All vehicles'
+          : vehicleTypesLabel(
+              areas.find((a) => a.id === rate.area_id)?.vehicle_types,
+              VEHICLE_TYPE_LABELS as Record<string, string>
+            )}
       </Text>
       {rate.effective_from || rate.effective_to ? (
         <Text style={styles.meta}>
@@ -365,8 +368,6 @@ export default function RatesScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={bottomInset} testID="rates-ready">
       <Text style={styles.subtitle}>{locationName}</Text>
-
-      {locationId ? <TrackCapacityField locationId={locationId} /> : null}
 
       <Button
         title="Price preview"
